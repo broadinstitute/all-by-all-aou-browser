@@ -1,4 +1,4 @@
-import type { Population } from "@karaogram/types";
+import type { Population } from "@axaou/types";
 
 export const finemappingPops: Population[] = [
   { population_id: "afr", color: "#941494" },

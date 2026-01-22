@@ -4,7 +4,7 @@ import { scaleLinear, scaleLog } from "d3-scale";
 import type { ScaleLinear, ScaleLogarithmic } from "d3-scale";
 // import { lighten } from "polished";
 
-import type { AssociationVariant, FinemappingSummary } from "@karaogram/types";
+import type { AssociationVariant, FinemappingSummary } from "@axaou/types";
 
 import { rotateColorByChromosome } from "./colorScales";
 

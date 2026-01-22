@@ -1,6 +1,6 @@
 import React from 'react';
-import { Grid } from '@karaogram/kgui';
-import { useQuery } from '@karaogram/kgui';
+import { Grid } from '@axaou/ui';
+import { useQuery } from '@axaou/ui';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
 import { useSetRecoilState } from 'recoil';
 import {

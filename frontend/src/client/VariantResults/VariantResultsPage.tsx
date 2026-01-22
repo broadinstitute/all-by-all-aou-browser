@@ -1,4 +1,4 @@
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import { useRecoilValue } from 'recoil'
 import { reverseXPosition } from '../PhenotypeList/Utils'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'

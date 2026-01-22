@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import styled from 'styled-components'
 
-import { GenesTrack, RegionViewerContext } from '@karaogram/kgui'
+import { GenesTrack, RegionViewerContext } from '@axaou/ui'
 
 import { GeneModels } from '../types'
 import { useSetRecoilState } from 'recoil'

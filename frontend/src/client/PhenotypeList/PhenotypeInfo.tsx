@@ -1,4 +1,4 @@
-import { useQuery } from '@karaogram/kgui';
+import { useQuery } from '@axaou/ui';
 import styled from 'styled-components';
 
 import { useRecoilValue } from 'recoil';

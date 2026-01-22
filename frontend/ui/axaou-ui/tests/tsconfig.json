@@ -1,5 +1,5 @@
 {
-  "references": [{ "path": "..", "name": "@karaogram/utils" }],
+  "references": [{ "path": "..", "name": "@axaou/ui" }],
   "compilerOptions": {
     "lib": ["ES2018"],
     "baseUrl": "..",

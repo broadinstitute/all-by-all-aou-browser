@@ -1,5 +1,5 @@
 import React, { PureComponent } from 'react'
-import { Grid } from '@karaogram/kgui'
+import { Grid } from '@axaou/ui'
 import { NoVariants } from '../UserInterface'
 import { VariantJoined } from '../types'
 

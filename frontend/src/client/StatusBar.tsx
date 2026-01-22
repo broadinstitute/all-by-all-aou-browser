@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import styled from 'styled-components'
 
 import { Link, ExternalLink } from '@gnomad/ui'
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {

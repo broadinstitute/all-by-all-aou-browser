@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
 /* eslint-disable jsx-a11y/label-has-for */
 import { SearchInput } from '@gnomad/ui'
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import React, { useState } from 'react'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'

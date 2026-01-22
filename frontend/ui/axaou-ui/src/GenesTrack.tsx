@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 import type { ScalePosition } from './RegionViewer/coordinates';
 
-import type { GeneModel } from '@karaogram/types';
+import type { GeneModel } from '@axaou/types';
 
 const GeneName = styled.text`
   fill: #428bca;

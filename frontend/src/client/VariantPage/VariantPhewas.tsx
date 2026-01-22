@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 //
 import { Button } from '@gnomad/ui'
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import React from 'react'
 import { withSize } from 'react-sizeme'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'

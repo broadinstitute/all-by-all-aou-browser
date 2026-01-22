@@ -4,7 +4,7 @@ import styled from 'styled-components'
 import { extent } from 'd3-array'
 import { scaleLog, scaleLinear } from 'd3-scale'
 
-import type { Variant as OrigVariant } from '@karaogram/types'
+import type { Variant as OrigVariant } from '@axaou/types'
 
 type threshold = {
   color: string

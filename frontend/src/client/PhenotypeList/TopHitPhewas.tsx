@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 
 import React from 'react'
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import { useHistory } from 'react-router-dom'
 import queryString from 'query-string'
 

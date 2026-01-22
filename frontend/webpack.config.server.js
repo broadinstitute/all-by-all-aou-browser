@@ -34,8 +34,8 @@ const config = {
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
     alias: {
-      '@karaogram/kgui': path.resolve(__dirname, 'ui/kgui/src'),
-      '@karaogram/types': path.resolve(__dirname, 'ui/types/src'),
+      '@axaou/ui': path.resolve(__dirname, 'ui/axaou-ui/src'),
+      '@axaou/types': path.resolve(__dirname, 'ui/types/src'),
       '@gnomad/classification-selector': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/classification-selector/src'),
       '@gnomad/identifiers': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/identifiers/src'),
       '@gnomad/manhattan-plot': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/manhattan-plot/src'),

@@ -8,7 +8,7 @@ import { transparentize } from 'polished'
 import { throttle } from 'lodash'
 import { getCategoryFromConsequence } from '../vepConsequences'
 
-import { Track } from '@karaogram/kgui'
+import { Track } from '@axaou/ui'
 
 const exacClassicColors = {
   lof: transparentize(0.3, '#FF583F'),

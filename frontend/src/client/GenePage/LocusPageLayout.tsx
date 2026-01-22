@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { RegionsTrack, RegionViewer } from '@karaogram/kgui'
+import { RegionsTrack, RegionViewer } from '@axaou/ui'
 import { withSize } from 'react-sizeme'
 import { useRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import { Button } from '@gnomad/ui' // Ensure Table is imported
-import { QueryState } from '@karaogram/kgui'
+import { QueryState } from '@axaou/ui'
 
 import {
   AncestryGroupCodes,

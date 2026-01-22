@@ -1,4 +1,4 @@
-import type { Variant } from '@karaogram/types';
+import type { Variant } from '@axaou/types';
 
 export const rotateColorByChromosome = (
   colors: string[],

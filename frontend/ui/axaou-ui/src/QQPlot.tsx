@@ -1,17 +1,14 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import styled from "styled-components";
-
+import { min } from "d3-array";
 import { scaleLinear } from "d3-scale";
+import React, { useEffect, useMemo, useRef } from "react";
 
-import type { ScalePosition } from "../RegionViewer/coordinates";
-import type { Variant, Association, FinemappingResult } from "@karaogram/types";
+import type { Variant, Association } from "@axaou/types";
 
-interface FinemappedVariant extends Variant {
+interface AssociationVariant extends Variant {
   association: Association;
-  finemapping: FinemappingResult;
 }
 
-type threshold = {
+type Threshold = {
   color: string;
   label: string;
   value: number;
@@ -19,63 +16,67 @@ type threshold = {
 
 interface Props {
   variants: Variant[];
-  scalePosition: ScalePosition;
-  leftPanelWidth: number;
-  rightPanelWidth: number;
+  gridLines?: boolean;
   height?: number;
   width?: number;
-  onClickPoint?: (d: FinemappedVariant) => void;
-  pointColor?: (d: FinemappedVariant) => string;
-  pointLabel?(d: FinemappedVariant): string;
-  selectedVariant?: Variant | null;
-  thresholds?: threshold[];
+  onClickPoint?: () => void;
+  pointLabel?(d: Variant): any;
+  thresholds?: Threshold[];
   xLabel?: string;
   yLabel?: string;
-  r2PopulationId?: string;
-  disableGridline?: boolean;
+  xDomain?: number[];
+  yDomain?: number[];
 }
 
-export const IntervalFMCredibleSetPlot = ({
-  variants = [],
-  scalePosition,
-  leftPanelWidth,
-  rightPanelWidth,
-  height = 400,
+export const QQPlot: React.FC<Props> = ({
+  variants,
+  gridLines = true,
+  height = 800,
   width = 1100,
-  onClickPoint = (d) => console.log(JSON.stringify(d)),
-  pointColor = () => "black",
-  pointLabel = (d) => JSON.stringify(d),
-  selectedVariant,
+  onClickPoint = (d: AssociationVariant) => console.log(d),
+  pointLabel = (d) => d.variant_id,
   thresholds = [],
-  xLabel = "",
-  yLabel = "PIP",
-  disableGridline = true,
-}: Props) => {
-  const csColor = "#1f77b4";
-  const otherColor = "#7f7f7f";
+  xDomain = undefined,
+  xLabel = "Expected -log10(p)",
+  yDomain = undefined,
+  yLabel = "Actual -log10(p)",
+}) => {
+  const associationVariants = variants.filter(
+    (v) => v.association
+  ) as AssociationVariant[];
+
+  const minPval = min(associationVariants, (d) => d.association.pvalue) || 0;
 
   const margin = {
-    bottom: 10,
-    left: leftPanelWidth,
-    right: rightPanelWidth,
+    bottom: 55,
+    left: 60,
+    right: 10,
     top: 10,
   };
 
-  const finemappedVariants = variants.filter(
-    (v) => v.finemapping
-  ) as FinemappedVariant[];
+  const xScale = scaleLinear().range([0, width - margin.left - margin.right]);
 
-  const yExtent = [0, 1];
+  if (xDomain === undefined) {
+    xScale.domain([0, -Math.log10(1 / associationVariants.length)]).nice();
+  } else {
+    xScale.domain(xDomain);
+  }
 
-  const yScale = scaleLinear()
-    .domain(yExtent)
-    .range([height - margin.top - margin.bottom, 0])
-    .nice();
+  const yScale = scaleLinear().range([height - margin.top - margin.bottom, 0]);
 
-  const points = finemappedVariants.map((d) => ({
+  if (yDomain === undefined) {
+    yScale.domain([0, -Math.log10(minPval)]).nice();
+  } else {
+    yScale.domain(yDomain);
+  }
+
+  const sortedPoints = [...associationVariants].sort(
+    (d1, d2) => d1.association.pvalue - d2.association.pvalue
+  );
+  const points = sortedPoints.map((d, i, arr) => ({
+    x: xScale(-Math.log10((i + 1) / (arr.length + 1))) || 0,
+    y: yScale(-Math.log10(d.association.pvalue)) || 0,
     data: d,
-    x: scalePosition(d.locus.position) || 0,
-    y: yScale(d.finemapping.prob) || 0,
   }));
 
   const scale = window.devicePixelRatio || 1;
@@ -101,15 +102,15 @@ export const IntervalFMCredibleSetPlot = ({
 
     ctx.transform(1, 0, 0, 1, margin.left, margin.top);
 
-    const ticks = yScale.ticks(5);
-    for (let i = 0; i < ticks.length; i += 1) {
-      const t = ticks[i];
+    const yTicks = yScale.ticks();
+    for (let i = 0; i < yTicks.length; i += 1) {
+      const t = yTicks[i];
       const y = yScale(t) || 0;
 
       ctx.beginPath();
       ctx.moveTo(-5, y);
       ctx.lineTo(0, y);
-      ctx.strokeStyle = "yellow:";
+      ctx.strokeStyle = "#333";
       ctx.stroke();
 
       ctx.font = "10px sans-serif";
@@ -117,7 +118,7 @@ export const IntervalFMCredibleSetPlot = ({
       const { width: tickLabelWidth } = ctx.measureText(`${t}`);
       ctx.fillText(`${t}`, -(9 + tickLabelWidth), y + 3);
 
-      if (!disableGridline) {
+      if (gridLines) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(w, y);
@@ -146,10 +147,54 @@ export const IntervalFMCredibleSetPlot = ({
 
     ctx.transform(1, 0, 0, 1, margin.left, height - margin.bottom);
 
+    const xTicks = xScale.ticks();
+    for (let i = 0; i < xTicks.length; i += 1) {
+      const t = xTicks[i];
+      const x = xScale(t) || 0;
+
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 3);
+      ctx.strokeStyle = "#333";
+      ctx.stroke();
+
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = "#000";
+      const { width: tickLabelWidth } = ctx.measureText(`${t}`);
+      ctx.fillText(`${t}`, x - tickLabelWidth / 2, 13);
+    }
+
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(w, 0);
     ctx.strokeStyle = "#333";
+    ctx.stroke();
+
+    ctx.font = "14px sans-serif";
+    const { width: xLabelWidth } = ctx.measureText(xLabel);
+    ctx.fillText(xLabel, (w - xLabelWidth) / 2, 50);
+
+    ctx.restore();
+
+    // Y = X line
+    // ====================================================
+
+    ctx.save();
+
+    ctx.transform(1, 0, 0, 1, margin.left, margin.top);
+
+    ctx.beginPath();
+    const p1 = Math.max(xScale.domain()[0], yScale.domain()[0]);
+    const p1x = xScale(p1) || 0;
+    const p1y = yScale(p1) || 0;
+    ctx.moveTo(p1x, p1y);
+
+    const p2 = Math.min(xScale.domain()[1], yScale.domain()[1]);
+    const p2x = xScale(p2) || 0;
+    const p2y = yScale(p2) || 0;
+    ctx.lineTo(p2x, p2y);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.restore();
@@ -170,24 +215,9 @@ export const IntervalFMCredibleSetPlot = ({
     for (let i = 0; i < points.length; i += 1) {
       const point = points[i];
 
-      if (
-        selectedVariant &&
-        point.data.locus.position == selectedVariant.locus.position
-      ) {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false);
-        ctx.fillStyle = "red";
-        ctx.fill();
-      }
-
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false);
-
-      if (point.data.finemapping.cs_99) {
-        ctx.fillStyle = csColor;
-      } else {
-        ctx.fillStyle = otherColor;
-      }
+      ctx.fillStyle = "#000";
       ctx.fill();
     }
 
@@ -196,11 +226,11 @@ export const IntervalFMCredibleSetPlot = ({
     // Significance thresholds
     // ====================================================
 
-    ctx.save();
-
-    ctx.transform(1, 0, 0, 1, margin.left, margin.top);
-
     thresholds.forEach((threshold) => {
+      ctx.save();
+
+      ctx.transform(1, 0, 0, 1, margin.left, margin.top);
+
       const thresholdY = yScale(-Math.log10(threshold.value)) || 0;
       ctx.beginPath();
       ctx.moveTo(0, thresholdY);
@@ -211,26 +241,18 @@ export const IntervalFMCredibleSetPlot = ({
       ctx.stroke();
 
       if (threshold.label) {
-        ctx.font = "14px sans-serif";
+        ctx.font = "10px sans-serif";
         ctx.fillStyle = "#000";
         ctx.fillText(threshold.label, 2, thresholdY - 4);
       }
-    });
 
-    ctx.restore();
+      ctx.restore();
+    });
 
     // ====================================================
 
     return canvas;
-  }, [
-    finemappedVariants,
-    height,
-    pointColor,
-    width,
-    xLabel,
-    yLabel,
-    thresholds,
-  ]);
+  }, [associationVariants, height, width, xLabel, yLabel, thresholds]);
 
   const mainCanvas: {
     current: HTMLCanvasElement | null;
@@ -248,7 +270,7 @@ export const IntervalFMCredibleSetPlot = ({
 
   useEffect(drawPlot);
 
-  const findNearestPoint = (x = 0, y = 0, distanceThreshold = 5) => {
+  const findNearestPoint = (x: number, y: number, distanceThreshold = 5) => {
     let nearestPoint;
     let minDistance = Infinity;
 
@@ -316,69 +338,18 @@ export const IntervalFMCredibleSetPlot = ({
     }
   };
 
-  const PlotWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  `;
-
-  const Legend = styled.div`
-    display: flex;
-    flex-direction: column;
-    width: ${rightPanelWidth}px;
-    height: ${height}px;
-    align-items: center;
-    justify-content: center;
-
-    p {
-      max-width: 100px;
-      text-align: center;
-      padding-left: 20px;
-    }
-  `;
-
-  const LegendItems = styled.ul`
-    display: flex;
-    flex-direction: column;
-
-    li {
-      display: flex;
-      flex-direction: row;
-      list-style-type: none;
-      margin-bottom: 5px;
-      align-items: center;
-    }
-  `;
-
-  const LegendIcon = styled.div<{ color: string | undefined }>`
-    width: 20px;
-    height: 20px;
-    background-color: ${(props) => props.color || "black"};
-    margin-right: 5px;
-  `;
-
   return (
-    <PlotWrapper>
-      <canvas
-        ref={mainCanvas}
-        height={height * scale}
-        width={(width - rightPanelWidth) * scale}
-        style={{
-          height: `${height}px`,
-          width: `${width - rightPanelWidth}px`,
-        }}
-        onClick={onClick}
-        onMouseLeave={drawPlot}
-        onMouseMove={onMouseMove}
-      />
-      <Legend>
-        <LegendItems>
-          <li>
-            <LegendIcon color={csColor} />
-            99% Credible set
-          </li>
-        </LegendItems>
-      </Legend>
-    </PlotWrapper>
+    <canvas
+      ref={mainCanvas}
+      height={height * scale}
+      width={width * scale}
+      style={{
+        height: `${height}px`,
+        width: `${width}px`,
+      }}
+      onClick={onClick}
+      onMouseLeave={drawPlot}
+      onMouseMove={onMouseMove}
+    />
   );
 };

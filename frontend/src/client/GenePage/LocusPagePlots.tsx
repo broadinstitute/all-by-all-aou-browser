@@ -1,6 +1,6 @@
 import React, { useContext } from 'react'
 
-import { RegionViewerContext } from '@karaogram/kgui'
+import { RegionViewerContext } from '@axaou/ui'
 import {
   ScaleDiverging,
   scaleDiverging,

@@ -18,7 +18,7 @@ import { renderCountText } from '../PhenotypeList/Utils'
 
 import { addVariantIdsToList, annotateWorstConsequence, genericMerge, processGeneBurden } from '../utils'
 
-import { useQuery } from '@karaogram/kgui'
+import { useQuery } from '@axaou/ui'
 import {
   AnalysisMetadata,
   GeneAssociations,

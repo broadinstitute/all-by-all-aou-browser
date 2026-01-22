@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid } from '@karaogram/kgui';
+import { Grid } from '@axaou/ui';
 import { LocusAssociation } from '../types';
 import { regionIdAtom } from '../sharedState';
 import { useSetRecoilState } from 'recoil';
