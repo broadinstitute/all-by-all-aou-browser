@@ -17,6 +17,12 @@ pub enum AppError {
 
     #[error("Internal task error: {0}")]
     JoinError(#[from] tokio::task::JoinError),
+
+    #[error("Invalid interval: {0}")]
+    InvalidInterval(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
 }
 
 impl IntoResponse for AppError {
@@ -26,6 +32,8 @@ impl IntoResponse for AppError {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
             AppError::JoinError(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            AppError::InvalidInterval(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
         };
 
         let body = Json(json!({ "error": error_message }));
