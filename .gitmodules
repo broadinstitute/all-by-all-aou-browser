@@ -1,0 +1,4 @@
+[submodule "frontend/gnomad-browser-toolkit"]
+	path = frontend/gnomad-browser-toolkit
+	url = https://github.com/mattsolo1/gnomad-browser-toolkit.git
+	branch = mui-v5-upgrade

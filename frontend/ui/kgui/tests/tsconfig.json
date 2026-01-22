@@ -1,0 +1,11 @@
+{
+  "references": [{ "path": "..", "name": "@karaogram/utils" }],
+  "compilerOptions": {
+    "lib": ["ES2018"],
+    "baseUrl": "..",
+    "noEmit": true,
+    "esModuleInterop": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["."]
+}

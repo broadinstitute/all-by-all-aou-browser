@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 864 504">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6 {
+        fill: none;
+        stroke: #231f20;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-2 {
+        stroke-dasharray: 2 2;
+      }
+
+      .cls-2, .cls-4, .cls-5, .cls-6 {
+        stroke-width: 3px;
+      }
+
+      .cls-3 {
+        stroke-dasharray: 2;
+      }
+
+      .cls-4 {
+        stroke-dasharray: 2.29 2.29;
+      }
+
+      .cls-7 {
+        font-family: Helvetica-Bold, Helvetica;
+        font-size: 18.13px;
+        font-weight: 700;
+      }
+
+      .cls-7, .cls-8 {
+        fill: #231f20;
+      }
+
+      .cls-5 {
+        stroke-dasharray: 1.99 1.99;
+      }
+
+      .cls-8 {
+        font-family: Helvetica, Helvetica;
+        font-size: 12px;
+      }
+
+      .cls-9 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-10 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-11 {
+        letter-spacing: -.05em;
+      }
+    </style>
+  </defs>
+  <g>
+    <g>
+      <line class="cls-6" x1="414.03" y1="443.13" x2="413.03" y2="443.13"/>
+      <line class="cls-2" x1="411.03" y1="443.13" x2="55.89" y2="443.12"/>
+      <line class="cls-6" x1="54.89" y1="443.12" x2="53.89" y2="443.12"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="53.89" y1="443.07" x2="53.89" y2="442.07"/>
+      <line class="cls-4" x1="53.89" y1="439.79" x2="53.89" y2="436.36"/>
+      <line class="cls-6" x1="53.89" y1="435.21" x2="53.89" y2="434.21"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="225.29" y1="452.21" x2="225.29" y2="451.21"/>
+      <line class="cls-4" x1="225.29" y1="448.92" x2="225.29" y2="445.49"/>
+      <line class="cls-6" x1="225.29" y1="444.35" x2="225.29" y2="443.35"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="414.03" y1="443.08" x2="414.03" y2="442.08"/>
+      <line class="cls-4" x1="414.03" y1="439.79" x2="414.03" y2="436.36"/>
+      <line class="cls-6" x1="414.03" y1="435.22" x2="414.03" y2="434.22"/>
+    </g>
+  </g>
+  <g>
+    <g>
+      <line class="cls-6" x1="826.47" y1="441.99" x2="825.47" y2="441.99"/>
+      <line class="cls-5" x1="823.48" y1="441.99" x2="434" y2="441.99"/>
+      <line class="cls-6" x1="433" y1="441.99" x2="432" y2="441.99"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="432" y1="441.94" x2="432" y2="440.94"/>
+      <line class="cls-4" x1="432" y1="438.65" x2="432" y2="435.22"/>
+      <line class="cls-6" x1="432" y1="434.08" x2="432" y2="433.08"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="619.74" y1="451.08" x2="619.74" y2="450.08"/>
+      <line class="cls-4" x1="619.74" y1="447.79" x2="619.74" y2="444.36"/>
+      <line class="cls-6" x1="619.74" y1="443.22" x2="619.74" y2="442.22"/>
+    </g>
+    <g>
+      <line class="cls-6" x1="826.47" y1="441.94" x2="826.47" y2="440.94"/>
+      <line class="cls-4" x1="826.47" y1="438.66" x2="826.47" y2="435.23"/>
+      <line class="cls-6" x1="826.47" y1="434.08" x2="826.47" y2="433.08"/>
+    </g>
+  </g>
+  <rect class="cls-1" x="53.89" y="84.04" width="781.99" height="329.46"/>
+  <line class="cls-1" x1="86.07" y1="142.94" x2="805.97" y2="142.94"/>
+  <line class="cls-1" x1="86.07" y1="171.97" x2="805.97" y2="171.97"/>
+  <line class="cls-1" x1="170.59" y1="407.29" x2="170.59" y2="188.01"/>
+  <line class="cls-1" x1="718.47" y1="407.29" x2="718.47" y2="188.01"/>
+  <line class="cls-3" x1="425.85" y1="205.27" x2="425.85" y2="383.57"/>
+  <line class="cls-3" x1="183.03" y1="126.2" x2="170.59" y2="155.94"/>
+  <line class="cls-3" x1="802.22" y1="129.13" x2="789.78" y2="158.87"/>
+  <text class="cls-7" transform="translate(201.51 235.04)"><tspan x="0" y="0">Phe</tspan><tspan class="cls-11" x="33.25" y="0">W</tspan><tspan x="49.38" y="0">AS, Manhattan,</tspan><tspan x="51.89" y="21.76">QQ plots</tspan></text>
+  <text class="cls-7" transform="translate(71.48 273.16)"><tspan x="0" y="0">Phenotype</tspan><tspan x="0" y="21.76">Controls</tspan></text>
+  <text class="cls-7" transform="translate(737.55 275.58)"><tspan class="cls-11" x="0" y="0">V</tspan><tspan x="11.1" y="0">ariant</tspan><tspan x="0" y="21.76">Controls</tspan></text>
+  <text class="cls-7" transform="translate(465.74 256.2)"><tspan class="cls-11" x="0" y="0">V</tspan><tspan x="11.1" y="0">ariants plotted </tspan><tspan x="0" y="21.76">by genomic coordinate</tspan></text>
+  <text class="cls-7" transform="translate(466.83 221.61)"><tspan x="0" y="0">Gene burden stats &amp; QC</tspan></text>
+  <text class="cls-7" transform="translate(227.29 352.11)"><tspan x="0" y="0">Results </tspan><tspan class="cls-9" x="70.54" y="0">T</tspan><tspan x="80.28" y="0">able</tspan></text>
+  <rect class="cls-3" x="180.45" y="294.42" width="221.94" height="106.7"/>
+  <rect class="cls-3" x="162.78" y="148.55" width="15.62" height="17.81"/>
+  <rect class="cls-3" x="781.96" y="148.55" width="15.62" height="17.81"/>
+  <rect class="cls-3" x="77.33" y="98.02" width="725.84" height="32.05"/>
+  <text class="cls-7" transform="translate(505.3 352.11)"><tspan class="cls-11" x="0" y="0">V</tspan><tspan x="11.1" y="0">ariant </tspan><tspan class="cls-9" x="65.52" y="0">T</tspan><tspan x="75.26" y="0">able</tspan></text>
+  <rect class="cls-3" x="449.46" y="294.42" width="221.94" height="106.7"/>
+  <text class="cls-8" transform="translate(383.74 189.32)"><tspan x="0" y="0">Draggable divider</tspan></text>
+  <text class="cls-8" transform="translate(139.86 119.74)"><tspan x="0" y="0">Show/hide left side</tspan></text>
+  <text class="cls-8" transform="translate(683.94 123.53)"><tspan x="0" y="0">Show/hide right side</tspan></text>
+  <text class="cls-7" transform="translate(63.59 164.42)"><tspan x="0" y="0">Status Bar</tspan></text>
+  <text class="cls-7" transform="translate(384.23 119.74)"><tspan class="cls-9" x="0" y="0">T</tspan><tspan x="9.74" y="0">op Bar</tspan></text>
+  <text class="cls-8" transform="translate(321.66 162.46)"><tspan x="0" y="0">&lt;Active Gene&gt;</tspan></text>
+  <text class="cls-8" transform="translate(434.91 162.46)"><tspan x="0" y="0">&lt;Active Region&gt;</tspan></text>
+  <text class="cls-8" transform="translate(552.94 162.46)"><tspan x="0" y="0">&lt;Active </tspan><tspan class="cls-10" x="43.02" y="0">V</tspan><tspan x="50.14" y="0">ariant&gt;</tspan></text>
+  <text class="cls-8" transform="translate(190.05 162.46)"><tspan x="0" y="0">&lt;Active Phenotype&gt;</tspan></text>
+  <text class="cls-8" transform="translate(659.08 162.46)"><tspan x="0" y="0">&lt;Active Burden Set&gt;</tspan></text>
+  <text class="cls-7" transform="translate(125.97 473.4)"><tspan x="0" y="0">Results Pane (resizable)</tspan></text>
+  <text class="cls-7" transform="translate(464.47 473.4)"><tspan x="0" y="0">Detailed gene and variant associations</tspan></text>
+</svg>
