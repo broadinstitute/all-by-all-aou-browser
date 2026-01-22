@@ -20,5 +20,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 thiserror = "1.0"
 
+# Cloud Storage (for GCS listing/discovery)
+object_store = { version = "0.11", features = ["gcp"] }
+url = "2.5"
+futures = "0.3"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
 # Hail Data Access
 hail-decoder = { path = "../../../idk/hail-decoder" }
