@@ -1,1 +1,0 @@
-export { IntervalAssociationsPlot } from './IntervalAssociationsPlot'
