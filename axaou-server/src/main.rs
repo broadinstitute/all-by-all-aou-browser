@@ -14,6 +14,7 @@ mod api;
 mod data;
 mod error;
 mod gene_models;
+mod gene_queries;
 mod models;
 
 use api::AppState;
@@ -63,6 +64,45 @@ enum Commands {
         #[arg(short, long, default_value = "assets.json")]
         input: PathBuf,
     },
+
+    /// Query analysis assets with filters (outputs JSON)
+    QueryAssets {
+        /// Input file path for the assets JSON
+        #[arg(short, long, default_value = "assets.json")]
+        input: PathBuf,
+
+        /// Filter by ancestry (afr, amr, eas, eur, mid, sas, meta)
+        #[arg(long)]
+        ancestry: Option<String>,
+
+        /// Filter by asset type (variant, gene, variant_exp_p, gene_exp_p)
+        #[arg(long, name = "type")]
+        asset_type: Option<String>,
+
+        /// Filter by sequencing type (exomes, genomes)
+        #[arg(long)]
+        seq_type: Option<String>,
+
+        /// Filter by analysis ID / phenotype name (case-insensitive, supports partial match)
+        #[arg(long)]
+        analysis_id: Option<String>,
+
+        /// Output only URIs (one per line) instead of full JSON
+        #[arg(long)]
+        uris_only: bool,
+
+        /// Output only analysis IDs (unique, one per line)
+        #[arg(long)]
+        ids_only: bool,
+
+        /// Limit number of results
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Sample a fraction of results (0.0-1.0, e.g., 0.1 for 10%)
+        #[arg(long)]
+        sample: Option<f64>,
+    },
 }
 
 #[tokio::main]
@@ -90,6 +130,30 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Analyze { input } => {
             run_analyze(input).await?;
+        }
+        Commands::QueryAssets {
+            input,
+            ancestry,
+            asset_type,
+            seq_type,
+            analysis_id,
+            uris_only,
+            ids_only,
+            limit,
+            sample,
+        } => {
+            run_query_assets(
+                input,
+                ancestry,
+                asset_type,
+                seq_type,
+                analysis_id,
+                uris_only,
+                ids_only,
+                limit,
+                sample,
+            )
+            .await?;
         }
     }
 
@@ -121,11 +185,18 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         None
     };
 
+    // Create shared assets with Arc<RwLock> for sharing with gene query engine
+    let assets = Arc::new(RwLock::new(assets));
+
+    // Create gene query engine with access to assets
+    let gene_queries = gene_queries::GeneQueryEngine::new(Arc::clone(&assets));
+
     // Create shared application state
     let state = Arc::new(AppState {
         metadata,
         gene_models: Arc::new(gene_models),
-        assets: RwLock::new(assets),
+        assets,
+        gene_queries,
     });
 
     // Build the router with /api prefix to match proxy behavior
@@ -141,7 +212,16 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 )
                 // Analysis assets discovery endpoints
                 .route("/assets", get(api::get_assets))
-                .route("/assets/summary", get(api::get_assets_summary)),
+                .route("/assets/summary", get(api::get_assets_summary))
+                // Gene association query endpoints
+                .route(
+                    "/phenotype/:analysis_id/genes",
+                    get(api::list_gene_associations),
+                )
+                .route(
+                    "/phenotype/:analysis_id/genes/:gene_id",
+                    get(api::get_gene_associations),
+                ),
         )
         .layer(
             CorsLayer::new()
@@ -204,6 +284,118 @@ async fn run_analyze(input: PathBuf) -> anyhow::Result<()> {
     let assets: AnalysisAssets = serde_json::from_str(&contents)?;
 
     print_summary(&assets);
+
+    Ok(())
+}
+
+/// Query assets with filters and output JSON
+async fn run_query_assets(
+    input: PathBuf,
+    ancestry: Option<String>,
+    asset_type: Option<String>,
+    seq_type: Option<String>,
+    analysis_id: Option<String>,
+    uris_only: bool,
+    ids_only: bool,
+    limit: Option<usize>,
+    sample: Option<f64>,
+) -> anyhow::Result<()> {
+    let contents = tokio::fs::read_to_string(&input).await?;
+    let assets: AnalysisAssets = serde_json::from_str(&contents)?;
+
+    // Apply filters
+    let filtered: Vec<_> = assets
+        .assets
+        .iter()
+        .filter(|a| {
+            // Filter by ancestry
+            if let Some(ref anc) = ancestry {
+                if !a.ancestry_group.to_string().eq_ignore_ascii_case(anc)
+                    && !a.ancestry_group.dir_name().eq_ignore_ascii_case(anc)
+                {
+                    return false;
+                }
+            }
+            // Filter by asset type (exact match with common aliases)
+            if let Some(ref at) = asset_type {
+                let at_lower = at.to_lowercase();
+                let matches = match at_lower.as_str() {
+                    "variant" => matches!(a.asset_type, crate::models::AnalysisAssetType::Variant),
+                    "gene" => matches!(a.asset_type, crate::models::AnalysisAssetType::Gene),
+                    "variant_exp_p" | "variantexpp" | "exp_p" | "expected_p" => {
+                        matches!(a.asset_type, crate::models::AnalysisAssetType::VariantExpP)
+                    }
+                    "variant_ds" | "variantds" | "downsampled" => {
+                        matches!(a.asset_type, crate::models::AnalysisAssetType::VariantDs)
+                    }
+                    "gene_exp_p" | "geneexpp" => {
+                        matches!(a.asset_type, crate::models::AnalysisAssetType::GeneExpP)
+                    }
+                    _ => {
+                        // Fallback to contains for flexibility
+                        let type_str = format!("{:?}", a.asset_type).to_lowercase();
+                        type_str.contains(&at_lower)
+                    }
+                };
+                if !matches {
+                    return false;
+                }
+            }
+            // Filter by sequencing type
+            if let Some(ref st) = seq_type {
+                match &a.sequencing_type {
+                    Some(seq) if seq.to_string().eq_ignore_ascii_case(st) => {}
+                    _ => return false,
+                }
+            }
+            // Filter by analysis ID (partial match, case-insensitive)
+            if let Some(ref aid) = analysis_id {
+                if !a.analysis_id.to_lowercase().contains(&aid.to_lowercase()) {
+                    return false;
+                }
+            }
+            true
+        })
+        .collect();
+
+    // Apply sampling
+    let sampled: Vec<_> = if let Some(frac) = sample {
+        use rand::Rng;
+        let mut rng = rand::rng();
+        filtered
+            .into_iter()
+            .filter(|_| rng.random_bool(frac))
+            .collect()
+    } else {
+        filtered
+    };
+
+    // Apply limit
+    let results: Vec<_> = if let Some(n) = limit {
+        sampled.into_iter().take(n).collect()
+    } else {
+        sampled
+    };
+
+    // Output based on mode
+    if ids_only {
+        // Unique analysis IDs
+        let mut ids: Vec<_> = results.iter().map(|a| a.analysis_id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        for id in ids {
+            println!("{}", id);
+        }
+    } else if uris_only {
+        // Just URIs
+        for asset in results {
+            println!("{}", asset.uri);
+        }
+    } else {
+        // Full JSON
+        let json = serde_json::to_string_pretty(&results)?;
+        println!("{}", json);
+    }
 
     Ok(())
 }

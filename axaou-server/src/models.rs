@@ -320,6 +320,64 @@ pub struct ManeSelectTranscript {
     pub matched_gene_version: String,
 }
 
+// ============================================================================
+// Gene Association Results (from per-phenotype gene_results.ht)
+// ============================================================================
+
+/// Gene association result from burden/SKAT tests
+/// Matches the schema of gene_results.ht in per-phenotype directories
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneAssociationResult {
+    // Key fields
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub annotation: String,
+    pub max_maf: f64,
+
+    // Context fields (added during query)
+    pub analysis_id: String,
+    pub ancestry_group: String,
+
+    // Statistical results
+    pub pvalue: Option<f64>,
+    pub pvalue_burden: Option<f64>,
+    pub pvalue_skat: Option<f64>,
+    pub beta_burden: Option<f64>,
+    pub se_burden: Option<f64>,
+
+    // Variant counts
+    pub mac: Option<i64>,
+    pub number_rare: Option<i32>,
+    pub number_ultra_rare: Option<i32>,
+    pub total_variants: Option<i32>,
+
+    // Derived/convenience fields
+    pub pvalue_log10: Option<f64>,
+
+    // Genomic location
+    pub chrom: Option<String>,
+    pub pos: Option<i32>,
+}
+
+/// Response wrapper for gene association queries
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneAssociationResponse {
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub results: Vec<GeneAssociationResult>,
+}
+
+/// Query parameters for gene association queries
+#[derive(Debug, Clone, Default)]
+pub struct GeneQueryParams {
+    /// Filter by ancestry group (default: META only)
+    pub ancestry: Option<AncestryGroup>,
+    /// Filter by annotation type (e.g., "pLoF", "missenseLC")
+    pub annotation: Option<String>,
+    /// Filter by max MAF (default: 0.001)
+    pub max_maf: Option<f64>,
+}
+
 /// gnomAD constraint metrics for a gene
 #[derive(Debug, Clone, Serialize)]
 pub struct GnomadConstraint {

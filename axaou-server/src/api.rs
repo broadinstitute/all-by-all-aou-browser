@@ -2,7 +2,11 @@
 
 use crate::error::AppError;
 use crate::gene_models::GeneModelsQuery;
-use crate::models::{AnalysisAsset, AnalysisAssets, AnalysisMetadata, GeneModel};
+use crate::gene_queries::GeneQueryEngine;
+use crate::models::{
+    AnalysisAsset, AnalysisAssets, AnalysisMetadata, AncestryGroup, GeneAssociationResponse,
+    GeneAssociationResult, GeneModel, GeneQueryParams,
+};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -19,7 +23,9 @@ pub struct AppState {
     /// On-demand gene models query engine (wrapped in Arc for sharing across tasks)
     pub gene_models: Arc<GeneModelsQuery>,
     /// Discovered analysis assets (lazily loaded)
-    pub assets: RwLock<Option<AnalysisAssets>>,
+    pub assets: Arc<RwLock<Option<AnalysisAssets>>>,
+    /// On-demand gene association query engine
+    pub gene_queries: GeneQueryEngine,
 }
 
 /// Query parameters for the /api/analyses endpoint
@@ -255,4 +261,126 @@ pub struct AssetsSummary {
     pub by_sequencing_type: std::collections::HashMap<String, usize>,
     #[serde(skip)]
     unique_analysis_ids: std::collections::HashSet<String>,
+}
+
+// ============================================================================
+// Gene Association Query Endpoints
+// ============================================================================
+
+/// Query parameters for the gene association endpoints
+#[derive(Debug, Deserialize)]
+pub struct GeneAssocQuery {
+    /// Filter by ancestry group (default: "meta")
+    pub ancestry: Option<String>,
+    /// Filter by annotation type (e.g., "pLoF", "missenseLC")
+    pub annotation: Option<String>,
+    /// Filter by max MAF (default: 0.001)
+    pub max_maf: Option<f64>,
+}
+
+impl GeneAssocQuery {
+    fn to_params(&self) -> GeneQueryParams {
+        GeneQueryParams {
+            ancestry: self
+                .ancestry
+                .as_ref()
+                .and_then(|s| AncestryGroup::from_dir_name(s)),
+            annotation: self.annotation.clone(),
+            max_maf: self.max_maf,
+        }
+    }
+}
+
+/// Query parameters for listing all genes
+#[derive(Debug, Deserialize)]
+pub struct GeneListQuery {
+    /// Filter by ancestry group (default: "meta")
+    pub ancestry: Option<String>,
+    /// Filter by annotation type
+    pub annotation: Option<String>,
+    /// Filter by max MAF (default: 0.001)
+    pub max_maf: Option<f64>,
+    /// Maximum number of results to return (default: 1000)
+    pub limit: Option<usize>,
+    /// Number of results to skip (default: 0)
+    pub offset: Option<usize>,
+}
+
+impl GeneListQuery {
+    fn to_params(&self) -> GeneQueryParams {
+        GeneQueryParams {
+            ancestry: self
+                .ancestry
+                .as_ref()
+                .and_then(|s| AncestryGroup::from_dir_name(s)),
+            annotation: self.annotation.clone(),
+            max_maf: self.max_maf,
+        }
+    }
+}
+
+/// Handler for GET /api/phenotype/{analysis_id}/genes/{gene_id}
+///
+/// Returns gene association results for a specific gene within a phenotype.
+/// The gene_id can be an Ensembl ID (e.g., "ENSG00000139618") or symbol (e.g., "BRCA2").
+pub async fn get_gene_associations(
+    State(state): State<Arc<AppState>>,
+    Path((analysis_id, gene_id)): Path<(String, String)>,
+    Query(params): Query<GeneAssocQuery>,
+) -> Result<Json<GeneAssociationResponse>, AppError> {
+    // Ensure assets are loaded
+    ensure_assets_loaded(&state).await?;
+
+    let response = state
+        .gene_queries
+        .query_gene(&analysis_id, &gene_id, params.to_params())
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// Handler for GET /api/phenotype/{analysis_id}/genes
+///
+/// Returns all gene association results for a phenotype (paginated).
+/// Useful for building gene-level Manhattan plots or tables.
+pub async fn list_gene_associations(
+    State(state): State<Arc<AppState>>,
+    Path(analysis_id): Path<String>,
+    Query(params): Query<GeneListQuery>,
+) -> Result<Json<Vec<GeneAssociationResult>>, AppError> {
+    // Ensure assets are loaded
+    ensure_assets_loaded(&state).await?;
+
+    let results = state
+        .gene_queries
+        .query_all_genes(
+            &analysis_id,
+            params.to_params(),
+            params.limit,
+            params.offset,
+        )
+        .await?;
+
+    Ok(Json(results))
+}
+
+/// Ensure assets are loaded (discover if needed)
+async fn ensure_assets_loaded(state: &AppState) -> Result<(), AppError> {
+    let needs_discovery = {
+        let assets = state.assets.read().await;
+        assets.is_none()
+    };
+
+    if needs_discovery {
+        tracing::info!("Discovering analysis assets from GCS...");
+        let discovery = crate::analysis_assets::AssetDiscovery::new()?;
+        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
+        let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
+        tracing::info!("Discovered {} assets", discovered.assets.len());
+
+        let mut assets_lock = state.assets.write().await;
+        *assets_lock = Some(discovered);
+    }
+
+    Ok(())
 }
