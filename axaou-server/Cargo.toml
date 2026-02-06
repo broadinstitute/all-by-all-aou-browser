@@ -5,10 +5,13 @@ edition = "2021"
 description = "Rust server for AxAoU analysis metadata"
 
 [dependencies]
+# ClickHouse client
+clickhouse = { version = "0.13", features = ["rustls-tls"] }
+
 # Web server
 axum = "0.7"
 tokio = { version = "1.35", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "compression-gzip"] }
 
 # Serialization / Deserialization
 serde = { version = "1.0", features = ["derive"] }

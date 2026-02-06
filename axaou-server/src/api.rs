@@ -26,6 +26,8 @@ pub struct AppState {
     pub assets: Arc<RwLock<Option<AnalysisAssets>>>,
     /// On-demand gene association query engine
     pub gene_queries: GeneQueryEngine,
+    /// ClickHouse client for variant queries
+    pub clickhouse: clickhouse::Client,
 }
 
 /// Query parameters for the /api/analyses endpoint

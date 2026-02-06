@@ -11,11 +11,14 @@
 
 mod analysis_assets;
 mod api;
+mod clickhouse;
 mod data;
 mod error;
 mod gene_models;
 mod gene_queries;
 mod models;
+mod phenotype;
+mod variants;
 
 use api::AppState;
 use axum::{routing::get, Router};
@@ -23,6 +26,7 @@ use clap::{Parser, Subcommand};
 use models::AnalysisAssets;
 use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
@@ -191,12 +195,20 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     // Create gene query engine with access to assets
     let gene_queries = gene_queries::GeneQueryEngine::new(Arc::clone(&assets));
 
+    // Initialize ClickHouse client
+    let clickhouse_client = clickhouse::client::connect();
+    match clickhouse::client::health_check(&clickhouse_client).await {
+        Ok(_) => info!("Connected to ClickHouse"),
+        Err(e) => tracing::warn!("ClickHouse connection warning: {}", e),
+    }
+
     // Create shared application state
     let state = Arc::new(AppState {
         metadata,
         gene_models: Arc::new(gene_models),
         assets,
         gene_queries,
+        clickhouse: clickhouse_client,
     });
 
     // Build the router with /api prefix to match proxy behavior
@@ -221,8 +233,56 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/phenotype/:analysis_id/genes/:gene_id",
                     get(api::get_gene_associations),
+                )
+                // --- Phenotype / Manhattan Routes (ClickHouse-backed) ---
+                .route(
+                    "/phenotype/:analysis_id/loci",
+                    get(phenotype::loci::get_phenotype_loci),
+                )
+                .route(
+                    "/phenotype/:analysis_id/loci/:locus_id/variants",
+                    get(phenotype::loci::get_locus_variants),
+                )
+                .route(
+                    "/phenotype/:analysis_id/significant",
+                    get(phenotype::significant::get_significant_variants),
+                )
+                .route(
+                    "/phenotype/:analysis_id/plots",
+                    get(phenotype::plots::get_phenotype_plots),
+                )
+                // --- Variant Annotation Routes (ClickHouse-backed) ---
+                .route(
+                    "/variants/annotations/:variant_id",
+                    get(variants::annotations::get_annotation_by_id),
+                )
+                .route(
+                    "/variants/annotations/interval/:interval",
+                    get(variants::annotations::get_annotations_by_interval),
+                )
+                .route(
+                    "/variants/annotations/gene/:gene_id",
+                    get(variants::annotations::get_annotations_by_gene),
+                )
+                // --- Association / PheWAS Routes (ClickHouse-backed) ---
+                .route(
+                    "/variants/associations/variant/:variant_id",
+                    get(variants::annotations::get_association_by_variant),
+                )
+                .route(
+                    "/variants/associations/interval/:interval",
+                    get(variants::annotations::get_associations_by_interval),
+                )
+                .route(
+                    "/variants/associations/phewas/:variant_id",
+                    get(variants::phewas::get_phewas_by_variant),
+                )
+                .route(
+                    "/variants/associations/top",
+                    get(variants::phewas::get_top_variants),
                 ),
         )
+        .layer(CompressionLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
