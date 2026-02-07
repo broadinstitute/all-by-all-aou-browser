@@ -100,3 +100,62 @@ pub struct PlotRow {
     pub plot_type: String,
     pub gcs_uri: String,
 }
+
+/// Gene association result from the `gene_associations` table
+///
+/// Contains SKAT-O statistics for gene-level burden tests across phenotypes.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct GeneAssociationRow {
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub annotation: String,
+    pub max_maf: f64,
+    pub phenotype: String,
+    pub ancestry: String,
+    pub pvalue: Option<f64>,
+    pub pvalue_burden: Option<f64>,
+    pub pvalue_skat: Option<f64>,
+    pub beta_burden: Option<f64>,
+    pub mac: Option<i64>,
+    pub contig: String,
+    pub gene_start_position: i32,
+    pub xpos: i64,
+}
+
+/// Point for Q-Q plot from the `qq_points` table
+///
+/// Contains observed and expected p-values for Q-Q plot rendering.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct QQRow {
+    pub phenotype: String,
+    pub ancestry: String,
+    pub sequencing_type: String,
+    pub contig: String,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub pvalue_log10: f64,
+    pub pvalue_expected_log10: f64,
+}
+
+/// Variant row joined with annotations for Gene Page table
+///
+/// Used for queries that fetch variants within a gene region
+/// and join with annotation data.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct GenePageVariantRow {
+    pub locus_id: String,
+    pub phenotype: String,
+    pub xpos: i64,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub pvalue: f64,
+    pub neg_log10_p: f32,
+    pub is_significant: bool,
+    // Joined fields from variant_annotations
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+}

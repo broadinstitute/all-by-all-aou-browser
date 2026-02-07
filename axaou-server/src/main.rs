@@ -16,6 +16,7 @@ mod data;
 mod error;
 mod gene_models;
 mod gene_queries;
+mod genes;
 mod models;
 mod phenotype;
 mod variants;
@@ -280,6 +281,36 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/variants/associations/top",
                     get(variants::phewas::get_top_variants),
+                )
+                .route(
+                    "/variants/associations/gene/:gene_id",
+                    get(variants::associations::get_variants_by_gene),
+                )
+                .route(
+                    "/variants/associations/manhattan/:analysis_id/top",
+                    get(variants::associations::get_manhattan_top),
+                )
+                // --- Gene Routes (ClickHouse-backed) ---
+                .route(
+                    "/genes/phewas/:gene_id",
+                    get(genes::routes::get_gene_phewas),
+                )
+                .route(
+                    "/genes/top-associations",
+                    get(genes::routes::get_top_associations),
+                )
+                .route(
+                    "/genes/all-symbols",
+                    get(genes::routes::get_all_symbols),
+                )
+                .route(
+                    "/genes/associations/interval/:interval",
+                    get(genes::routes::get_genes_in_interval),
+                )
+                // --- QQ Plot Route (ClickHouse-backed) ---
+                .route(
+                    "/phenotype/:analysis_id/qq",
+                    get(phenotype::qq::get_qq_plot),
                 ),
         )
         .layer(CompressionLayer::new())
