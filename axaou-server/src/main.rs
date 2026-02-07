@@ -218,6 +218,8 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
             "/api",
             Router::new()
                 .route("/analyses", get(api::get_analyses))
+                .route("/analyses/:analysis_id", get(api::get_analysis_by_id))
+                .route("/categories", get(api::get_categories))
                 .route("/genes/model/:gene_id", get(api::get_gene_model))
                 .route(
                     "/genes/model/interval/:interval",
@@ -277,6 +279,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/variants/associations/phewas/:variant_id",
                     get(variants::phewas::get_phewas_by_variant),
+                )
+                .route(
+                    "/variants/associations/phewas/interval/:interval",
+                    get(variants::phewas::get_phewas_by_interval),
                 )
                 .route(
                     "/variants/associations/top",

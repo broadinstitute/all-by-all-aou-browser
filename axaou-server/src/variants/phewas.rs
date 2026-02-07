@@ -4,7 +4,7 @@
 
 use crate::api::AppState;
 use crate::clickhouse::models::SignificantVariantRow;
-use crate::clickhouse::xpos::parse_variant_id;
+use crate::clickhouse::xpos::{parse_interval_to_xpos, parse_variant_id};
 use crate::error::AppError;
 use axum::{
     extract::{Path, Query, State},
@@ -84,6 +84,51 @@ pub async fn get_top_variants(
         .bind(&params.ancestry)
         .bind(min_p)
         .bind(max_p)
+        .bind(limit)
+        .fetch_all::<SignificantVariantRow>()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    Ok(Json(rows))
+}
+
+/// Query parameters for PheWAS interval endpoint
+#[derive(Debug, Deserialize)]
+pub struct PhewasIntervalQuery {
+    /// Ancestry group filter (default: "meta")
+    pub ancestry: Option<String>,
+    /// Maximum number of results (default: 10000)
+    pub limit: Option<u64>,
+}
+
+/// GET /api/variants/associations/phewas/interval/:interval
+///
+/// Returns all significant variants within a genomic interval across all phenotypes.
+/// Interval format: "chr1:12345-67890"
+pub async fn get_phewas_by_interval(
+    State(state): State<Arc<AppState>>,
+    Path(interval): Path<String>,
+    Query(params): Query<PhewasIntervalQuery>,
+) -> Result<Json<Vec<SignificantVariantRow>>, AppError> {
+    let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
+    let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
+    let limit = params.limit.unwrap_or(10000);
+
+    let query = r#"
+        SELECT phenotype, ancestry, sequencing_type, xpos, contig, position,
+               ref, alt, pvalue, beta, se, af
+        FROM significant_variants
+        WHERE xpos >= ? AND xpos <= ? AND ancestry = ?
+        ORDER BY pvalue ASC
+        LIMIT ?
+    "#;
+
+    let rows = state
+        .clickhouse
+        .query(query)
+        .bind(xpos_start)
+        .bind(xpos_end)
+        .bind(&ancestry)
         .bind(limit)
         .fetch_all::<SignificantVariantRow>()
         .await

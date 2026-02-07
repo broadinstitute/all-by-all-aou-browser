@@ -62,6 +62,116 @@ pub async fn get_analyses(
     (StatusCode::OK, Json(filtered_data))
 }
 
+/// Category summary derived from analysis metadata
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnalysisCategory {
+    pub category: String,
+    pub classification_group: String,
+    pub color: String,
+    pub analyses: Vec<String>,
+    #[serde(rename = "analysisCount")]
+    pub analysis_count: usize,
+    pub phenocodes: Vec<String>,
+    #[serde(rename = "phenoCount")]
+    pub pheno_count: usize,
+}
+
+/// Generate a deterministic color from a category name
+fn category_color(category: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    category.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    // Generate a pleasing color by using HSL with fixed saturation/lightness
+    // Use the hash to determine the hue
+    let hue: f64 = (hash % 360) as f64;
+    let saturation: f64 = 0.65;
+    let lightness: f64 = 0.55;
+
+    // Convert HSL to RGB
+    let c: f64 = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let x = c * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+    let m = lightness - c / 2.0;
+
+    let (r, g, b) = match (hue / 60.0) as u32 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+
+    let r = ((r + m) * 255.0) as u8;
+    let g = ((g + m) * 255.0) as u8;
+    let b = ((b + m) * 255.0) as u8;
+
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
+}
+
+/// Handler for GET /api/categories
+///
+/// Returns category summaries derived from analysis metadata.
+/// Each category includes the list of analyses and counts.
+pub async fn get_categories(
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<AnalysisCategory>> {
+    use std::collections::HashMap;
+
+    // Group analyses by category
+    let mut by_category: HashMap<String, Vec<String>> = HashMap::new();
+
+    for meta in &state.metadata {
+        by_category
+            .entry(meta.category.clone())
+            .or_default()
+            .push(meta.analysis_id.clone());
+    }
+
+    // Build category summaries
+    let mut categories: Vec<AnalysisCategory> = by_category
+        .into_iter()
+        .map(|(category, mut analyses)| {
+            analyses.sort();
+            analyses.dedup();
+            let count = analyses.len();
+            AnalysisCategory {
+                color: category_color(&category),
+                classification_group: "axaou_category".to_string(),
+                phenocodes: analyses.clone(),
+                pheno_count: count,
+                analyses,
+                analysis_count: count,
+                category,
+            }
+        })
+        .collect();
+
+    // Sort by category name
+    categories.sort_by(|a, b| a.category.cmp(&b.category));
+
+    Json(categories)
+}
+
+/// Handler for GET /api/analyses/:analysis_id
+///
+/// Returns a single analysis metadata record by its ID.
+pub async fn get_analysis_by_id(
+    State(state): State<Arc<AppState>>,
+    Path(analysis_id): Path<String>,
+) -> Result<Json<AnalysisMetadata>, AppError> {
+    state
+        .metadata
+        .iter()
+        .find(|m| m.analysis_id.eq_ignore_ascii_case(&analysis_id))
+        .cloned()
+        .map(Json)
+        .ok_or_else(|| AppError::NotFound(format!("Analysis '{}' not found", analysis_id)))
+}
+
 // ============================================================================
 // Gene Model Endpoints
 // ============================================================================
