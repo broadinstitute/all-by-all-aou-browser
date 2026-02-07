@@ -62,6 +62,65 @@ pub async fn get_analyses(
     (StatusCode::OK, Json(filtered_data))
 }
 
+/// Application configuration returned to the frontend
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AxaouConfig {
+    pub ancestry_codes: Vec<String>,
+    pub burden_sets: Vec<String>,
+    pub burden_pvalue_fields: Vec<String>,
+    pub default_max_maf: String,
+    pub reference_genome: String,
+    pub test_analyses: Vec<String>,
+    pub test_ancestry_codes: Vec<String>,
+    pub test_gene_symbols: Vec<String>,
+    pub test_intervals: Vec<String>,
+    pub variant_pvalue_threshold: f64,
+    pub top_gene_associations_threshold: f64,
+}
+
+/// Handler for GET /api/config
+///
+/// Returns static application configuration for the frontend.
+pub async fn get_config() -> Json<AxaouConfig> {
+    Json(AxaouConfig {
+        ancestry_codes: vec![
+            "afr".to_string(),
+            "amr".to_string(),
+            "eas".to_string(),
+            "eur".to_string(),
+            "mid".to_string(),
+            "sas".to_string(),
+            "meta".to_string(),
+        ],
+        burden_sets: vec![
+            "pLoF".to_string(),
+            "missenseLC".to_string(),
+            "synonymous".to_string(),
+        ],
+        burden_pvalue_fields: vec![
+            "pvalue".to_string(),
+            "pvalue_burden".to_string(),
+            "pvalue_skat".to_string(),
+        ],
+        default_max_maf: "0.001".to_string(),
+        reference_genome: "GRCh38".to_string(),
+        test_analyses: vec!["height".to_string()],
+        test_ancestry_codes: vec!["eur".to_string(), "meta".to_string()],
+        test_gene_symbols: vec![
+            "FGFR2".to_string(),
+            "GDF5".to_string(),
+            "SHOX".to_string(),
+        ],
+        test_intervals: vec![
+            "chr10:121478332-121598458".to_string(),
+            "chr20:35433347-35454746".to_string(),
+            "chrX:624344-659411".to_string(),
+        ],
+        variant_pvalue_threshold: 1.0,
+        top_gene_associations_threshold: 1e-6,
+    })
+}
+
 /// Category summary derived from analysis metadata
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AnalysisCategory {

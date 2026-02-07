@@ -217,6 +217,7 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         .nest(
             "/api",
             Router::new()
+                .route("/config", get(api::get_config))
                 .route("/analyses", get(api::get_analyses))
                 .route("/analyses/:analysis_id", get(api::get_analysis_by_id))
                 .route("/categories", get(api::get_categories))
