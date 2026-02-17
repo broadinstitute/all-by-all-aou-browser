@@ -282,41 +282,63 @@ pub struct GeneModel {
 }
 
 /// Exon coordinates
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Exon {
+    #[serde(default)]
     pub feature_type: String,
+    #[serde(default)]
     pub start: i64,
+    #[serde(default)]
     pub stop: i64,
+    #[serde(default)]
     pub xstart: i64,
+    #[serde(default)]
     pub xstop: i64,
 }
 
 /// Transcript information
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Transcript {
+    #[serde(default)]
     pub transcript_id: String,
+    #[serde(default)]
     pub transcript_version: String,
+    #[serde(default)]
     pub gene_id: String,
+    #[serde(default)]
     pub gene_version: String,
+    #[serde(default)]
     pub chrom: String,
+    #[serde(default)]
     pub strand: String,
+    #[serde(default)]
     pub start: i64,
+    #[serde(default)]
     pub stop: i64,
+    #[serde(default)]
     pub xstart: i64,
+    #[serde(default)]
     pub xstop: i64,
+    #[serde(default)]
     pub reference_genome: String,
     pub refseq_id: Option<String>,
     pub refseq_version: Option<String>,
+    #[serde(default)]
     pub exons: Vec<Exon>,
 }
 
 /// MANE Select transcript information
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ManeSelectTranscript {
+    #[serde(default)]
     pub ensembl_id: String,
+    #[serde(default)]
     pub ensembl_version: String,
+    #[serde(default)]
     pub refseq_id: String,
+    #[serde(default)]
     pub refseq_version: String,
+    #[serde(default)]
     pub matched_gene_version: String,
 }
 

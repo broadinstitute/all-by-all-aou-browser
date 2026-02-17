@@ -11,6 +11,7 @@
 
 mod analysis_assets;
 mod api;
+mod cli;
 mod clickhouse;
 mod data;
 mod error;
@@ -108,6 +109,12 @@ enum Commands {
         #[arg(long)]
         sample: Option<f64>,
     },
+
+    /// Load data into ClickHouse from Hail Tables
+    Ingest {
+        #[command(subcommand)]
+        command: cli::IngestCommand,
+    },
 }
 
 #[tokio::main]
@@ -159,6 +166,9 @@ async fn main() -> anyhow::Result<()> {
                 sample,
             )
             .await?;
+        }
+        Commands::Ingest { command } => {
+            cli::run_ingest(command).await?;
         }
     }
 

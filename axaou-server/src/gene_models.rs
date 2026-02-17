@@ -1,9 +1,13 @@
-//! On-demand gene model queries from Hail Table
+//! Gene model queries
 //!
-//! Queries gene models directly from GCS without pre-loading.
+//! Provides two query backends:
+//! - `GeneModelsQuery`: Direct Hail Table queries via hail-decoder (legacy)
+//! - `GeneModelsClickHouse`: ClickHouse queries (preferred after migration)
 
+use crate::clickhouse::models::GeneModelRow;
 use crate::error::AppError;
 use crate::models::{Exon, GeneModel, GnomadConstraint, ManeSelectTranscript, Transcript};
+use clickhouse::Client;
 use hail_decoder::codec::EncodedValue;
 use hail_decoder::query::QueryEngine;
 use std::collections::HashMap;
@@ -422,4 +426,119 @@ fn get_f64(map: &HashMap<String, EncodedValue>, key: &str) -> f64 {
             _ => None,
         })
         .unwrap_or(0.0)
+}
+
+// ============================================================================
+// ClickHouse-based Gene Model Queries
+// ============================================================================
+
+/// ClickHouse-based gene model query engine
+///
+/// Queries the `gene_models` table in ClickHouse for gene model data.
+/// This is the preferred backend after migration from Hail Tables.
+pub struct GeneModelsClickHouse {
+    client: Client,
+}
+
+impl GeneModelsClickHouse {
+    /// Create a new ClickHouse gene models query engine
+    pub fn new(client: Client) -> Self {
+        Self { client }
+    }
+
+    /// Query a gene by gene_id (e.g., "ENSG00000139618")
+    pub async fn get_by_gene_id(&self, gene_id: &str) -> Result<Option<GeneModel>, AppError> {
+        let query = Self::build_select_query("WHERE gene_id = ?");
+
+        let result = self
+            .client
+            .query(&query)
+            .bind(gene_id)
+            .fetch_optional::<GeneModelRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+        Ok(result.map(|row| row.to_api_model()))
+    }
+
+    /// Query a gene by symbol (case-insensitive)
+    pub async fn get_by_symbol(&self, symbol: &str) -> Result<Option<GeneModel>, AppError> {
+        let query = Self::build_select_query("WHERE symbol_upper_case = ?");
+
+        let result = self
+            .client
+            .query(&query)
+            .bind(symbol.to_uppercase())
+            .fetch_optional::<GeneModelRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+        Ok(result.map(|row| row.to_api_model()))
+    }
+
+    /// Get genes in a genomic interval
+    pub async fn get_in_interval(&self, interval: &str) -> Result<Vec<GeneModel>, AppError> {
+        let (chrom, start, stop) = parse_interval(interval)?;
+
+        // Query by xstart/xstop overlap
+        // Gene overlaps interval if: gene.start <= interval.stop AND gene.stop >= interval.start
+        let query = Self::build_select_query(
+            "WHERE chrom = ? AND stop >= ? AND start <= ? ORDER BY start",
+        );
+
+        // Normalize chromosome (ensure 'chr' prefix)
+        let chrom_with_prefix = if chrom.starts_with("chr") {
+            chrom
+        } else {
+            format!("chr{}", chrom)
+        };
+
+        let results = self
+            .client
+            .query(&query)
+            .bind(&chrom_with_prefix)
+            .bind(start)
+            .bind(stop)
+            .fetch_all::<GeneModelRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+        Ok(results.into_iter().map(|row| row.to_api_model()).collect())
+    }
+
+    /// Build the SELECT query with all gene_models columns
+    fn build_select_query(where_clause: &str) -> String {
+        format!(
+            r#"
+            SELECT
+                gene_id, symbol, symbol_upper_case, chrom, start, stop, xstart, xstop, strand,
+                gene_version, gencode_symbol, name, hgnc_id, ncbi_id, omim_id, reference_genome,
+                canonical_transcript_id, preferred_transcript_id, preferred_transcript_source,
+                alias_symbols, previous_symbols, search_terms, flags,
+                `exons.feature_type`, `exons.start`, `exons.stop`, `exons.xstart`, `exons.xstop`,
+                gnomad_gene, gnomad_gene_id, gnomad_transcript, gnomad_mane_select, gnomad_flags,
+                gnomad_pli, gnomad_lof_z, gnomad_mis_z, gnomad_syn_z,
+                gnomad_oe_lof, gnomad_oe_lof_lower, gnomad_oe_lof_upper,
+                gnomad_oe_mis, gnomad_oe_mis_lower, gnomad_oe_mis_upper,
+                gnomad_oe_syn, gnomad_oe_syn_lower, gnomad_oe_syn_upper,
+                gnomad_exp_lof, gnomad_exp_mis, gnomad_exp_syn,
+                gnomad_obs_lof, gnomad_obs_mis, gnomad_obs_syn,
+                mane_ensembl_id, mane_ensembl_version, mane_refseq_id, mane_refseq_version, mane_matched_gene_version,
+                transcripts_json
+            FROM gene_models
+            {}
+            "#,
+            where_clause
+        )
+    }
+}
+
+/// Check if the gene_models table exists in ClickHouse
+pub async fn gene_models_table_exists(client: &Client) -> bool {
+    let result = client
+        .query("SELECT 1 FROM gene_models LIMIT 1")
+        .fetch_optional::<u8>()
+        .await;
+
+    result.is_ok()
 }
