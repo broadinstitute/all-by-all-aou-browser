@@ -18,6 +18,8 @@ const GENOME_ANNOTATIONS_DDL: &str = include_str!("../sql/genome_annotations.sql
 const GENOME_ANNOTATIONS_TRANSFORM: &str = include_str!("../sql/genome_annotations_transform.sql");
 const GENE_MODELS_DDL: &str = include_str!("../sql/gene_models.sql");
 const GENE_MODELS_TRANSFORM: &str = include_str!("../sql/gene_models_transform.sql");
+const ANALYSIS_METADATA_DDL: &str = include_str!("../sql/analysis_metadata.sql");
+const ANALYSIS_METADATA_TRANSFORM: &str = include_str!("../sql/analysis_metadata_transform.sql");
 
 /// Default source paths for each table
 const DEFAULT_EXOME_ANNOTATIONS_PATH: &str =
@@ -26,6 +28,8 @@ const DEFAULT_GENOME_ANNOTATIONS_PATH: &str =
     "gs://aou_results/414k/utils/aou_all_ACAF_variant_info_pruned_414k_annotated_filtered.ht";
 const DEFAULT_GENE_MODELS_PATH: &str =
     "gs://axaou-browser-common/reference-data/genes_grch38_annotated_6.ht";
+const DEFAULT_ANALYSIS_METADATA_PATH: &str =
+    "gs://aou_results/414k/utils/aou_phenotype_meta_info.ht";
 
 /// Table configuration
 #[derive(Debug, Clone)]
@@ -67,6 +71,16 @@ impl TableConfig {
             transform_sql: GENE_MODELS_TRANSFORM,
         }
     }
+
+    fn analysis_metadata() -> Self {
+        Self {
+            name: "analysis_metadata",
+            staging_name: "staging_analysis_metadata_raw",
+            default_path: DEFAULT_ANALYSIS_METADATA_PATH,
+            ddl_sql: ANALYSIS_METADATA_DDL,
+            transform_sql: ANALYSIS_METADATA_TRANSFORM,
+        }
+    }
 }
 
 /// Ingest subcommands
@@ -80,6 +94,9 @@ pub enum IngestCommand {
 
     /// Load gene models
     GeneModels(IngestArgs),
+
+    /// Load analysis metadata (phenotype info)
+    AnalysisMetadata(IngestArgs),
 
     /// Load all tables
     All(IngestArgs),
@@ -174,6 +191,10 @@ pub async fn run_ingest(command: IngestCommand) -> Result<()> {
             let config = TableConfig::gene_models();
             orchestrate_table_load(&config, &args).await?;
         }
+        IngestCommand::AnalysisMetadata(args) => {
+            let config = TableConfig::analysis_metadata();
+            orchestrate_table_load(&config, &args).await?;
+        }
         IngestCommand::All(args) => {
             info!("Loading all tables...");
 
@@ -181,6 +202,7 @@ pub async fn run_ingest(command: IngestCommand) -> Result<()> {
                 TableConfig::exome_annotations(),
                 TableConfig::genome_annotations(),
                 TableConfig::gene_models(),
+                TableConfig::analysis_metadata(),
             ];
 
             for config in configs {
@@ -293,7 +315,36 @@ async fn prepare_target_table(config: &TableConfig, args: &IngestArgs) -> Result
 }
 
 /// Execute SQL against ClickHouse using curl
+/// Handles multi-statement SQL by splitting on semicolons
 async fn execute_clickhouse_sql(url: &str, database: &str, sql: &str) -> Result<()> {
+    // Split SQL into individual statements
+    let statements = split_sql_statements(sql);
+
+    for statement in &statements {
+        execute_single_sql(url, database, statement).await?;
+    }
+
+    Ok(())
+}
+
+/// Split SQL text into individual statements by semicolons
+fn split_sql_statements(sql: &str) -> Vec<String> {
+    // Simple approach: split on semicolons, filter out empty/comment-only chunks
+    sql.split(';')
+        .map(|s| s.trim())
+        .filter(|s| {
+            // Keep non-empty statements that aren't just comments
+            !s.is_empty() && !s.lines().all(|line| {
+                let trimmed = line.trim();
+                trimmed.is_empty() || trimmed.starts_with("--")
+            })
+        })
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Execute a single SQL statement
+async fn execute_single_sql(url: &str, database: &str, sql: &str) -> Result<()> {
     let full_url = format!("{}/?database={}", url, database);
 
     let output = Command::new("curl")
@@ -411,6 +462,8 @@ async fn show_status(url: &str) -> Result<()> {
         ("exome_annotations", "Exome variant annotations"),
         ("genome_annotations", "Genome variant annotations"),
         ("gene_models", "Gene models"),
+        ("analysis_metadata", "Analysis/phenotype metadata"),
+        ("analysis_categories", "Analysis categories (derived)"),
         ("variant_annotations", "Legacy combined annotations"),
     ];
 

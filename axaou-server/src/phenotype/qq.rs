@@ -21,6 +21,8 @@ pub struct QQQuery {
     pub sequencing_type: Option<String>,
     /// Chromosome filter (optional, e.g., "chr1")
     pub contig: Option<String>,
+    /// Maximum number of points to return (default: 10000)
+    pub limit: Option<u32>,
 }
 
 /// GET /api/phenotype/:analysis_id/qq
@@ -35,25 +37,35 @@ pub async fn get_qq_plot(
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let sequencing_type = params.sequencing_type.unwrap_or_else(|| "genomes".to_string());
 
+    let limit = params.limit.unwrap_or(10000);
+
     let base_query = if params.contig.is_some() {
-        r#"
-        SELECT phenotype, ancestry, sequencing_type, contig, position,
-               ref, alt, pvalue_log10, pvalue_expected_log10
-        FROM qq_points
-        WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND contig = ?
-        ORDER BY pvalue_expected_log10 DESC
-        "#
+        format!(
+            r#"
+            SELECT phenotype, ancestry, sequencing_type, contig, position,
+                   ref, alt, pvalue_log10, pvalue_expected_log10
+            FROM qq_points
+            WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND contig = ?
+            ORDER BY pvalue_expected_log10 DESC
+            LIMIT {}
+            "#,
+            limit
+        )
     } else {
-        r#"
-        SELECT phenotype, ancestry, sequencing_type, contig, position,
-               ref, alt, pvalue_log10, pvalue_expected_log10
-        FROM qq_points
-        WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
-        ORDER BY pvalue_expected_log10 DESC
-        "#
+        format!(
+            r#"
+            SELECT phenotype, ancestry, sequencing_type, contig, position,
+                   ref, alt, pvalue_log10, pvalue_expected_log10
+            FROM qq_points
+            WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
+            ORDER BY pvalue_expected_log10 DESC
+            LIMIT {}
+            "#,
+            limit
+        )
     };
 
-    let mut query = state.clickhouse.query(base_query);
+    let mut query = state.clickhouse.query(&base_query);
     query = query
         .bind(&analysis_id)
         .bind(&ancestry)

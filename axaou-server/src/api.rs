@@ -242,12 +242,10 @@ pub async fn get_gene_model(
     State(state): State<Arc<AppState>>,
     Path(gene_id): Path<String>,
 ) -> Result<Json<Vec<GeneModel>>, AppError> {
-    let gene_models = Arc::clone(&state.gene_models);
+    // Use ClickHouse for fast queries
+    let gene_models = crate::gene_models::GeneModelsClickHouse::new(state.clickhouse.clone());
 
-    let result = tokio::task::spawn_blocking(move || gene_models.get_by_gene_id(&gene_id))
-        .await??;
-
-    match result {
+    match gene_models.get_by_gene_id(&gene_id).await? {
         Some(model) => Ok(Json(vec![model])),
         None => Err(AppError::NotFound(format!("Gene not found"))),
     }
@@ -261,11 +259,10 @@ pub async fn get_gene_models_in_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
 ) -> Result<Json<Vec<GeneModel>>, AppError> {
-    let gene_models = Arc::clone(&state.gene_models);
+    // Use ClickHouse for fast queries
+    let gene_models = crate::gene_models::GeneModelsClickHouse::new(state.clickhouse.clone());
 
-    let genes = tokio::task::spawn_blocking(move || gene_models.get_in_interval(&interval))
-        .await??;
-
+    let genes = gene_models.get_in_interval(&interval).await?;
     Ok(Json(genes))
 }
 
