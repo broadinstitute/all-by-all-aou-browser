@@ -20,6 +20,7 @@ mod gene_queries;
 mod genes;
 mod models;
 mod phenotype;
+mod response;
 mod variants;
 
 use api::AppState;

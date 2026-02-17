@@ -2,7 +2,11 @@
 //!
 //! These structs map to ClickHouse table schemas for type-safe queries.
 
-use crate::models::{Exon, GeneModel, GnomadConstraint, ManeSelectTranscript, Transcript};
+use crate::clickhouse::xpos::{make_variant_id, make_variant_id_from_xpos};
+use crate::models::{
+    Exon, GeneAssociationApi, GeneModel, GnomadConstraint, Locus, ManeSelectTranscript, Transcript,
+    VariantAnnotationApi, VariantAssociationApi,
+};
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
 
@@ -75,6 +79,25 @@ pub struct SignificantVariantRow {
     pub af: f64,
 }
 
+impl SignificantVariantRow {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> VariantAssociationApi {
+        VariantAssociationApi {
+            variant_id: make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position as u32),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            pvalue: self.pvalue,
+            beta: self.beta,
+            se: self.se,
+            af: self.af,
+            phenotype: self.phenotype.clone(),
+            ancestry: self.ancestry.clone(),
+            sequencing_type: self.sequencing_type.clone(),
+        }
+    }
+}
+
 /// Global variant annotation from the `variant_annotations` table
 ///
 /// Contains gene annotations and allele frequencies for a variant.
@@ -89,6 +112,21 @@ pub struct VariantAnnotationRow {
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
     pub af_all: Option<f64>,
+}
+
+impl VariantAnnotationRow {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> VariantAnnotationApi {
+        VariantAnnotationApi {
+            variant_id: make_variant_id(&self.contig, self.position, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            consequence: self.consequence.clone(),
+            af: self.af_all,
+        }
+    }
 }
 
 /// Phenotype plot metadata from the `phenotype_plots` table
@@ -121,6 +159,26 @@ pub struct GeneAssociationRow {
     pub contig: String,
     pub gene_start_position: i32,
     pub xpos: i64,
+}
+
+impl GeneAssociationRow {
+    /// Convert to API model with nested locus
+    pub fn to_api(&self) -> GeneAssociationApi {
+        GeneAssociationApi {
+            gene_id: self.gene_id.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            annotation: self.annotation.clone(),
+            max_maf: self.max_maf,
+            phenotype: self.phenotype.clone(),
+            ancestry: self.ancestry.clone(),
+            pvalue: self.pvalue,
+            pvalue_burden: self.pvalue_burden,
+            pvalue_skat: self.pvalue_skat,
+            beta_burden: self.beta_burden,
+            mac: self.mac,
+            locus: Locus::new(self.contig.clone(), self.gene_start_position as u32),
+        }
+    }
 }
 
 /// Point for Q-Q plot from the `qq_points` table

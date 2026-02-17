@@ -60,6 +60,40 @@ pub fn parse_variant_id(variant_id: &str) -> Result<(i64, String, String), AppEr
     Ok((xpos, ref_allele, alt_allele))
 }
 
+/// Reverse xpos back to (chromosome, position)
+///
+/// Formula: `contig_num = xpos / 1_000_000_000`, `position = xpos % 1_000_000_000`
+pub fn reverse_xpos(xpos: i64) -> (String, u32) {
+    let contig_num = xpos / 1_000_000_000;
+    let position = (xpos % 1_000_000_000) as u32;
+
+    let contig = match contig_num {
+        1..=22 => contig_num.to_string(),
+        23 => "X".to_string(),
+        24 => "Y".to_string(),
+        25 => "M".to_string(),
+        _ => "?".to_string(),
+    };
+
+    (contig, position)
+}
+
+/// Generate a variant ID string from components
+///
+/// Format: "chr{contig}-{position}-{ref}-{alt}"
+pub fn make_variant_id(contig: &str, position: u32, ref_allele: &str, alt_allele: &str) -> String {
+    let normalized = contig.trim_start_matches("chr");
+    format!("chr{}-{}-{}-{}", normalized, position, ref_allele, alt_allele)
+}
+
+/// Generate a variant ID string from xpos and alleles
+///
+/// Format: "chr{contig}-{position}-{ref}-{alt}"
+pub fn make_variant_id_from_xpos(xpos: i64, ref_allele: &str, alt_allele: &str) -> String {
+    let (contig, position) = reverse_xpos(xpos);
+    make_variant_id(&contig, position, ref_allele, alt_allele)
+}
+
 /// Parse interval "chr1:100-200" or "1:100-200" -> (xpos_start, xpos_end)
 pub fn parse_interval_to_xpos(interval: &str) -> Result<(i64, i64), AppError> {
     let parts: Vec<&str> = interval.split(':').collect();
@@ -132,5 +166,38 @@ mod tests {
         let (start, end) = parse_interval_to_xpos("chr1:100-200").unwrap();
         assert_eq!(start, 1_000_000_100);
         assert_eq!(end, 1_000_000_200);
+    }
+
+    #[test]
+    fn test_reverse_xpos() {
+        assert_eq!(reverse_xpos(1_000_012_345), ("1".to_string(), 12345));
+        assert_eq!(reverse_xpos(22_000_001_000), ("22".to_string(), 1000));
+        assert_eq!(reverse_xpos(23_000_005_000), ("X".to_string(), 5000));
+        assert_eq!(reverse_xpos(24_000_000_100), ("Y".to_string(), 100));
+        assert_eq!(reverse_xpos(25_000_000_001), ("M".to_string(), 1));
+    }
+
+    #[test]
+    fn test_make_variant_id() {
+        assert_eq!(
+            make_variant_id("1", 12345, "A", "T"),
+            "chr1-12345-A-T"
+        );
+        assert_eq!(
+            make_variant_id("chr22", 1000, "ACGT", "G"),
+            "chr22-1000-ACGT-G"
+        );
+    }
+
+    #[test]
+    fn test_make_variant_id_from_xpos() {
+        assert_eq!(
+            make_variant_id_from_xpos(1_000_012_345, "A", "T"),
+            "chr1-12345-A-T"
+        );
+        assert_eq!(
+            make_variant_id_from_xpos(23_000_005_000, "C", "G"),
+            "chrX-5000-C-G"
+        );
     }
 }

@@ -5,6 +5,8 @@
 use crate::api::AppState;
 use crate::clickhouse::models::GeneAssociationRow;
 use crate::error::AppError;
+use crate::models::GeneAssociationApi;
+use crate::response::{LookupResult, QueryTimer};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -20,6 +22,9 @@ pub struct GeneQuery {
     pub ancestry: Option<String>,
     /// Annotation type filter (e.g., "pLoF", "missenseLC")
     pub annotation: Option<String>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/genes/phewas/:gene_id
@@ -32,7 +37,8 @@ pub async fn get_gene_phewas(
     State(state): State<Arc<AppState>>,
     Path(gene_id): Path<String>,
     Query(params): Query<GeneQuery>,
-) -> Result<Json<Vec<GeneAssociationRow>>, AppError> {
+) -> Result<Json<LookupResult<GeneAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
 
     // Determine if we're searching by gene_id or gene_symbol
@@ -72,7 +78,8 @@ pub async fn get_gene_phewas(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<GeneAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// Query parameters for top gene associations endpoint
@@ -88,6 +95,9 @@ pub struct TopGenesQuery {
     pub min_p: Option<f64>,
     /// Maximum p-value threshold (default: 1e-6)
     pub max_p: Option<f64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/genes/top-associations
@@ -97,7 +107,8 @@ pub struct TopGenesQuery {
 pub async fn get_top_associations(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TopGenesQuery>,
-) -> Result<Json<Vec<GeneAssociationRow>>, AppError> {
+) -> Result<Json<LookupResult<GeneAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let limit = params.limit.unwrap_or(100);
     let min_p = params.min_p.unwrap_or(0.0);
     let max_p = params.max_p.unwrap_or(1e-6);
@@ -137,7 +148,8 @@ pub async fn get_top_associations(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<GeneAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// Response type for gene symbol list
@@ -180,6 +192,9 @@ pub struct GeneIntervalQuery {
     pub annotation: Option<String>,
     /// Maximum number of results (default: 1000)
     pub limit: Option<u64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/genes/associations/interval/:interval
@@ -190,9 +205,10 @@ pub async fn get_genes_in_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
     Query(params): Query<GeneIntervalQuery>,
-) -> Result<Json<Vec<GeneAssociationRow>>, AppError> {
+) -> Result<Json<LookupResult<GeneAssociationApi>>, AppError> {
     use crate::clickhouse::xpos::parse_interval_to_xpos;
 
+    let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let limit = params.limit.unwrap_or(1000);
@@ -231,5 +247,6 @@ pub async fn get_genes_in_interval(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<GeneAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }

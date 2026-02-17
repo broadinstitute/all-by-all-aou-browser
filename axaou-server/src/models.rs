@@ -9,6 +9,87 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // ============================================================================
+// API Response Models - Frontend-compatible types with nested structures
+// ============================================================================
+
+/// Genomic locus (chromosome + position) for frontend compatibility.
+///
+/// Matches the frontend's expected nested `locus` object structure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Locus {
+    pub contig: String,
+    pub position: u32,
+}
+
+impl Locus {
+    /// Create a new Locus from contig and position
+    pub fn new(contig: String, position: u32) -> Self {
+        Self { contig, position }
+    }
+
+    /// Create a Locus from an xpos value
+    pub fn from_xpos(xpos: i64) -> Self {
+        let (contig, position) = crate::clickhouse::xpos::reverse_xpos(xpos);
+        Self { contig, position }
+    }
+}
+
+/// Variant association data for API responses.
+///
+/// This struct matches the frontend's expected shape with:
+/// - `variant_id`: Generated string ID (chr1-12345-A-T)
+/// - `locus`: Nested object with contig + position
+#[derive(Debug, Clone, Serialize)]
+pub struct VariantAssociationApi {
+    pub variant_id: String,
+    pub locus: Locus,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub pvalue: f64,
+    pub beta: f64,
+    pub se: f64,
+    pub af: f64,
+    pub phenotype: String,
+    pub ancestry: String,
+    pub sequencing_type: String,
+}
+
+/// Variant annotation data for API responses.
+///
+/// Includes nested locus and computed variant_id.
+#[derive(Debug, Clone, Serialize)]
+pub struct VariantAnnotationApi {
+    pub variant_id: String,
+    pub locus: Locus,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+    pub af: Option<f64>,
+}
+
+/// Gene association data for API responses.
+///
+/// Includes nested locus for gene position.
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneAssociationApi {
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub annotation: String,
+    pub max_maf: f64,
+    pub phenotype: String,
+    pub ancestry: String,
+    pub pvalue: Option<f64>,
+    pub pvalue_burden: Option<f64>,
+    pub pvalue_skat: Option<f64>,
+    pub beta_burden: Option<f64>,
+    pub mac: Option<i64>,
+    pub locus: Locus,
+}
+
+// ============================================================================
 // Analysis Assets - Discovery of per-phenotype result files
 // ============================================================================
 

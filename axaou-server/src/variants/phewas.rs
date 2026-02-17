@@ -6,6 +6,8 @@ use crate::api::AppState;
 use crate::clickhouse::models::SignificantVariantRow;
 use crate::clickhouse::xpos::{parse_interval_to_xpos, parse_variant_id};
 use crate::error::AppError;
+use crate::models::VariantAssociationApi;
+use crate::response::{LookupResult, QueryTimer};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -20,7 +22,8 @@ use std::sync::Arc;
 pub async fn get_phewas_by_variant(
     State(state): State<Arc<AppState>>,
     Path(variant_id): Path<String>,
-) -> Result<Json<Vec<SignificantVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let (xpos, ref_allele, alt_allele) = parse_variant_id(&variant_id)?;
 
     let query = r#"
@@ -41,7 +44,8 @@ pub async fn get_phewas_by_variant(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// Query parameters for top variants endpoint
@@ -55,6 +59,9 @@ pub struct TopVariantsQuery {
     pub max_p: Option<f64>,
     /// Maximum number of results (default: 1000)
     pub limit: Option<u64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/associations/top
@@ -64,7 +71,8 @@ pub struct TopVariantsQuery {
 pub async fn get_top_variants(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TopVariantsQuery>,
-) -> Result<Json<Vec<SignificantVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let min_p = params.min_p.unwrap_or(1e-10);
     let max_p = params.max_p.unwrap_or(1e-6);
     let limit = params.limit.unwrap_or(1000);
@@ -89,7 +97,8 @@ pub async fn get_top_variants(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// Query parameters for PheWAS interval endpoint
@@ -99,6 +108,9 @@ pub struct PhewasIntervalQuery {
     pub ancestry: Option<String>,
     /// Maximum number of results (default: 10000)
     pub limit: Option<u64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/associations/phewas/interval/:interval
@@ -109,7 +121,8 @@ pub async fn get_phewas_by_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
     Query(params): Query<PhewasIntervalQuery>,
-) -> Result<Json<Vec<SignificantVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let limit = params.limit.unwrap_or(10000);
@@ -134,5 +147,6 @@ pub async fn get_phewas_by_interval(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }

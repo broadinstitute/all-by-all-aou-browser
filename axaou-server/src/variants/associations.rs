@@ -6,6 +6,7 @@ use crate::api::AppState;
 use crate::clickhouse::models::{GenePageVariantRow, LocusVariantRow};
 use crate::clickhouse::xpos::compute_xpos;
 use crate::error::AppError;
+use crate::response::{LookupResult, QueryTimer};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -24,6 +25,9 @@ pub struct VariantGeneQuery {
     pub sequencing_type: Option<String>,
     /// Maximum number of results (default: 10000)
     pub limit: Option<u64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/associations/gene/:gene_id
@@ -38,7 +42,8 @@ pub async fn get_variants_by_gene(
     State(state): State<Arc<AppState>>,
     Path(gene_id): Path<String>,
     Query(params): Query<VariantGeneQuery>,
-) -> Result<Json<Vec<GenePageVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<GenePageVariantRow>>, AppError> {
+    let timer = QueryTimer::start();
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let sequencing_type = params.sequencing_type.unwrap_or_else(|| "genomes".to_string());
     let limit = params.limit.unwrap_or(10000);
@@ -104,7 +109,7 @@ pub async fn get_variants_by_gene(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    Ok(Json(LookupResult::new(rows, timer.elapsed())))
 }
 
 /// Query parameters for Manhattan top-N endpoint
@@ -116,6 +121,9 @@ pub struct ManhattanTopQuery {
     pub sequencing_type: Option<String>,
     /// Maximum number of results (default: 1000)
     pub limit: Option<u64>,
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/associations/manhattan/:analysis_id/top
@@ -126,7 +134,8 @@ pub async fn get_manhattan_top(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
     Query(params): Query<ManhattanTopQuery>,
-) -> Result<Json<Vec<LocusVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<LocusVariantRow>>, AppError> {
+    let timer = QueryTimer::start();
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let sequencing_type = params.sequencing_type.unwrap_or_else(|| "genomes".to_string());
     let limit = params.limit.unwrap_or(1000);
@@ -150,5 +159,5 @@ pub async fn get_manhattan_top(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    Ok(Json(LookupResult::new(rows, timer.elapsed())))
 }

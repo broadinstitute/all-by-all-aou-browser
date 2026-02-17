@@ -12,6 +12,8 @@ use crate::clickhouse::models::{
 };
 use crate::clickhouse::xpos::{compute_xpos, parse_interval_to_xpos, parse_variant_id};
 use crate::error::AppError;
+use crate::models::{VariantAnnotationApi, VariantAssociationApi};
+use crate::response::{LookupResult, QueryTimer};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -133,6 +135,10 @@ pub struct AnnotationQuery {
     /// When true, queries exome_annotations/genome_annotations
     /// When false (default), queries legacy variant_annotations
     pub extended: Option<bool>,
+
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/annotations/interval/:interval
@@ -148,12 +154,13 @@ pub async fn get_annotations_by_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
     Query(params): Query<AnnotationQuery>,
-) -> Result<Json<Vec<VariantAnnotationRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAnnotationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
     let limit = params.limit.unwrap_or(1000);
     let use_extended = params.extended.unwrap_or(false);
 
-    if use_extended {
+    let rows = if use_extended {
         // Use new separate tables
         let table = match params.sequencing_type.unwrap_or_default() {
             SequencingTypeParam::Exome => "exome_annotations",
@@ -170,7 +177,7 @@ pub async fn get_annotations_by_interval(
             table
         );
 
-        let rows = state
+        state
             .clickhouse
             .query(&query)
             .bind(xpos_start)
@@ -178,9 +185,7 @@ pub async fn get_annotations_by_interval(
             .bind(limit)
             .fetch_all::<VariantAnnotationRow>()
             .await
-            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
-
-        Ok(Json(rows))
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
     } else {
         // Use legacy single table
         let query = r#"
@@ -190,7 +195,7 @@ pub async fn get_annotations_by_interval(
             LIMIT ?
         "#;
 
-        let rows = state
+        state
             .clickhouse
             .query(query)
             .bind(xpos_start)
@@ -198,10 +203,12 @@ pub async fn get_annotations_by_interval(
             .bind(limit)
             .fetch_all::<VariantAnnotationRow>()
             .await
-            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
+    };
 
-        Ok(Json(rows))
-    }
+    // Convert to API format
+    let api_rows: Vec<VariantAnnotationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// Query parameters for gene annotation endpoint
@@ -212,6 +219,10 @@ pub struct GeneAnnotationQuery {
 
     /// Use extended schema (new tables with full VEP annotations)
     pub extended: Option<bool>,
+
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/annotations/gene/:gene_id
@@ -226,7 +237,9 @@ pub async fn get_annotations_by_gene(
     State(state): State<Arc<AppState>>,
     Path(gene_id): Path<String>,
     Query(params): Query<GeneAnnotationQuery>,
-) -> Result<Json<Vec<VariantAnnotationRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAnnotationApi>>, AppError> {
+    let timer = QueryTimer::start();
+
     // Step 1: Get gene model from Hail Table
     let gene_models = Arc::clone(&state.gene_models);
     let gene_id_clone = gene_id.clone();
@@ -234,12 +247,12 @@ pub async fn get_annotations_by_gene(
         .await??;
 
     let Some(gene) = gene else {
-        return Ok(Json(vec![]));
+        return Ok(Json(LookupResult::new(vec![], timer.elapsed())));
     };
 
     // Step 2: Build query for exon ranges
     if gene.exons.is_empty() {
-        return Ok(Json(vec![]));
+        return Ok(Json(LookupResult::new(vec![], timer.elapsed())));
     }
 
     let contig = gene.chrom.trim_start_matches("chr");
@@ -286,7 +299,9 @@ pub async fn get_annotations_by_gene(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    // Convert to API format
+    let api_rows: Vec<VariantAnnotationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 // ============================================================================
@@ -298,6 +313,10 @@ pub async fn get_annotations_by_gene(
 pub struct AssociationQuery {
     /// Analysis ID / phenotype (required)
     pub analysis_id: String,
+
+    /// Query mode (fast/slow) - accepted but currently ignored
+    #[serde(default)]
+    pub query_mode: Option<String>,
 }
 
 /// GET /api/variants/associations/variant/:variant_id
@@ -308,7 +327,8 @@ pub async fn get_association_by_variant(
     State(state): State<Arc<AppState>>,
     Path(variant_id): Path<String>,
     Query(params): Query<AssociationQuery>,
-) -> Result<Json<Option<SignificantVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let (xpos, ref_allele, alt_allele) = parse_variant_id(&variant_id)?;
 
     let query = r#"
@@ -330,7 +350,8 @@ pub async fn get_association_by_variant(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(row))
+    let api_rows: Vec<VariantAssociationApi> = row.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
 /// GET /api/variants/associations/interval/:interval
@@ -341,7 +362,8 @@ pub async fn get_associations_by_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
     Query(params): Query<AssociationQuery>,
-) -> Result<Json<Vec<SignificantVariantRow>>, AppError> {
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
 
     let query = r#"
@@ -361,5 +383,6 @@ pub async fn get_associations_by_interval(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(rows))
+    let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
