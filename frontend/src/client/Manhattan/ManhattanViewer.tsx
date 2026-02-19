@@ -217,13 +217,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
         <div className="manhattan-table-container" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
           {displayHits[0]?.hit_type === 'gene' ? (
             // Gene table
-            <table className="manhattan-table">
+            <table className="manhattan-table manhattan-table-gene">
               <thead>
                 <tr>
                   <th>Gene</th>
-                  <th>Gene ID</th>
-                  <th>Position</th>
-                  <th>P-value</th>
+                  <th>P SKAT-O</th>
+                  <th>P Burden</th>
+                  <th>P SKAT</th>
                   <th>Beta</th>
                 </tr>
               </thead>
@@ -235,10 +235,10 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     onClick={() => onHitClick?.(hit)}
                     style={{ cursor: onHitClick ? 'pointer' : 'default' }}
                   >
-                    <td>{hit.label}</td>
-                    <td title={hit.id}>{hit.id}</td>
-                    <td>{hit.contig}:{hit.position.toLocaleString()}</td>
+                    <td title={hit.id}>{hit.label}</td>
                     <td>{hit.pvalue.toExponential(2)}</td>
+                    <td>{hit.pvalue_burden?.toExponential(2) ?? '—'}</td>
+                    <td>{hit.pvalue_skat?.toExponential(2) ?? '—'}</td>
                     <td>{hit.beta?.toFixed(3) ?? '—'}</td>
                   </tr>
                 ))}

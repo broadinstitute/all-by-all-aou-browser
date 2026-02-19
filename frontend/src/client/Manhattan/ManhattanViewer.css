@@ -173,11 +173,11 @@
   z-index: 3;
 }
 
-/* Hide CSQ and HGVS columns (3rd and 4th) to fit important columns */
-.manhattan-table td:nth-child(3),
-.manhattan-table th:nth-child(3),
-.manhattan-table td:nth-child(4),
-.manhattan-table th:nth-child(4) {
+/* Hide CSQ and HGVS columns (3rd and 4th) for variant table only */
+.manhattan-table:not(.manhattan-table-gene) td:nth-child(3),
+.manhattan-table:not(.manhattan-table-gene) th:nth-child(3),
+.manhattan-table:not(.manhattan-table-gene) td:nth-child(4),
+.manhattan-table:not(.manhattan-table-gene) th:nth-child(4) {
   display: none;
 }
 
@@ -186,7 +186,18 @@
   text-align: right;
 }
 
-.manhattan-table td:nth-child(2) {
+.manhattan-table:not(.manhattan-table-gene) td:nth-child(2) {
   font-size: 12px;
   color: #666;
+}
+
+/* Gene table specific styles */
+.manhattan-table-gene td,
+.manhattan-table-gene th {
+  text-align: right;
+}
+
+.manhattan-table-gene td:first-child,
+.manhattan-table-gene th:first-child {
+  text-align: left;
 }

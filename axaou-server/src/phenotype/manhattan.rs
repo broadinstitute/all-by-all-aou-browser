@@ -57,6 +57,8 @@ struct SignificantGeneRow {
     pub contig: String,
     pub position: i32,
     pub pvalue: f64,
+    pub pvalue_burden: Option<f64>,
+    pub pvalue_skat: Option<f64>,
     pub beta_burden: Option<f64>,
 }
 
@@ -104,6 +106,12 @@ pub struct SignificantHit {
     /// Allele count - variants only
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ac: Option<u32>,
+    /// P-value for burden test - genes only
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_burden: Option<f64>,
+    /// P-value for SKAT test - genes only
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_skat: Option<f64>,
 }
 
 /// Overlay data with significant hits from ClickHouse
@@ -314,6 +322,8 @@ pub async fn get_manhattan_overlay(
                 hgvsc: row.hgvsc,
                 hgvsp: row.hgvsp,
                 ac: row.ac,
+                pvalue_burden: None,
+                pvalue_skat: None,
             }
         })
         .collect();
@@ -337,13 +347,14 @@ async fn get_gene_manhattan_overlay(
     let query = r#"
         SELECT
             gene_id, gene_symbol, contig, gene_start_position AS position,
-            pvalue, beta_burden
+            pvalue, pvalue_burden, pvalue_skat, beta_burden
         FROM gene_associations
         WHERE phenotype = ?
             AND ancestry = ?
             AND pvalue IS NOT NULL
-            AND pvalue < 2.5e-6
+            AND pvalue < 0.05
         ORDER BY pvalue ASC
+        LIMIT 500
     "#;
 
     let rows: Vec<SignificantGeneRow> = state
@@ -371,6 +382,8 @@ async fn get_gene_manhattan_overlay(
             hgvsc: None,
             hgvsp: None,
             ac: None,
+            pvalue_burden: row.pvalue_burden,
+            pvalue_skat: row.pvalue_skat,
         })
         .collect();
 

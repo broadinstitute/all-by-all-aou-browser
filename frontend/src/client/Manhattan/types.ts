@@ -38,6 +38,10 @@ export interface SignificantHit {
   hgvsp?: string;
   /** Allele count - variants only */
   ac?: number;
+  /** P-value for burden test - genes only */
+  pvalue_burden?: number;
+  /** P-value for SKAT test - genes only */
+  pvalue_skat?: number;
 }
 
 /**
