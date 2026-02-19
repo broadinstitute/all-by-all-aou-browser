@@ -9,16 +9,75 @@ interface PeakTooltipProps {
   containerWidth: number;
 }
 
-const SIGNIFICANCE_THRESHOLD = 2.5e-6;
+// P-value thresholds for coloring
+const GREEN_THRESHOLD = 3.5e-7;  // Most significant
+const ORANGE_THRESHOLD = 1e-6;   // Significant
 
 /**
- * Tooltip showing all genes in a GWAS locus with evidence summary.
+ * Get color for p-value based on significance thresholds
+ */
+const getPvalueColor = (p: number | undefined): 'green' | 'orange' | 'none' => {
+  if (p === undefined || p === null) return 'none';
+  if (p < GREEN_THRESHOLD) return 'green';
+  if (p < ORANGE_THRESHOLD) return 'orange';
+  return 'none';
+};
+
+/**
+ * Format annotation name for display
+ */
+const formatAnnotation = (ann: string): string => {
+  switch (ann) {
+    case 'pLoF': return 'pLoF';
+    case 'missenseLC': return 'Missense (LC)';
+    case 'synonymous': return 'Synonymous';
+    default: return ann;
+  }
+};
+
+/**
+ * Format p-value for display
+ */
+const formatPvalue = (p: number | undefined): string => {
+  if (p === undefined || p === null) return '—';
+  if (p < 1e-100) return '< 1e-100';
+  if (p < 0.001) return p.toExponential(2);
+  return p.toPrecision(3);
+};
+
+/**
+ * P-value cell with color-coded indicator
+ */
+const PvalueCell: React.FC<{ value: number | undefined }> = ({ value }) => {
+  const color = getPvalueColor(value);
+  const formatted = formatPvalue(value);
+
+  const dotColor = color === 'green' ? '#4caf50' : color === 'orange' ? '#ff9800' : undefined;
+  const textColor = color === 'green' ? '#2e7d32' : color === 'orange' ? '#e65100' : '#666';
+  const fontWeight = color !== 'none' ? 600 : 400;
+
+  return (
+    <td style={{
+      textAlign: 'right',
+      color: textColor,
+      fontWeight,
+      padding: '3px 6px',
+      whiteSpace: 'nowrap',
+    }}>
+      {dotColor && <span style={{ color: dotColor }}>● </span>}
+      {formatted}
+    </td>
+  );
+};
+
+/**
+ * Tooltip showing all genes in a GWAS locus with burden test results.
  */
 export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerWidth }) => {
   const { peak } = node;
 
   // Flip tooltip to the left if near right edge
-  const shouldFlip = x > containerWidth * 0.6;
+  const shouldFlip = x > containerWidth * 0.5;
 
   const style: React.CSSProperties = {
     position: 'absolute',
@@ -33,46 +92,48 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     lineHeight: '1.4',
     pointerEvents: 'none',
     zIndex: 1001,
-    minWidth: '320px',
-    maxWidth: '480px',
+    minWidth: '400px',
+    maxWidth: '600px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
   };
 
-  const formatPvalue = (p: number | undefined): string => {
-    if (p === undefined || p === null) return '—';
-    if (p < 1e-100) return '< 1e-100';
-    if (p < 0.001) return p.toExponential(1);
-    return p.toPrecision(2);
+  const headerStyle: React.CSSProperties = {
+    fontWeight: 600,
+    fontSize: '12px',
+    marginBottom: '10px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #e0e0e0',
   };
 
-  const isSignificant = (p: number | undefined): boolean => {
-    return p !== undefined && p !== null && p < SIGNIFICANCE_THRESHOLD;
+  const tableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '10px',
   };
 
-  const hasAnySignificantBurden = (results: BurdenResult[] | undefined): boolean => {
-    return results?.some((r) => isSignificant(r.pvalue)) ?? false;
+  const thStyle: React.CSSProperties = {
+    textAlign: 'right',
+    padding: '4px 6px',
+    fontWeight: 600,
+    color: '#666',
+    borderBottom: '1px solid #e0e0e0',
+    whiteSpace: 'nowrap',
   };
 
-  // Format annotation name for display
-  const formatAnnotation = (ann: string): string => {
-    switch (ann) {
-      case 'pLoF': return 'pLoF';
-      case 'missenseLC': return 'Missense';
-      case 'synonymous': return 'Syn';
-      default: return ann;
-    }
+  const thLeftStyle: React.CSSProperties = {
+    ...thStyle,
+    textAlign: 'left',
   };
+
+  // Check if any gene has significant burden results
+  const hasAnySignificant = peak.genes.some(gene =>
+    gene.burden_results?.some(r => getPvalueColor(r.pvalue) !== 'none')
+  );
 
   return (
     <div style={style} className="manhattan-peak-tooltip">
       {/* Header */}
-      <div style={{
-        fontWeight: 600,
-        fontSize: '12px',
-        marginBottom: '10px',
-        paddingBottom: '8px',
-        borderBottom: '1px solid #e0e0e0'
-      }}>
+      <div style={headerStyle}>
         <div style={{ color: '#666', fontSize: '10px', marginBottom: '2px' }}>
           {peak.contig}:{peak.position.toLocaleString()}
         </div>
@@ -81,19 +142,16 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
         </div>
       </div>
 
-      {/* Genes */}
-      {peak.genes.slice(0, 6).map((gene, i) => {
-        const hasSignificant = hasAnySignificantBurden(gene.burden_results);
-        const hasCoding = gene.coding_variant_count > 0;
+      {/* Genes table */}
+      {peak.genes.slice(0, 8).map((gene, geneIndex) => {
         const hasBurdenData = gene.burden_results && gene.burden_results.length > 0;
+        const geneHasSignificant = gene.burden_results?.some(r => getPvalueColor(r.pvalue) !== 'none');
 
         return (
           <div
-            key={gene.gene_id || i}
+            key={gene.gene_id || geneIndex}
             style={{
-              marginBottom: i < peak.genes.length - 1 ? '10px' : 0,
-              paddingBottom: i < peak.genes.length - 1 ? '10px' : 0,
-              borderBottom: i < peak.genes.length - 1 ? '1px solid #f0f0f0' : undefined,
+              marginBottom: geneIndex < Math.min(peak.genes.length, 8) - 1 ? '12px' : 0,
             }}
           >
             {/* Gene header */}
@@ -101,75 +159,81 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: hasBurdenData ? '6px' : 0,
+              marginBottom: '6px',
+              padding: '4px 0',
+              borderBottom: hasBurdenData ? '1px solid #eee' : undefined,
             }}>
               <div style={{
-                fontWeight: hasSignificant ? 700 : hasCoding ? 600 : 400,
-                color: hasSignificant ? '#1565c0' : '#333',
+                fontWeight: geneHasSignificant ? 700 : 600,
+                color: geneHasSignificant ? '#1565c0' : '#333',
                 fontSize: '12px',
               }}>
-                {hasSignificant && <span style={{ color: '#4caf50' }}>● </span>}
                 {gene.gene_symbol}
               </div>
               <div style={{ color: '#888', fontSize: '10px' }}>
-                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb
-                {hasCoding && <span style={{ marginLeft: '8px', color: '#666' }}>{gene.coding_variant_count} coding</span>}
+                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb away
+                {gene.coding_variant_count > 0 && (
+                  <span style={{ marginLeft: '8px', color: '#666' }}>
+                    {gene.coding_variant_count} coding variant{gene.coding_variant_count > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Burden results table */}
             {hasBurdenData && (
-              <div style={{
-                backgroundColor: '#fafafa',
-                borderRadius: '4px',
-                padding: '6px 8px',
-                fontSize: '10px',
-              }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '55px 1fr 1fr 1fr',
-                  gap: '2px 6px',
-                  color: '#888',
-                  fontWeight: 500,
-                  marginBottom: '4px',
-                }}>
-                  <div></div>
-                  <div style={{ textAlign: 'right' }}>SKAT-O</div>
-                  <div style={{ textAlign: 'right' }}>Burden</div>
-                  <div style={{ textAlign: 'right' }}>SKAT</div>
-                </div>
-                {gene.burden_results!.map((result) => {
-                  const rowSignificant = isSignificant(result.pvalue);
-                  return (
-                    <div
-                      key={result.annotation}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '55px 1fr 1fr 1fr',
-                        gap: '2px 6px',
-                        padding: '2px 0',
-                        backgroundColor: rowSignificant ? 'rgba(76, 175, 80, 0.1)' : undefined,
-                        borderRadius: '2px',
-                      }}
-                    >
-                      <div style={{ fontWeight: 500, color: '#666' }}>
-                        {formatAnnotation(result.annotation)}
-                      </div>
-                      <PvalueCell value={result.pvalue} />
-                      <PvalueCell value={result.pvalue_burden} />
-                      <PvalueCell value={result.pvalue_skat} />
-                    </div>
-                  );
-                })}
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thLeftStyle}>Category</th>
+                    <th style={thStyle}>SKAT-O</th>
+                    <th style={thStyle}>Burden</th>
+                    <th style={thStyle}>SKAT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gene.burden_results!.map((result) => {
+                    const rowColor = getPvalueColor(result.pvalue);
+                    const rowBg = rowColor === 'green'
+                      ? 'rgba(76, 175, 80, 0.08)'
+                      : rowColor === 'orange'
+                        ? 'rgba(255, 152, 0, 0.08)'
+                        : undefined;
+
+                    return (
+                      <tr
+                        key={result.annotation}
+                        style={{ backgroundColor: rowBg }}
+                      >
+                        <td style={{
+                          padding: '3px 6px',
+                          fontWeight: 500,
+                          color: '#444',
+                        }}>
+                          {formatAnnotation(result.annotation)}
+                        </td>
+                        <PvalueCell value={result.pvalue} />
+                        <PvalueCell value={result.pvalue_burden} />
+                        <PvalueCell value={result.pvalue_skat} />
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+
+            {!hasBurdenData && (
+              <div style={{ color: '#999', fontSize: '10px', fontStyle: 'italic' }}>
+                No burden test results
               </div>
             )}
           </div>
         );
       })}
 
-      {peak.genes.length > 6 && (
+      {peak.genes.length > 8 && (
         <div style={{ color: '#888', fontStyle: 'italic', marginTop: '8px', fontSize: '10px' }}>
-          +{peak.genes.length - 6} more genes in locus
+          +{peak.genes.length - 8} more genes in locus
         </div>
       )}
 
@@ -180,32 +244,12 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
         borderTop: '1px solid #e0e0e0',
         fontSize: '9px',
         color: '#888',
+        display: 'flex',
+        gap: '12px',
       }}>
-        <span style={{ color: '#4caf50' }}>●</span> Significant (P &lt; 2.5e-6)
+        <span><span style={{ color: '#4caf50' }}>●</span> P &lt; 3.5e-7</span>
+        <span><span style={{ color: '#ff9800' }}>●</span> P &lt; 1e-6</span>
       </div>
-    </div>
-  );
-};
-
-/**
- * P-value cell with significance highlighting
- */
-const PvalueCell: React.FC<{ value: number | undefined }> = ({ value }) => {
-  if (value === undefined || value === null) {
-    return <div style={{ textAlign: 'right', color: '#ccc' }}>—</div>;
-  }
-
-  const significant = value < SIGNIFICANCE_THRESHOLD;
-  const formatted = value < 0.001 ? value.toExponential(1) : value.toPrecision(2);
-
-  return (
-    <div style={{
-      textAlign: 'right',
-      color: significant ? '#2e7d32' : '#666',
-      fontWeight: significant ? 600 : 400,
-    }}>
-      {significant && <span style={{ color: '#4caf50' }}>● </span>}
-      {formatted}
     </div>
   );
 };

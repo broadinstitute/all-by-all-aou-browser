@@ -67,6 +67,11 @@ export function usePeakLabelLayout(
         continue;
       }
 
+      // Defensive: ensure genes array exists
+      if (!peak.genes || peak.genes.length === 0) {
+        continue;
+      }
+
       const topGene = peak.genes[0];
       if (!topGene) {
         continue;

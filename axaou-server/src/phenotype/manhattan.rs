@@ -79,7 +79,7 @@ struct PeakGeneRow {
 struct BurdenRow {
     pub gene_id: String,
     pub annotation: String,
-    pub pvalue: f64,
+    pub pvalue: Option<f64>,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
 }
@@ -88,7 +88,8 @@ struct BurdenRow {
 #[derive(Debug, Clone, Serialize)]
 pub struct BurdenResult {
     pub annotation: String,
-    pub pvalue: f64,  // SKAT-O p-value
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue: Option<f64>,  // SKAT-O p-value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvalue_burden: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -307,24 +308,31 @@ async fn fetch_peak_annotations(
     limit: u32,
 ) -> Result<Vec<Peak>, AppError> {
     // Complex CTE query to aggregate peaks and annotate with nearby genes
+    // Uses loci_variants with is_significant filter since significant_variants may be empty
     let query = format!(
         r#"
         WITH peak_variants AS (
             SELECT
-                sv.contig,
-                sv.position,
-                sv.pvalue,
+                CASE intDiv(lv.xpos, 1000000000)
+                    WHEN 23 THEN 'chrX'
+                    WHEN 24 THEN 'chrY'
+                    WHEN 25 THEN 'chrM'
+                    ELSE concat('chr', toString(intDiv(lv.xpos, 1000000000)))
+                END as contig,
+                lv.position,
+                lv.pvalue,
                 ann.gene_symbol,
                 ann.consequence
-            FROM significant_variants sv
+            FROM loci_variants lv
             LEFT JOIN (
                 SELECT xpos, ref, alt, gene_symbol, consequence
                 FROM {annotation_table}
-                WHERE xpos IN (SELECT xpos FROM significant_variants WHERE phenotype = ?)
-            ) ann ON sv.xpos = ann.xpos AND sv.ref = ann.ref AND sv.alt = ann.alt
-            WHERE sv.phenotype = ?
-              AND sv.ancestry = ?
-              AND sv.sequencing_type = ?
+                WHERE xpos IN (SELECT xpos FROM loci_variants WHERE phenotype = ? AND is_significant = true)
+            ) ann ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
+            WHERE lv.phenotype = ?
+              AND lv.ancestry = ?
+              AND lv.sequencing_type = ?
+              AND lv.is_significant = true
         ),
         -- Cluster peaks into 1Mb bins, take top variant per bin
         peaks AS (
@@ -364,7 +372,7 @@ async fn fetch_peak_annotations(
             FROM peak_variants pv
             WHERE pv.gene_symbol IS NOT NULL
             GROUP BY pv.contig, bin, pv.gene_symbol
-        ),
+        )
         SELECT
             lg.contig,
             lg.peak_position,
@@ -405,6 +413,8 @@ async fn fetch_peak_annotations(
         let gene_ids_quoted: Vec<String> = gene_ids_vec.iter().map(|id| format!("'{}'", id)).collect();
         let gene_ids_in = gene_ids_quoted.join(", ");
 
+        // Get best (lowest) p-value per gene per annotation
+        // Use LIMIT BY to get one row per gene+annotation
         let burden_query = format!(
             r#"
             SELECT
@@ -418,19 +428,26 @@ async fn fetch_peak_annotations(
               AND ancestry = ?
               AND gene_id IN ({})
               AND annotation IN ('pLoF', 'missenseLC', 'synonymous')
-            ORDER BY gene_id, annotation
+            ORDER BY gene_id, annotation, pvalue ASC
+            LIMIT 1 BY gene_id, annotation
             "#,
             gene_ids_in
         );
 
-        let burden_rows: Vec<BurdenRow> = state
+        let burden_rows: Vec<BurdenRow> = match state
             .clickhouse
             .query(&burden_query)
             .bind(analysis_id)
             .bind(ancestry)
             .fetch_all()
             .await
-            .unwrap_or_default();
+        {
+            Ok(rows) => rows,
+            Err(e) => {
+                tracing::warn!("Burden query failed: {}", e);
+                vec![]
+            }
+        };
 
         // Group burden results by gene_id
         let mut map: std::collections::HashMap<String, Vec<BurdenResult>> = std::collections::HashMap::new();
@@ -528,24 +545,32 @@ pub async fn get_manhattan_overlay(
         _ => "genome_annotations",
     };
 
+    // Use loci_variants with is_significant filter since significant_variants may be empty
     let query = format!(
         r#"
         SELECT
-            sv.contig, sv.position, sv.ref, sv.alt, sv.pvalue, sv.beta,
+            CASE intDiv(lv.xpos, 1000000000)
+                WHEN 23 THEN 'chrX'
+                WHEN 24 THEN 'chrY'
+                WHEN 25 THEN 'chrM'
+                ELSE concat('chr', toString(intDiv(lv.xpos, 1000000000)))
+            END as contig,
+            lv.position, lv.ref, lv.alt, lv.pvalue, 0.0 as beta,
             ann.gene_symbol, ann.consequence, ann.hgvsc, ann.hgvsp, ann.ac
-        FROM significant_variants sv
+        FROM loci_variants lv
         LEFT JOIN (
             SELECT xpos, ref, alt, gene_symbol, consequence, hgvsc, hgvsp, ac
             FROM {annotation_table}
             WHERE xpos IN (
-                SELECT xpos FROM significant_variants
-                WHERE phenotype = ?
+                SELECT xpos FROM loci_variants
+                WHERE phenotype = ? AND is_significant = true
             )
-        ) ann ON sv.xpos = ann.xpos AND sv.ref = ann.ref AND sv.alt = ann.alt
-        WHERE sv.phenotype = ?
-            AND sv.ancestry = ?
-            AND sv.sequencing_type = ?
-        ORDER BY sv.pvalue ASC
+        ) ann ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
+        WHERE lv.phenotype = ?
+            AND lv.ancestry = ?
+            AND lv.sequencing_type = ?
+            AND lv.is_significant = true
+        ORDER BY lv.pvalue ASC
         "#,
         annotation_table = annotation_table
     );
@@ -588,7 +613,7 @@ pub async fn get_manhattan_overlay(
     let hit_count = significant_hits.len();
 
     // Fetch peak annotations (top 20 peaks with nearby genes)
-    let peaks = fetch_peak_annotations(
+    let peaks = match fetch_peak_annotations(
         &state,
         &analysis_id,
         ancestry,
@@ -597,7 +622,13 @@ pub async fn get_manhattan_overlay(
         20,
     )
     .await
-    .ok(); // Convert error to None - peaks are optional
+    {
+        Ok(p) => Some(p),
+        Err(e) => {
+            tracing::warn!("Failed to fetch peak annotations: {}", e);
+            None
+        }
+    };
 
     Ok(Json(ManhattanOverlay {
         significant_hits,

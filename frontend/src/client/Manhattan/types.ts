@@ -51,7 +51,7 @@ export interface BurdenResult {
   /** Annotation category (e.g., "pLoF", "missenseLC", "synonymous") */
   annotation: string;
   /** SKAT-O p-value (combined test) */
-  pvalue: number;
+  pvalue?: number;
   /** Burden-only p-value */
   pvalue_burden?: number;
   /** SKAT-only p-value */
