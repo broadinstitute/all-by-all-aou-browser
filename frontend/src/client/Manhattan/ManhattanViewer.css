@@ -102,15 +102,13 @@
 /* Hit markers on overlay */
 .manhattan-hit {
   fill: #ff6b6b;
-  stroke: #fff;
-  stroke-width: 1;
+  stroke: none;
   cursor: pointer;
 }
 
 .manhattan-hit-hovered {
   fill: #ff3333;
-  stroke: #fff;
-  stroke-width: 2;
+  stroke: none;
   cursor: pointer;
 }
 

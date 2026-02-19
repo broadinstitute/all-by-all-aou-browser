@@ -176,7 +176,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     key={hit.variant_id}
                     cx={x}
                     cy={y}
-                    r={isHovered ? 8 : 5}
+                    r={isHovered ? 4 : 2}
                     className={isHovered ? 'manhattan-hit-hovered' : 'manhattan-hit'}
                   />
                 );

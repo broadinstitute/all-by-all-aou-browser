@@ -205,7 +205,6 @@ pub async fn get_manhattan_overlay(
         FROM significant_variants
         WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
         ORDER BY pvalue ASC
-        LIMIT 1000
     "#;
 
     let rows: Vec<SignificantVariantRow> = state
