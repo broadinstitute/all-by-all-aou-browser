@@ -13,10 +13,6 @@ const Container = styled.div`
   margin-top: 20px;
 `;
 
-const SectionTitle = styled.h3`
-  margin-bottom: 10px;
-`;
-
 /** Supported plot types */
 export type PlotType = 'genome_manhattan' | 'exome_manhattan' | 'gene_manhattan';
 
@@ -93,17 +89,8 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     hit_count: 0,
   };
 
-  // Determine section title based on plot type
-  const titleMap: Record<PlotType, string> = {
-    genome_manhattan: 'Genome Manhattan',
-    exome_manhattan: 'Exome Manhattan',
-    gene_manhattan: 'Gene Burden Manhattan',
-  };
-  const sectionTitle = titleMap[plotType] || 'Manhattan Plot';
-
   return (
     <Container>
-      <SectionTitle className="manhattan-plot-title">{sectionTitle}</SectionTitle>
       <ManhattanViewer
         imageUrl={imageUrl}
         overlay={overlay}

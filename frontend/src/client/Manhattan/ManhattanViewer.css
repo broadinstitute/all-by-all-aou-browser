@@ -9,6 +9,7 @@
 .manhattan-image-wrapper {
   position: relative;
   width: 100%;
+  overflow: visible; /* Allow extended SVG to show above */
 }
 
 .manhattan-image {
@@ -19,10 +20,7 @@
 
 .manhattan-overlay {
   position: absolute;
-  top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
   cursor: crosshair;
 }
 
@@ -200,4 +198,65 @@
 .manhattan-table-gene td:first-child,
 .manhattan-table-gene th:first-child {
   text-align: left;
+}
+
+/* Peak label styles */
+.manhattan-peak-labels {
+  pointer-events: auto;
+}
+
+.manhattan-peak-group {
+  pointer-events: auto;
+  transition: opacity 0.15s ease;
+}
+
+.manhattan-peak-label {
+  font-size: 10px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  fill: #333;
+  text-shadow:
+    -1px -1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px 1px 0 #fff;
+  transition: fill 0.15s ease, font-weight 0.15s ease;
+}
+
+.manhattan-peak-label-hovered {
+  fill: #1976d2;
+  font-weight: 700;
+}
+
+.manhattan-peak-label-burden {
+  font-weight: 700;
+  fill: #1565c0;
+}
+
+.manhattan-peak-line {
+  stroke: #888;
+  stroke-width: 1;
+  stroke-dasharray: 2,2;
+  opacity: 0.6;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
+}
+
+.manhattan-peak-line-hovered {
+  stroke: #1976d2;
+  stroke-width: 2;
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+.manhattan-peak-dot {
+  fill: #d32f2f;
+  stroke: #fff;
+  stroke-width: 1;
+  transition: fill 0.15s ease, r 0.15s ease;
+}
+
+.manhattan-peak-dot-hovered {
+  fill: #1976d2;
+  stroke: #fff;
+  stroke-width: 2;
 }

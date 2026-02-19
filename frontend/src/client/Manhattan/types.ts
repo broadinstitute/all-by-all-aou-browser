@@ -45,11 +45,45 @@ export interface SignificantHit {
 }
 
 /**
+ * A gene near a GWAS peak with supporting evidence.
+ */
+export interface GeneInLocus {
+  /** Gene symbol (e.g., "GATA2", "CEBPA") */
+  gene_symbol: string;
+  /** Ensembl gene ID */
+  gene_id: string;
+  /** Distance from peak in kb */
+  distance_kb: number;
+  /** Number of coding variants at this peak annotated to this gene */
+  coding_variant_count: number;
+  /** P-value from burden test (null if not tested) */
+  burden_pvalue?: number;
+  /** Beta from burden test */
+  burden_beta?: number;
+}
+
+/**
+ * A GWAS peak with nearby genes.
+ */
+export interface Peak {
+  /** Chromosome (e.g., "chr3", "chr19") */
+  contig: string;
+  /** Genomic position of top variant in peak */
+  position: number;
+  /** P-value of top variant in peak */
+  pvalue: number;
+  /** Genes within ±200kb of peak, sorted by distance */
+  genes: GeneInLocus[];
+}
+
+/**
  * Overlay data from the API.
  */
 export interface ManhattanOverlay {
   significant_hits: SignificantHit[];
   hit_count: number;
+  /** Top GWAS peaks with nearby gene annotations (optional) */
+  peaks?: Peak[];
 }
 
 /**

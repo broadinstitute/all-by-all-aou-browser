@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useHitDetection } from './hooks/useHitDetection';
+import { usePeakLabelLayout } from './hooks/usePeakLabelLayout';
 import { Tooltip } from './components/Tooltip';
 import { YAxis } from './components/YAxis';
+import { PeakLabels } from './components/PeakLabels';
 import { computeDisplayHits } from './layout';
 import type { ManhattanOverlay, DisplayHit } from './types';
 import './ManhattanViewer.css';
@@ -46,6 +48,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredHit, setHoveredHit] = useState<DisplayHit | null>(null);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
@@ -58,6 +61,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     [overlay.significant_hits]
   );
 
+  // Compute peak label positions and required label area height
+  const { nodes: peakLabelNodes, labelAreaHeight } = usePeakLabelLayout(
+    overlay.peaks,
+    dimensions.width,
+    dimensions.height
+  );
+
   // Use spatial indexing for efficient hit detection
   const { findHit } = useHitDetection(
     displayHits,
@@ -65,10 +75,10 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     dimensions.height
   );
 
-  // Observe image wrapper size changes for responsive scaling
+  // Observe image size changes for responsive scaling
   useEffect(() => {
-    const imageWrapper = imageWrapperRef.current;
-    if (!imageWrapper) return;
+    const image = imageRef.current;
+    if (!image) return;
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
@@ -78,9 +88,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       }
     });
 
-    observer.observe(imageWrapper);
+    observer.observe(image);
     return () => observer.disconnect();
-  }, []);
+  }, [imageLoaded]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
@@ -133,6 +143,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     );
   }
 
+  const hasPeaks = peakLabelNodes.length > 0;
+
   return (
     <div
       ref={containerRef}
@@ -142,13 +154,17 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       <div className="manhattan-plot-row" style={{ display: 'flex' }}>
         {/* Y-Axis */}
         {showYAxis && imageLoaded && (
-          <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative' }}>
+          <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative', marginTop: labelAreaHeight }}>
             <YAxis height={dimensions.height} width={Y_AXIS_WIDTH} />
           </div>
         )}
 
-        <div ref={imageWrapperRef} className="manhattan-image-wrapper" style={{ flex: 1 }}>
+        <div ref={imageWrapperRef} className="manhattan-image-wrapper" style={{ flex: 1, position: 'relative' }}>
+          {/* Spacer for label area */}
+          {hasPeaks && <div style={{ height: labelAreaHeight }} />}
+
           <img
+            ref={imageRef}
             src={imageUrl}
             alt="Manhattan Plot"
             className="manhattan-image"
@@ -160,11 +176,14 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
           {imageLoaded && dimensions.width > 0 && displayHits.length > 0 && (
             <svg
               className="manhattan-overlay"
+              width={dimensions.width}
+              height={dimensions.height}
               viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
               preserveAspectRatio="none"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
               onClick={handleClick}
+              style={{ top: labelAreaHeight }}
             >
               {/* Render all significant hit markers */}
               {displayHits.map((hit) => {
@@ -184,12 +203,34 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
             </svg>
           )}
 
+          {/* Peak labels SVG - spans label area and plot */}
+          {imageLoaded && dimensions.width > 0 && hasPeaks && (
+            <svg
+              className="manhattan-peak-overlay"
+              width={dimensions.width}
+              height={dimensions.height + labelAreaHeight}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                pointerEvents: 'none',
+              }}
+            >
+              <PeakLabels
+                nodes={peakLabelNodes}
+                plotHeight={dimensions.height}
+                labelAreaHeight={labelAreaHeight}
+                hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
+              />
+            </svg>
+          )}
+
           {/* Tooltip */}
           {hoveredHit && imageLoaded && (
             <Tooltip
               hit={hoveredHit}
               x={cursor.x}
-              y={cursor.y}
+              y={cursor.y + labelAreaHeight}
               containerWidth={dimensions.width}
             />
           )}

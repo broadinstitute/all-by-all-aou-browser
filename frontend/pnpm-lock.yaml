@@ -217,6 +217,9 @@ devDependencies:
   '@types/d3-array':
     specifier: ^3.0.4
     version: 3.2.2
+  '@types/d3-force':
+    specifier: ^3.0.10
+    version: 3.0.10
   '@types/d3-scale':
     specifier: ^4.0.3
     version: 4.0.9

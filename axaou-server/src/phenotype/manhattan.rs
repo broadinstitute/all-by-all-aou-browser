@@ -62,6 +62,42 @@ struct SignificantGeneRow {
     pub beta_burden: Option<f64>,
 }
 
+/// Peak gene row from ClickHouse for peak annotations
+#[derive(Debug, Clone, Deserialize, Row)]
+struct PeakGeneRow {
+    pub contig: String,
+    pub peak_position: i32,
+    pub peak_pvalue: f64,
+    pub gene_symbol: String,
+    pub gene_id: String,
+    pub distance_kb: f64,
+    pub coding_variant_count: u32,
+    pub burden_pvalue: Option<f64>,
+    pub burden_beta: Option<f64>,
+}
+
+/// A gene in the locus near a GWAS peak
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneInLocus {
+    pub gene_symbol: String,
+    pub gene_id: String,
+    pub distance_kb: f64,
+    pub coding_variant_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub burden_pvalue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub burden_beta: Option<f64>,
+}
+
+/// A GWAS peak with nearby genes
+#[derive(Debug, Clone, Serialize)]
+pub struct Peak {
+    pub contig: String,
+    pub position: i32,
+    pub pvalue: f64,
+    pub genes: Vec<GeneInLocus>,
+}
+
 /// Type of Manhattan plot hit (Variant or Gene)
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -119,6 +155,8 @@ pub struct SignificantHit {
 pub struct ManhattanOverlay {
     pub significant_hits: Vec<SignificantHit>,
     pub hit_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub peaks: Option<Vec<Peak>>,
 }
 
 /// Response structure returned by the API
@@ -238,6 +276,173 @@ fn make_variant_id(contig: &str, position: i32, ref_allele: &str, alt: &str) -> 
     format!("{}-{}-{}-{}", contig, position, ref_allele, alt)
 }
 
+/// Fetch peak annotations with nearby genes from ClickHouse
+///
+/// Returns top N GWAS peaks with genes in locus (±200kb), coding variant counts,
+/// and burden test p-values where available.
+async fn fetch_peak_annotations(
+    state: &AppState,
+    analysis_id: &str,
+    ancestry: &str,
+    sequencing_type: &str,
+    annotation_table: &str,
+    limit: u32,
+) -> Result<Vec<Peak>, AppError> {
+    // Complex CTE query to aggregate peaks and annotate with nearby genes
+    let query = format!(
+        r#"
+        WITH peak_variants AS (
+            SELECT
+                sv.contig,
+                sv.position,
+                sv.pvalue,
+                ann.gene_symbol,
+                ann.consequence
+            FROM significant_variants sv
+            LEFT JOIN (
+                SELECT xpos, ref, alt, gene_symbol, consequence
+                FROM {annotation_table}
+                WHERE xpos IN (SELECT xpos FROM significant_variants WHERE phenotype = ?)
+            ) ann ON sv.xpos = ann.xpos AND sv.ref = ann.ref AND sv.alt = ann.alt
+            WHERE sv.phenotype = ?
+              AND sv.ancestry = ?
+              AND sv.sequencing_type = ?
+        ),
+        -- Cluster peaks into 1Mb bins, take top variant per bin
+        peaks AS (
+            SELECT
+                contig,
+                argMin(position, pvalue) as peak_position,
+                min(pvalue) as peak_pvalue
+            FROM peak_variants
+            GROUP BY contig, intDiv(position, 1000000)
+            ORDER BY peak_pvalue ASC
+            LIMIT ?
+        ),
+        -- Get genes within 200kb of each peak (named genes only)
+        locus_genes AS (
+            SELECT
+                p.contig,
+                p.peak_position,
+                p.peak_pvalue,
+                gm.gene_id,
+                gm.symbol as gene_symbol,
+                abs(p.peak_position - (gm.start + gm.stop) / 2) as distance_to_peak
+            FROM peaks p
+            JOIN gene_models gm
+                ON gm.chrom = substring(p.contig, 4)
+                AND gm.start < p.peak_position + 200000
+                AND gm.stop > p.peak_position - 200000
+            WHERE gm.symbol != ''
+              AND gm.symbol NOT LIKE 'ENSG%'
+        ),
+        -- Count coding variants per gene at each peak
+        coding_variants AS (
+            SELECT
+                pv.contig,
+                intDiv(pv.position, 1000000) as bin,
+                pv.gene_symbol,
+                count(*) as coding_count
+            FROM peak_variants pv
+            WHERE pv.gene_symbol IS NOT NULL
+            GROUP BY pv.contig, bin, pv.gene_symbol
+        ),
+        -- Get burden results (deduplicated by gene)
+        burden AS (
+            SELECT
+                gene_id,
+                min(pvalue) as burden_pvalue,
+                argMin(beta_burden, pvalue) as burden_beta
+            FROM gene_associations
+            WHERE phenotype = ?
+              AND ancestry = ?
+              AND annotation = 'pLoF'
+            GROUP BY gene_id
+        )
+        SELECT
+            lg.contig,
+            lg.peak_position,
+            lg.peak_pvalue,
+            lg.gene_symbol,
+            lg.gene_id,
+            round(lg.distance_to_peak / 1000, 1) as distance_kb,
+            toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
+            b.burden_pvalue,
+            b.burden_beta
+        FROM locus_genes lg
+        LEFT JOIN coding_variants cv
+            ON cv.contig = lg.contig
+            AND cv.bin = intDiv(lg.peak_position, 1000000)
+            AND cv.gene_symbol = lg.gene_symbol
+        LEFT JOIN burden b ON b.gene_id = lg.gene_id
+        ORDER BY lg.peak_pvalue ASC, lg.distance_to_peak ASC
+        "#,
+        annotation_table = annotation_table
+    );
+
+    let rows: Vec<PeakGeneRow> = state
+        .clickhouse
+        .query(&query)
+        .bind(analysis_id) // for annotation subquery
+        .bind(analysis_id) // for peak_variants
+        .bind(ancestry)
+        .bind(sequencing_type)
+        .bind(limit)
+        .bind(analysis_id) // for burden
+        .bind(ancestry) // for burden (lowercase)
+        .fetch_all()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("Peak annotation query error: {}", e)))?;
+
+    // Group rows by (contig, peak_position) into Peak structs
+    let mut peaks: Vec<Peak> = Vec::new();
+    let mut current_peak: Option<Peak> = None;
+
+    for row in rows {
+        let key = (row.contig.clone(), row.peak_position);
+
+        match &mut current_peak {
+            Some(peak) if peak.contig == key.0 && peak.position == key.1 => {
+                // Add gene to existing peak
+                peak.genes.push(GeneInLocus {
+                    gene_symbol: row.gene_symbol,
+                    gene_id: row.gene_id,
+                    distance_kb: row.distance_kb,
+                    coding_variant_count: row.coding_variant_count,
+                    burden_pvalue: row.burden_pvalue,
+                    burden_beta: row.burden_beta,
+                });
+            }
+            _ => {
+                // Save previous peak and start new one
+                if let Some(peak) = current_peak.take() {
+                    peaks.push(peak);
+                }
+                current_peak = Some(Peak {
+                    contig: row.contig,
+                    position: row.peak_position,
+                    pvalue: row.peak_pvalue,
+                    genes: vec![GeneInLocus {
+                        gene_symbol: row.gene_symbol,
+                        gene_id: row.gene_id,
+                        distance_kb: row.distance_kb,
+                        coding_variant_count: row.coding_variant_count,
+                        burden_pvalue: row.burden_pvalue,
+                        burden_beta: row.burden_beta,
+                    }],
+                });
+            }
+        }
+    }
+
+    // Don't forget the last peak
+    if let Some(peak) = current_peak {
+        peaks.push(peak);
+    }
+
+    Ok(peaks)
+}
+
 /// GET /api/phenotype/:analysis_id/manhattan/overlay
 ///
 /// Returns Manhattan plot overlay JSON with significant hits from ClickHouse.
@@ -330,9 +535,22 @@ pub async fn get_manhattan_overlay(
 
     let hit_count = significant_hits.len();
 
+    // Fetch peak annotations (top 20 peaks with nearby genes)
+    let peaks = fetch_peak_annotations(
+        &state,
+        &analysis_id,
+        ancestry,
+        sequencing_type,
+        annotation_table,
+        20,
+    )
+    .await
+    .ok(); // Convert error to None - peaks are optional
+
     Ok(Json(ManhattanOverlay {
         significant_hits,
         hit_count,
+        peaks,
     }))
 }
 
@@ -392,6 +610,7 @@ async fn get_gene_manhattan_overlay(
     Ok(Json(ManhattanOverlay {
         significant_hits,
         hit_count,
+        peaks: None, // Gene Manhattan doesn't have peak annotations
     }))
 }
 
