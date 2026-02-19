@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useHitDetection } from './hooks/useHitDetection';
-import { usePeakLabelLayout } from './hooks/usePeakLabelLayout';
+import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { Tooltip } from './components/Tooltip';
+import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { PeakLabels } from './components/PeakLabels';
 import { computeDisplayHits } from './layout';
@@ -51,7 +52,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const imageRef = useRef<HTMLImageElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredHit, setHoveredHit] = useState<DisplayHit | null>(null);
+  const [hoveredPeakNode, setHoveredPeakNode] = useState<PeakLabelNode | null>(null);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -129,6 +132,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const handleImageError = useCallback(() => {
     setImageError(true);
     setImageLoaded(false);
+  }, []);
+
+  const handlePeakHover = useCallback((node: PeakLabelNode | null, x?: number, y?: number) => {
+    setHoveredPeakNode(node);
+    if (x !== undefined && y !== undefined) {
+      setPeakCursor({ x, y });
+    }
   }, []);
 
   const containerStyle: React.CSSProperties = {
@@ -221,16 +231,27 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 plotHeight={dimensions.height}
                 labelAreaHeight={labelAreaHeight}
                 hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
+                onPeakHover={handlePeakHover}
               />
             </svg>
           )}
 
-          {/* Tooltip */}
-          {hoveredHit && imageLoaded && (
+          {/* Variant Tooltip */}
+          {hoveredHit && imageLoaded && !hoveredPeakNode && (
             <Tooltip
               hit={hoveredHit}
               x={cursor.x}
               y={cursor.y + labelAreaHeight}
+              containerWidth={dimensions.width}
+            />
+          )}
+
+          {/* Peak Tooltip */}
+          {hoveredPeakNode && imageLoaded && (
+            <PeakTooltip
+              node={hoveredPeakNode}
+              x={peakCursor.x}
+              y={peakCursor.y}
               containerWidth={dimensions.width}
             />
           )}

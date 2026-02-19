@@ -45,6 +45,20 @@ export interface SignificantHit {
 }
 
 /**
+ * Burden test results for a specific annotation category.
+ */
+export interface BurdenResult {
+  /** Annotation category (e.g., "pLoF", "missenseLC", "synonymous") */
+  annotation: string;
+  /** SKAT-O p-value (combined test) */
+  pvalue: number;
+  /** Burden-only p-value */
+  pvalue_burden?: number;
+  /** SKAT-only p-value */
+  pvalue_skat?: number;
+}
+
+/**
  * A gene near a GWAS peak with supporting evidence.
  */
 export interface GeneInLocus {
@@ -56,10 +70,8 @@ export interface GeneInLocus {
   distance_kb: number;
   /** Number of coding variants at this peak annotated to this gene */
   coding_variant_count: number;
-  /** P-value from burden test (null if not tested) */
-  burden_pvalue?: number;
-  /** Beta from burden test */
-  burden_beta?: number;
+  /** Burden test results for each annotation category */
+  burden_results?: BurdenResult[];
 }
 
 /**

@@ -72,8 +72,27 @@ struct PeakGeneRow {
     pub gene_id: String,
     pub distance_kb: f64,
     pub coding_variant_count: u32,
-    pub burden_pvalue: Option<f64>,
-    pub burden_beta: Option<f64>,
+}
+
+/// Burden result row from ClickHouse
+#[derive(Debug, Clone, Deserialize, Row)]
+struct BurdenRow {
+    pub gene_id: String,
+    pub annotation: String,
+    pub pvalue: f64,
+    pub pvalue_burden: Option<f64>,
+    pub pvalue_skat: Option<f64>,
+}
+
+/// Burden test results for a specific annotation category
+#[derive(Debug, Clone, Serialize)]
+pub struct BurdenResult {
+    pub annotation: String,
+    pub pvalue: f64,  // SKAT-O p-value
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_burden: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_skat: Option<f64>,
 }
 
 /// A gene in the locus near a GWAS peak
@@ -83,10 +102,9 @@ pub struct GeneInLocus {
     pub gene_id: String,
     pub distance_kb: f64,
     pub coding_variant_count: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub burden_pvalue: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub burden_beta: Option<f64>,
+    /// Burden results for each annotation category (pLoF, missenseLC, etc.)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub burden_results: Vec<BurdenResult>,
 }
 
 /// A GWAS peak with nearby genes
@@ -347,18 +365,6 @@ async fn fetch_peak_annotations(
             WHERE pv.gene_symbol IS NOT NULL
             GROUP BY pv.contig, bin, pv.gene_symbol
         ),
-        -- Get burden results (deduplicated by gene)
-        burden AS (
-            SELECT
-                gene_id,
-                min(pvalue) as burden_pvalue,
-                argMin(beta_burden, pvalue) as burden_beta
-            FROM gene_associations
-            WHERE phenotype = ?
-              AND ancestry = ?
-              AND annotation = 'pLoF'
-            GROUP BY gene_id
-        )
         SELECT
             lg.contig,
             lg.peak_position,
@@ -366,15 +372,12 @@ async fn fetch_peak_annotations(
             lg.gene_symbol,
             lg.gene_id,
             round(lg.distance_to_peak / 1000, 1) as distance_kb,
-            toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
-            b.burden_pvalue,
-            b.burden_beta
+            toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count
         FROM locus_genes lg
         LEFT JOIN coding_variants cv
             ON cv.contig = lg.contig
             AND cv.bin = intDiv(lg.peak_position, 1000000)
             AND cv.gene_symbol = lg.gene_symbol
-        LEFT JOIN burden b ON b.gene_id = lg.gene_id
         ORDER BY lg.peak_pvalue ASC, lg.distance_to_peak ASC
         "#,
         annotation_table = annotation_table
@@ -388,11 +391,61 @@ async fn fetch_peak_annotations(
         .bind(ancestry)
         .bind(sequencing_type)
         .bind(limit)
-        .bind(analysis_id) // for burden
-        .bind(ancestry) // for burden (lowercase)
         .fetch_all()
         .await
         .map_err(|e| AppError::DataTransformError(format!("Peak annotation query error: {}", e)))?;
+
+    // Collect unique gene IDs for burden query
+    let gene_ids: std::collections::HashSet<String> = rows.iter().map(|r| r.gene_id.clone()).collect();
+    let gene_ids_vec: Vec<String> = gene_ids.into_iter().collect();
+
+    // Fetch burden results for all genes and annotations
+    let burden_map = if !gene_ids_vec.is_empty() {
+        // Build IN clause with quoted gene IDs
+        let gene_ids_quoted: Vec<String> = gene_ids_vec.iter().map(|id| format!("'{}'", id)).collect();
+        let gene_ids_in = gene_ids_quoted.join(", ");
+
+        let burden_query = format!(
+            r#"
+            SELECT
+                gene_id,
+                annotation,
+                pvalue,
+                pvalue_burden,
+                pvalue_skat
+            FROM gene_associations
+            WHERE phenotype = ?
+              AND ancestry = ?
+              AND gene_id IN ({})
+              AND annotation IN ('pLoF', 'missenseLC', 'synonymous')
+            ORDER BY gene_id, annotation
+            "#,
+            gene_ids_in
+        );
+
+        let burden_rows: Vec<BurdenRow> = state
+            .clickhouse
+            .query(&burden_query)
+            .bind(analysis_id)
+            .bind(ancestry)
+            .fetch_all()
+            .await
+            .unwrap_or_default();
+
+        // Group burden results by gene_id
+        let mut map: std::collections::HashMap<String, Vec<BurdenResult>> = std::collections::HashMap::new();
+        for row in burden_rows {
+            map.entry(row.gene_id.clone()).or_default().push(BurdenResult {
+                annotation: row.annotation,
+                pvalue: row.pvalue,
+                pvalue_burden: row.pvalue_burden,
+                pvalue_skat: row.pvalue_skat,
+            });
+        }
+        map
+    } else {
+        std::collections::HashMap::new()
+    };
 
     // Group rows by (contig, peak_position) into Peak structs
     let mut peaks: Vec<Peak> = Vec::new();
@@ -400,6 +453,7 @@ async fn fetch_peak_annotations(
 
     for row in rows {
         let key = (row.contig.clone(), row.peak_position);
+        let burden_results = burden_map.get(&row.gene_id).cloned().unwrap_or_default();
 
         match &mut current_peak {
             Some(peak) if peak.contig == key.0 && peak.position == key.1 => {
@@ -409,8 +463,7 @@ async fn fetch_peak_annotations(
                     gene_id: row.gene_id,
                     distance_kb: row.distance_kb,
                     coding_variant_count: row.coding_variant_count,
-                    burden_pvalue: row.burden_pvalue,
-                    burden_beta: row.burden_beta,
+                    burden_results,
                 });
             }
             _ => {
@@ -427,8 +480,7 @@ async fn fetch_peak_annotations(
                         gene_id: row.gene_id,
                         distance_kb: row.distance_kb,
                         coding_variant_count: row.coding_variant_count,
-                        burden_pvalue: row.burden_pvalue,
-                        burden_beta: row.burden_beta,
+                        burden_results,
                     }],
                 });
             }

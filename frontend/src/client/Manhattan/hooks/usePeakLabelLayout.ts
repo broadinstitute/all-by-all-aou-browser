@@ -73,7 +73,7 @@ export function usePeakLabelLayout(
       }
 
       const hasBurden = peak.genes.some(
-        (g) => g.burden_pvalue !== undefined && g.burden_pvalue !== null && g.burden_pvalue < 2.5e-6
+        (g) => g.burden_results?.some((b) => b.pvalue < 2.5e-6) ?? false
       );
 
       const codingCount = topGene.coding_variant_count;

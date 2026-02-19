@@ -14,8 +14,8 @@ export interface PeakLabelsProps {
   onPeakClick?: (node: PeakLabelNode) => void;
   /** Currently hovered hit from the main overlay (contig-position format) */
   hoveredHitPosition?: { contig: string; position: number } | null;
-  /** Callback when hovering a peak label */
-  onPeakHover?: (node: PeakLabelNode | null) => void;
+  /** Callback when hovering a peak label - includes cursor position for tooltip */
+  onPeakHover?: (node: PeakLabelNode | null, cursorX?: number, cursorY?: number) => void;
 }
 
 /**
@@ -32,14 +32,26 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
 }) => {
   const [hoveredPeakId, setHoveredPeakId] = useState<string | null>(null);
 
-  const handleMouseEnter = useCallback((id: string, node: PeakLabelNode) => {
+  const handleMouseEnter = useCallback((e: React.MouseEvent, id: string, node: PeakLabelNode) => {
     setHoveredPeakId(id);
-    onPeakHover?.(node);
+    const rect = (e.currentTarget as SVGElement).ownerSVGElement?.getBoundingClientRect();
+    if (rect) {
+      onPeakHover?.(node, e.clientX - rect.left, e.clientY - rect.top);
+    } else {
+      onPeakHover?.(node);
+    }
   }, [onPeakHover]);
 
   const handleMouseLeave = useCallback(() => {
     setHoveredPeakId(null);
     onPeakHover?.(null);
+  }, [onPeakHover]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent, node: PeakLabelNode) => {
+    const rect = (e.currentTarget as SVGElement).ownerSVGElement?.getBoundingClientRect();
+    if (rect) {
+      onPeakHover?.(node, e.clientX - rect.left, e.clientY - rect.top);
+    }
   }, [onPeakHover]);
 
   if (nodes.length === 0) {
@@ -77,10 +89,11 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
           <g
             key={peakId}
             className={`manhattan-peak-group ${isHovered ? 'manhattan-peak-group-hovered' : ''}`}
-            onMouseEnter={() => handleMouseEnter(peakId, node)}
+            onMouseEnter={(e) => handleMouseEnter(e, peakId, node)}
+            onMouseMove={(e) => handleMouseMove(e, node)}
             onMouseLeave={handleMouseLeave}
             onClick={() => onPeakClick?.(node)}
-            style={{ cursor: onPeakClick ? 'pointer' : 'default' }}
+            style={{ cursor: 'pointer' }}
           >
             {/* Invisible wider hit area for easier hovering */}
             <line
