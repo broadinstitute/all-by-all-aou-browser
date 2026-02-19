@@ -3,6 +3,7 @@ import styled from 'styled-components';
 
 import { useRecoilValue } from 'recoil';
 import GeneResultsPage from '../GeneResults/GeneResultsPage';
+import { ManhattanPlotContainer } from '../Manhattan';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
 import { analysisIdAtom, ancestryGroupAtom } from '../sharedState';
 import { AnalysisMetadata } from '../types';
@@ -153,6 +154,7 @@ export const PhenotypeInfoContainer: React.FC<PhenotypeInfoContainerProps> = ({ 
       <PhenotypeInfo phenotype={analysisMetadataPrepared} />
       <GeneResultsPage size={size} />
       <VariantResultsPage />
+      <ManhattanPlotContainer analysisId={analysisMetadataPrepared.analysis_id} />
       <TitleWithScrollButtons
         title={analysisDisplayTitle}
         buttons={[

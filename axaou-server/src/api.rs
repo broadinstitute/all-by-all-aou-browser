@@ -217,17 +217,17 @@ pub async fn get_categories(
 
 /// Handler for GET /api/analyses/:analysis_id
 ///
-/// Returns a single analysis metadata record by its ID.
+/// Returns a single analysis metadata record by its ID (wrapped in array for frontend compatibility).
 pub async fn get_analysis_by_id(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
-) -> Result<Json<AnalysisMetadata>, AppError> {
+) -> Result<Json<Vec<AnalysisMetadata>>, AppError> {
     state
         .metadata
         .iter()
         .find(|m| m.analysis_id.eq_ignore_ascii_case(&analysis_id))
         .cloned()
-        .map(Json)
+        .map(|m| Json(vec![m]))
         .ok_or_else(|| AppError::NotFound(format!("Analysis '{}' not found", analysis_id)))
 }
 

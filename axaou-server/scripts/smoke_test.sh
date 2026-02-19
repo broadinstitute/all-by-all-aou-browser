@@ -98,6 +98,11 @@ test_endpoint "GET /api/phenotype/:id/qq" "/api/phenotype/$ANALYSIS_ID/qq?ancest
 test_endpoint "GET /api/phenotype/:id/genes" "/api/phenotype/$ANALYSIS_ID/genes?ancestry=$ANCESTRY"
 test_endpoint "GET /api/phenotype/:id/genes/:gene_id" "/api/phenotype/$ANALYSIS_ID/genes/$GENE_ID?ancestry=$ANCESTRY"
 
+# Manhattan plot proxy endpoints (GCS)
+test_endpoint "GET /api/phenotype/:id/manhattan" "/api/phenotype/$ANALYSIS_ID/manhattan?ancestry=$ANCESTRY" false
+test_endpoint "GET /api/phenotype/:id/manhattan/overlay" "/api/phenotype/$ANALYSIS_ID/manhattan/overlay?ancestry=$ANCESTRY" false
+# Note: /manhattan/image returns binary PNG, tested separately if needed
+
 # Variant annotations (ClickHouse)
 test_endpoint "GET /api/variants/annotations/:variant_id" "/api/variants/annotations/$VARIANT_ID"
 test_endpoint "GET /api/variants/annotations/interval" "/api/variants/annotations/interval/$INTERVAL?limit=10"

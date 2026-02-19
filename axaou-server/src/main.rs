@@ -266,6 +266,19 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     "/phenotype/:analysis_id/plots",
                     get(phenotype::plots::get_phenotype_plots),
                 )
+                // --- Manhattan Plot Proxy Routes ---
+                .route(
+                    "/phenotype/:analysis_id/manhattan",
+                    get(phenotype::manhattan::get_manhattan_data),
+                )
+                .route(
+                    "/phenotype/:analysis_id/manhattan/image",
+                    get(phenotype::manhattan::get_manhattan_image),
+                )
+                .route(
+                    "/phenotype/:analysis_id/manhattan/overlay",
+                    get(phenotype::manhattan::get_manhattan_overlay),
+                )
                 // --- Variant Annotation Routes (ClickHouse-backed) ---
                 .route(
                     "/variants/annotations/:variant_id",

@@ -124,7 +124,8 @@ export function useQuery<T>({
 
       try {
         const response = await axios.get(url);
-        data = response.data;
+        // Auto-unwrap LookupResult wrapper if present
+        data = response.data?.data !== undefined ? response.data.data : response.data;
         updateState(query.name, data);
         if (cacheEnabled) {
           try {
@@ -163,8 +164,9 @@ export function useQuery<T>({
       // If no cached fast data, fetch from API
       if (fastData === null) {
         try {
-          const { data } = await axios.get(fastUrl);
-          fastData = data;
+          const response = await axios.get(fastUrl);
+          // Auto-unwrap LookupResult wrapper if present
+          fastData = response.data?.data !== undefined ? response.data.data : response.data;
           console.debug(`Fetched fast data from API: ${query.name}`);
           updatePartialState(query.name, fastData, true);
           if (cacheEnabled) {
@@ -199,8 +201,9 @@ export function useQuery<T>({
 
         // Fetch slow data from API
         try {
-          const { data } = await axios.get(slowUrl);
-          slowData = data;
+          const response = await axios.get(slowUrl);
+          // Auto-unwrap LookupResult wrapper if present
+          slowData = response.data?.data !== undefined ? response.data.data : response.data;
           updateState(query.name, slowData);
           if (cacheEnabled) {
             try {
