@@ -45,32 +45,63 @@ struct SignificantVariantRow {
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
     pub hgvsc: Option<String>,
+    pub hgvsp: Option<String>,
     pub ac: Option<u32>,
+}
+
+/// Significant gene row from ClickHouse gene_associations table
+#[derive(Debug, Clone, Deserialize, Row)]
+struct SignificantGeneRow {
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub contig: String,
+    pub position: i32,
+    pub pvalue: f64,
+    pub beta_burden: Option<f64>,
+}
+
+/// Type of Manhattan plot hit (Variant or Gene)
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HitType {
+    Variant,
+    Gene,
 }
 
 /// A significant hit with raw genomic coordinates and annotations.
 /// The frontend computes display coordinates using ChromosomeLayout.
+/// Supports both variant hits (from exome/genome Manhattan plots) and
+/// gene hits (from gene burden Manhattan plots).
 #[derive(Debug, Serialize)]
 pub struct SignificantHit {
-    pub variant_id: String,
+    /// Type of hit (variant or gene)
+    pub hit_type: HitType,
+    /// Primary ID: variant_id for variants, gene_id for genes
+    pub id: String,
+    /// Display label: variant_id for variants, gene_symbol for genes
+    pub label: String,
     /// Chromosome name (e.g., "chr1", "chr22")
     pub contig: String,
     /// Genomic position (1-based)
     pub position: i32,
     /// P-value
     pub pvalue: f64,
-    /// Effect size (beta coefficient)
-    pub beta: f64,
-    /// Gene symbol from annotations (if available)
+    /// Effect size (beta coefficient for variants, beta_burden for genes)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beta: Option<f64>,
+    /// Gene symbol from annotations (for variants) or primary gene symbol (for genes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gene_symbol: Option<String>,
-    /// Variant consequence (e.g., "missense_variant", "intron_variant")
+    /// Variant consequence (e.g., "missense_variant", "intron_variant") - variants only
     #[serde(skip_serializing_if = "Option::is_none")]
     pub consequence: Option<String>,
-    /// HGVS coding notation
+    /// HGVS coding notation - variants only
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hgvsc: Option<String>,
-    /// Allele count
+    /// HGVS protein notation - variants only
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hgvsp: Option<String>,
+    /// Allele count - variants only
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ac: Option<u32>,
 }
@@ -203,6 +234,7 @@ fn make_variant_id(contig: &str, position: i32, ref_allele: &str, alt: &str) -> 
 ///
 /// Returns Manhattan plot overlay JSON with significant hits from ClickHouse.
 /// Returns raw genomic coordinates; frontend computes display positions.
+/// Supports both variant hits (exome/genome Manhattan) and gene hits (gene Manhattan).
 pub async fn get_manhattan_overlay(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
@@ -211,9 +243,15 @@ pub async fn get_manhattan_overlay(
     debug!("Building Manhattan overlay from ClickHouse for phenotype: {}", analysis_id);
 
     let ancestry = params.ancestry.as_deref().unwrap_or("meta");
+    let plot_type = params.plot_type.as_deref().unwrap_or("genome_manhattan");
 
-    // Determine sequencing type from plot_type
-    let sequencing_type = match params.plot_type.as_deref().unwrap_or("genome_manhattan") {
+    // Handle gene Manhattan separately
+    if plot_type == "gene_manhattan" {
+        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry).await;
+    }
+
+    // Determine sequencing type from plot_type for variant Manhattan
+    let sequencing_type = match plot_type {
         "exome_manhattan" => "exome",
         _ => "genome",
     };
@@ -229,10 +267,10 @@ pub async fn get_manhattan_overlay(
         r#"
         SELECT
             sv.contig, sv.position, sv.ref, sv.alt, sv.pvalue, sv.beta,
-            ann.gene_symbol, ann.consequence, ann.hgvsc, ann.ac
+            ann.gene_symbol, ann.consequence, ann.hgvsc, ann.hgvsp, ann.ac
         FROM significant_variants sv
         LEFT JOIN (
-            SELECT xpos, ref, alt, gene_symbol, consequence, hgvsc, ac
+            SELECT xpos, ref, alt, gene_symbol, consequence, hgvsc, hgvsp, ac
             FROM {annotation_table}
             WHERE xpos IN (
                 SELECT xpos FROM significant_variants
@@ -261,16 +299,78 @@ pub async fn get_manhattan_overlay(
     // Convert to SignificantHit with raw coordinates and annotations
     let significant_hits: Vec<SignificantHit> = rows
         .into_iter()
+        .map(|row| {
+            let variant_id = make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt);
+            SignificantHit {
+                hit_type: HitType::Variant,
+                id: variant_id.clone(),
+                label: variant_id,
+                contig: row.contig,
+                position: row.position,
+                pvalue: row.pvalue,
+                beta: Some(row.beta),
+                gene_symbol: row.gene_symbol,
+                consequence: row.consequence,
+                hgvsc: row.hgvsc,
+                hgvsp: row.hgvsp,
+                ac: row.ac,
+            }
+        })
+        .collect();
+
+    let hit_count = significant_hits.len();
+
+    Ok(Json(ManhattanOverlay {
+        significant_hits,
+        hit_count,
+    }))
+}
+
+/// Get gene Manhattan overlay from gene_associations table
+async fn get_gene_manhattan_overlay(
+    state: &AppState,
+    analysis_id: &str,
+    ancestry: &str,
+) -> Result<Json<ManhattanOverlay>, AppError> {
+    // Query significant genes from gene_associations
+    // Filter by phenotype, ancestry, and significant p-value threshold
+    let query = r#"
+        SELECT
+            gene_id, gene_symbol, contig, gene_start_position AS position,
+            pvalue, beta_burden
+        FROM gene_associations
+        WHERE phenotype = ?
+            AND ancestry = ?
+            AND pvalue IS NOT NULL
+            AND pvalue < 2.5e-6
+        ORDER BY pvalue ASC
+    "#;
+
+    let rows: Vec<SignificantGeneRow> = state
+        .clickhouse
+        .query(query)
+        .bind(analysis_id)
+        .bind(ancestry)
+        .fetch_all()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    // Convert to SignificantHit for genes
+    let significant_hits: Vec<SignificantHit> = rows
+        .into_iter()
         .map(|row| SignificantHit {
-            variant_id: make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt),
+            hit_type: HitType::Gene,
+            id: row.gene_id,
+            label: row.gene_symbol.clone(),
             contig: row.contig,
             position: row.position,
             pvalue: row.pvalue,
-            beta: row.beta,
-            gene_symbol: row.gene_symbol,
-            consequence: row.consequence,
-            hgvsc: row.hgvsc,
-            ac: row.ac,
+            beta: row.beta_burden,
+            gene_symbol: Some(row.gene_symbol),
+            consequence: None,
+            hgvsc: None,
+            hgvsp: None,
+            ac: None,
         })
         .collect();
 

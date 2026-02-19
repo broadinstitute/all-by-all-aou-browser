@@ -17,9 +17,15 @@ const SectionTitle = styled.h3`
   margin-bottom: 10px;
 `;
 
+/** Supported plot types */
+export type PlotType = 'genome_manhattan' | 'exome_manhattan' | 'gene_manhattan';
+
 interface ManhattanPlotContainerProps {
   analysisId: string;
-  onVariantClick?: (hit: SignificantHit) => void;
+  /** Type of Manhattan plot to display */
+  plotType?: PlotType;
+  /** Callback when a significant hit is clicked */
+  onHitClick?: (hit: SignificantHit) => void;
 }
 
 interface ManhattanApiResponse {
@@ -32,10 +38,12 @@ interface ManhattanApiResponse {
  * Container component that fetches Manhattan plot data and renders the viewer.
  * Handles loading/error states and passes data to ManhattanViewer.
  * Returns null (hides entirely) when data is unavailable.
+ * Supports gene, exome, and genome Manhattan plot types.
  */
 export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   analysisId,
-  onVariantClick,
+  plotType = 'genome_manhattan',
+  onHitClick,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
 
@@ -47,11 +55,11 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}`,
         name: 'manhattanData',
       },
     ],
-    deps: [analysisId, ancestryGroup],
+    deps: [analysisId, ancestryGroup, plotType],
     cacheEnabled,
   });
 
@@ -85,13 +93,21 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     hit_count: 0,
   };
 
+  // Determine section title based on plot type
+  const titleMap: Record<PlotType, string> = {
+    genome_manhattan: 'Genome Manhattan',
+    exome_manhattan: 'Exome Manhattan',
+    gene_manhattan: 'Gene Burden Manhattan',
+  };
+  const sectionTitle = titleMap[plotType] || 'Manhattan Plot';
+
   return (
     <Container>
-      <SectionTitle className="manhattan-plot-title">Manhattan Plot (PNG)</SectionTitle>
+      <SectionTitle className="manhattan-plot-title">{sectionTitle}</SectionTitle>
       <ManhattanViewer
         imageUrl={imageUrl}
         overlay={overlay}
-        onVariantClick={onVariantClick}
+        onHitClick={onHitClick}
         showStats={data.has_overlay}
       />
     </Container>

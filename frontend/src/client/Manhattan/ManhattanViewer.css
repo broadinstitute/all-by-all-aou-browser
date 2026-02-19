@@ -112,11 +112,11 @@
   cursor: pointer;
 }
 
-/* Variant table */
+/* Variant table - scrollable independently */
 .manhattan-table-container {
   margin-top: 16px;
-  margin-bottom: 48px;
-  max-height: 600px;
+  margin-bottom: 250px;
+  max-height: 400px;
   overflow: auto;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -159,10 +159,10 @@
 .manhattan-table th:first-child {
   position: sticky;
   left: 0;
-  background: #1a1a2e;
+  background: #f9f9f9;
   font-family: 'SF Mono', Monaco, monospace;
   font-size: 12px;
-  max-width: 180px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   z-index: 2;
@@ -173,22 +173,20 @@
   z-index: 3;
 }
 
-/* Constrain HGVSc column (4th) */
+/* Hide CSQ and HGVS columns (3rd and 4th) to fit important columns */
+.manhattan-table td:nth-child(3),
+.manhattan-table th:nth-child(3),
 .manhattan-table td:nth-child(4),
 .manhattan-table th:nth-child(4) {
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
 }
 
 .manhattan-table th:last-child,
 .manhattan-table td:last-child {
   text-align: right;
-  width: 100px;
 }
 
-.manhattan-table td:nth-child(2),
-.manhattan-table td:nth-child(3) {
+.manhattan-table td:nth-child(2) {
   font-size: 12px;
   color: #666;
 }

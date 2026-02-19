@@ -14,9 +14,9 @@ export interface ManhattanViewerProps {
   /** Overlay data with significant hits from the API */
   overlay: ManhattanOverlay;
   /** Callback when a significant hit is clicked */
-  onVariantClick?: (hit: DisplayHit) => void;
+  onHitClick?: (hit: DisplayHit) => void;
   /** Callback when hovering over a hit (null = hover out) */
-  onVariantHover?: (hit: DisplayHit | null) => void;
+  onHitHover?: (hit: DisplayHit | null) => void;
   /** Show Y-axis with -log10(p) labels */
   showYAxis?: boolean;
   /** Show stats bar with hit counts */
@@ -37,8 +37,8 @@ export interface ManhattanViewerProps {
 export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   imageUrl,
   overlay,
-  onVariantClick,
-  onVariantHover,
+  onHitClick,
+  onHitHover,
   showYAxis = true,
   showStats = true,
   minWidth = 800,
@@ -94,22 +94,22 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       const hit = findHit(x, y);
       if (hit !== hoveredHit) {
         setHoveredHit(hit);
-        onVariantHover?.(hit);
+        onHitHover?.(hit);
       }
     },
-    [findHit, hoveredHit, onVariantHover]
+    [findHit, hoveredHit, onHitHover]
   );
 
   const handleMouseLeave = useCallback(() => {
     setHoveredHit(null);
-    onVariantHover?.(null);
-  }, [onVariantHover]);
+    onHitHover?.(null);
+  }, [onHitHover]);
 
   const handleClick = useCallback(() => {
-    if (hoveredHit && onVariantClick) {
-      onVariantClick(hoveredHit);
+    if (hoveredHit && onHitClick) {
+      onHitClick(hoveredHit);
     }
-  }, [hoveredHit, onVariantClick]);
+  }, [hoveredHit, onHitClick]);
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -170,10 +170,10 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
               {displayHits.map((hit) => {
                 const x = hit.x_normalized * dimensions.width;
                 const y = hit.y_normalized * dimensions.height;
-                const isHovered = hoveredHit?.variant_id === hit.variant_id;
+                const isHovered = hoveredHit?.id === hit.id;
                 return (
                   <circle
-                    key={hit.variant_id}
+                    key={hit.id}
                     cx={x}
                     cy={y}
                     r={isHovered ? 4 : 2}
@@ -212,40 +212,72 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
         </div>
       )}
 
-      {/* Variant table */}
+      {/* Hit table - adapts columns based on hit type */}
       {imageLoaded && displayHits.length > 0 && (
         <div className="manhattan-table-container" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <table className="manhattan-table">
-            <thead>
-              <tr>
-                <th>Variant</th>
-                <th>Gene</th>
-                <th>CSQ</th>
-                <th>HGVSc</th>
-                <th>P-value</th>
-                <th>Beta</th>
-                <th>AC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayHits.map((hit) => (
-                <tr
-                  key={hit.variant_id}
-                  className={hoveredHit?.variant_id === hit.variant_id ? 'manhattan-row-hovered' : ''}
-                  onClick={() => onVariantClick?.(hit)}
-                  style={{ cursor: onVariantClick ? 'pointer' : 'default' }}
-                >
-                  <td title={hit.variant_id}>{hit.variant_id}</td>
-                  <td>{hit.gene_symbol || '—'}</td>
-                  <td>{hit.consequence?.replace(/_/g, ' ') || '—'}</td>
-                  <td title={hit.hgvsc}>{hit.hgvsc || '—'}</td>
-                  <td>{hit.pvalue.toExponential(2)}</td>
-                  <td>{hit.beta?.toFixed(3) ?? '—'}</td>
-                  <td>{hit.ac?.toLocaleString() || '—'}</td>
+          {displayHits[0]?.hit_type === 'gene' ? (
+            // Gene table
+            <table className="manhattan-table">
+              <thead>
+                <tr>
+                  <th>Gene</th>
+                  <th>Gene ID</th>
+                  <th>Position</th>
+                  <th>P-value</th>
+                  <th>Beta</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {displayHits.map((hit) => (
+                  <tr
+                    key={hit.id}
+                    className={hoveredHit?.id === hit.id ? 'manhattan-row-hovered' : ''}
+                    onClick={() => onHitClick?.(hit)}
+                    style={{ cursor: onHitClick ? 'pointer' : 'default' }}
+                  >
+                    <td>{hit.label}</td>
+                    <td title={hit.id}>{hit.id}</td>
+                    <td>{hit.contig}:{hit.position.toLocaleString()}</td>
+                    <td>{hit.pvalue.toExponential(2)}</td>
+                    <td>{hit.beta?.toFixed(3) ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            // Variant table
+            <table className="manhattan-table">
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Gene</th>
+                  <th>CSQ</th>
+                  <th>HGVS</th>
+                  <th>P-value</th>
+                  <th>Beta</th>
+                  <th>AC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayHits.map((hit) => (
+                  <tr
+                    key={hit.id}
+                    className={hoveredHit?.id === hit.id ? 'manhattan-row-hovered' : ''}
+                    onClick={() => onHitClick?.(hit)}
+                    style={{ cursor: onHitClick ? 'pointer' : 'default' }}
+                  >
+                    <td title={hit.id}>{hit.label}</td>
+                    <td>{hit.gene_symbol || '—'}</td>
+                    <td>{hit.consequence?.replace(/_/g, ' ') || '—'}</td>
+                    <td title={hit.hgvsp || hit.hgvsc}>{(hit.hgvsp || hit.hgvsc)?.split(':')[1] || '—'}</td>
+                    <td>{hit.pvalue.toExponential(2)}</td>
+                    <td>{hit.beta?.toFixed(3) ?? '—'}</td>
+                    <td>{hit.ac?.toLocaleString() || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

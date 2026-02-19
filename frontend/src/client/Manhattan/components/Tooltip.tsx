@@ -9,7 +9,8 @@ interface TooltipProps {
 }
 
 /**
- * Tooltip component for displaying variant information on hover.
+ * Tooltip component for displaying hit information on hover.
+ * Supports both variant and gene hits.
  * Automatically positions itself to avoid overflowing the viewport edge.
  */
 export const Tooltip: React.FC<TooltipProps> = ({ hit, x, y, containerWidth }) => {
@@ -42,12 +43,25 @@ export const Tooltip: React.FC<TooltipProps> = ({ hit, x, y, containerWidth }) =
     return p.toExponential(2);
   };
 
+  const isGene = hit.hit_type === 'gene';
+
   return (
     <div style={style} className="manhattan-tooltip">
-      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{hit.variant_id}</div>
+      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+        {isGene ? (
+          <>Gene: {hit.label}</>
+        ) : (
+          hit.label
+        )}
+      </div>
       <div style={{ color: '#aaa' }}>
         P = <span style={{ color: '#ff6b6b' }}>{formatPvalue(hit.pvalue)}</span>
       </div>
+      {isGene && hit.id && (
+        <div style={{ color: '#888', fontSize: '11px' }}>
+          {hit.id}
+        </div>
+      )}
       <div style={{ color: '#888', fontSize: '11px', marginTop: '4px' }}>
         {hit.contig}:{hit.position.toLocaleString()}
       </div>

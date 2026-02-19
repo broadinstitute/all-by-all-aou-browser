@@ -1,28 +1,42 @@
 /**
  * TypeScript interfaces for Manhattan plot data.
  * The backend returns raw genomic coordinates; the frontend computes display positions.
+ * Supports both variant hits (exome/genome Manhattan) and gene hits (gene burden Manhattan).
  */
 
 /**
- * A significant variant from ClickHouse with raw genomic coordinates and annotations.
+ * Type of Manhattan plot hit
+ */
+export type HitType = 'variant' | 'gene';
+
+/**
+ * A significant hit from ClickHouse with raw genomic coordinates and annotations.
+ * Can represent either a variant hit or a gene hit depending on the plot type.
  */
 export interface SignificantHit {
-  variant_id: string;
+  /** Type of hit (variant or gene) */
+  hit_type: HitType;
+  /** Primary ID: variant_id for variants, gene_id for genes */
+  id: string;
+  /** Display label: variant_id for variants, gene_symbol for genes */
+  label: string;
   /** Chromosome name (e.g., "chr1", "chr22") */
   contig: string;
   /** Genomic position (1-based) */
   position: number;
   /** P-value */
   pvalue: number;
-  /** Effect size (beta coefficient) */
+  /** Effect size (beta coefficient for variants, beta_burden for genes) */
   beta?: number;
-  /** Gene symbol from annotations (if available) */
+  /** Gene symbol from annotations (for variants) or primary gene symbol (for genes) */
   gene_symbol?: string;
-  /** Variant consequence (e.g., "missense_variant", "intron_variant") */
+  /** Variant consequence (e.g., "missense_variant", "intron_variant") - variants only */
   consequence?: string;
-  /** HGVS coding notation */
+  /** HGVS coding notation - variants only */
   hgvsc?: string;
-  /** Allele count */
+  /** HGVS protein notation - variants only */
+  hgvsp?: string;
+  /** Allele count - variants only */
   ac?: number;
 }
 

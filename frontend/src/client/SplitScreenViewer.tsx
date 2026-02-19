@@ -13,7 +13,7 @@ import {
   windowSizeAtom,
 } from './sharedState'
 import VariantPhewas from './VariantPage/VariantPhewas'
-import PhenotypeInfo from './PhenotypeList/PhenotypeInfo'
+import PhenotypePageLayout from './PhenotypeList/PhenotypePageLayout'
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import { LocusPageRoot } from './GenePage/LocusPageRoot'
 import LocusPhewas from './GenePage/LocusPhewas'
@@ -91,7 +91,7 @@ const ResizableItems = withSize({
     }
 
     if (resultIndex === 'pheno-info') {
-      ResultIndexComponent = PhenotypeInfo
+      ResultIndexComponent = PhenotypePageLayout
     }
 
     if (resultIndex === 'analyses') {
@@ -151,12 +151,10 @@ const ResizableItems = withSize({
 )
 
 const FloatingContent = styled.div`
-  position: sticky;
-  top: 0;
-
-  display: flex;
-  justify-content: flex-end;
-  padding-right: 10px;
+  position: absolute;
+  top: 2px;
+  right: 7px;
+  z-index: 100;
 `
 
 const CloseIcon = styled.div`
@@ -200,7 +198,7 @@ const Container = styled.div<{ item1Size: number; item2Size: number }>`
   .resizable-inner-container {
     width: 100%;
     height: 100%;
-    padding: 10px 0 10px 10px;
+    padding: 0 0 150px 10px;
     overflow-y: scroll;
     position: relative;
   }
