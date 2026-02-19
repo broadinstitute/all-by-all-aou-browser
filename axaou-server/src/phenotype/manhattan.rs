@@ -32,7 +32,7 @@ pub struct ManhattanQuery {
     pub plot_type: Option<String>,
 }
 
-/// Significant variant row from ClickHouse
+/// Significant variant row from ClickHouse (with annotations)
 #[derive(Debug, Clone, Deserialize, Row)]
 struct SignificantVariantRow {
     pub contig: String,
@@ -41,9 +41,14 @@ struct SignificantVariantRow {
     pub ref_allele: String,
     pub alt: String,
     pub pvalue: f64,
+    pub beta: f64,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+    pub hgvsc: Option<String>,
+    pub ac: Option<u32>,
 }
 
-/// A significant hit with raw genomic coordinates.
+/// A significant hit with raw genomic coordinates and annotations.
 /// The frontend computes display coordinates using ChromosomeLayout.
 #[derive(Debug, Serialize)]
 pub struct SignificantHit {
@@ -54,6 +59,20 @@ pub struct SignificantHit {
     pub position: i32,
     /// P-value
     pub pvalue: f64,
+    /// Effect size (beta coefficient)
+    pub beta: f64,
+    /// Gene symbol from annotations (if available)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gene_symbol: Option<String>,
+    /// Variant consequence (e.g., "missense_variant", "intron_variant")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consequence: Option<String>,
+    /// HGVS coding notation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hgvsc: Option<String>,
+    /// Allele count
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ac: Option<u32>,
 }
 
 /// Overlay data with significant hits from ClickHouse
@@ -199,25 +218,47 @@ pub async fn get_manhattan_overlay(
         _ => "genome",
     };
 
-    // Query significant variants from ClickHouse
-    let query = r#"
-        SELECT contig, position, ref, alt, pvalue
-        FROM significant_variants
-        WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
-        ORDER BY pvalue ASC
-    "#;
+    // Query significant variants with annotations from ClickHouse
+    // Use IN subquery for efficient index usage on annotation tables
+    let annotation_table = match sequencing_type {
+        "exome" => "exome_annotations",
+        _ => "genome_annotations",
+    };
+
+    let query = format!(
+        r#"
+        SELECT
+            sv.contig, sv.position, sv.ref, sv.alt, sv.pvalue, sv.beta,
+            ann.gene_symbol, ann.consequence, ann.hgvsc, ann.ac
+        FROM significant_variants sv
+        LEFT JOIN (
+            SELECT xpos, ref, alt, gene_symbol, consequence, hgvsc, ac
+            FROM {annotation_table}
+            WHERE xpos IN (
+                SELECT xpos FROM significant_variants
+                WHERE phenotype = ?
+            )
+        ) ann ON sv.xpos = ann.xpos AND sv.ref = ann.ref AND sv.alt = ann.alt
+        WHERE sv.phenotype = ?
+            AND sv.ancestry = ?
+            AND sv.sequencing_type = ?
+        ORDER BY sv.pvalue ASC
+        "#,
+        annotation_table = annotation_table
+    );
 
     let rows: Vec<SignificantVariantRow> = state
         .clickhouse
-        .query(query)
-        .bind(&analysis_id)
+        .query(&query)
+        .bind(&analysis_id)  // for IN subquery
+        .bind(&analysis_id)  // for outer WHERE
         .bind(ancestry)
         .bind(sequencing_type)
         .fetch_all()
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    // Convert to SignificantHit with raw coordinates
+    // Convert to SignificantHit with raw coordinates and annotations
     let significant_hits: Vec<SignificantHit> = rows
         .into_iter()
         .map(|row| SignificantHit {
@@ -225,6 +266,11 @@ pub async fn get_manhattan_overlay(
             contig: row.contig,
             position: row.position,
             pvalue: row.pvalue,
+            beta: row.beta,
+            gene_symbol: row.gene_symbol,
+            consequence: row.consequence,
+            hgvsc: row.hgvsc,
+            ac: row.ac,
         })
         .collect();
 

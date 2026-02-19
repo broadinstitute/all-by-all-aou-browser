@@ -4,7 +4,7 @@
  */
 
 /**
- * A significant variant from ClickHouse with raw genomic coordinates.
+ * A significant variant from ClickHouse with raw genomic coordinates and annotations.
  */
 export interface SignificantHit {
   variant_id: string;
@@ -14,6 +14,16 @@ export interface SignificantHit {
   position: number;
   /** P-value */
   pvalue: number;
+  /** Effect size (beta coefficient) */
+  beta?: number;
+  /** Gene symbol from annotations (if available) */
+  gene_symbol?: string;
+  /** Variant consequence (e.g., "missense_variant", "intron_variant") */
+  consequence?: string;
+  /** HGVS coding notation */
+  hgvsc?: string;
+  /** Allele count */
+  ac?: number;
 }
 
 /**

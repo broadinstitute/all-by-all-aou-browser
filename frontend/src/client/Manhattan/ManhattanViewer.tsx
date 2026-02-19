@@ -219,7 +219,12 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
             <thead>
               <tr>
                 <th>Variant</th>
+                <th>Gene</th>
+                <th>CSQ</th>
+                <th>HGVSc</th>
                 <th>P-value</th>
+                <th>Beta</th>
+                <th>AC</th>
               </tr>
             </thead>
             <tbody>
@@ -230,8 +235,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   onClick={() => onVariantClick?.(hit)}
                   style={{ cursor: onVariantClick ? 'pointer' : 'default' }}
                 >
-                  <td>{hit.variant_id}</td>
+                  <td title={hit.variant_id}>{hit.variant_id}</td>
+                  <td>{hit.gene_symbol || '—'}</td>
+                  <td>{hit.consequence?.replace(/_/g, ' ') || '—'}</td>
+                  <td title={hit.hgvsc}>{hit.hgvsc || '—'}</td>
                   <td>{hit.pvalue.toExponential(2)}</td>
+                  <td>{hit.beta?.toFixed(3) ?? '—'}</td>
+                  <td>{hit.ac?.toLocaleString() || '—'}</td>
                 </tr>
               ))}
             </tbody>

@@ -115,14 +115,16 @@
 /* Variant table */
 .manhattan-table-container {
   margin-top: 16px;
-  max-height: 300px;
-  overflow-y: auto;
+  margin-bottom: 48px;
+  max-height: 600px;
+  overflow: auto;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
 }
 
 .manhattan-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -131,6 +133,7 @@
 .manhattan-table th {
   position: sticky;
   top: 0;
+  z-index: 1;
   background: #f5f5f5;
   padding: 8px 12px;
   text-align: left;
@@ -151,14 +154,41 @@
   background: #fff3f3 !important;
 }
 
-.manhattan-table td:first-child {
+/* Sticky Variant column */
+.manhattan-table td:first-child,
+.manhattan-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: #1a1a2e;
   font-family: 'SF Mono', Monaco, monospace;
   font-size: 12px;
-  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 2;
+}
+
+.manhattan-table th:first-child {
+  background: #f5f5f5;
+  z-index: 3;
+}
+
+/* Constrain HGVSc column (4th) */
+.manhattan-table td:nth-child(4),
+.manhattan-table th:nth-child(4) {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .manhattan-table th:last-child,
 .manhattan-table td:last-child {
   text-align: right;
   width: 100px;
+}
+
+.manhattan-table td:nth-child(2),
+.manhattan-table td:nth-child(3) {
+  font-size: 12px;
+  color: #666;
 }
