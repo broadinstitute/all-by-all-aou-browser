@@ -53,6 +53,8 @@ export interface SignificantHit {
   af?: number;
   /** Effect size (optional) */
   beta?: number;
+  /** Standard error (optional) */
+  se?: number;
   /** HGVS protein notation (optional) */
   hgvsp?: string;
   /** HGVS coding notation (optional) */
@@ -320,6 +322,9 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
     const parts = [v.id];
     if (v.gene_symbol) parts.push(v.gene_symbol);
     if (v.pvalue) parts.push(`P=${v.pvalue.toExponential(2)}`);
+    if (v.beta !== undefined && v.beta !== null) parts.push(`β=${v.beta.toFixed(3)}`);
+    if (v.se !== undefined && v.se !== null) parts.push(`SE=${v.se.toFixed(3)}`);
+    if (v.af !== undefined && v.af !== null) parts.push(`AF=${v.af.toExponential(2)}`);
     if (v.consequence) parts.push(v.consequence.replace(/_/g, " "));
     return parts.join(" | ");
   };

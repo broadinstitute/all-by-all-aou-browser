@@ -77,21 +77,26 @@ pub struct VariantAnnotationApi {
 
 /// Gene association data for API responses.
 ///
-/// Includes nested locus for gene position.
+/// Field names match frontend GeneAssociationsHds type.
 #[derive(Debug, Clone, Serialize)]
 pub struct GeneAssociationApi {
     pub gene_id: String,
     pub gene_symbol: String,
     pub annotation: String,
     pub max_maf: f64,
-    pub phenotype: String,
-    pub ancestry: String,
+    /// analysis_id (aliased from phenotype in ClickHouse)
+    pub analysis_id: String,
+    /// ancestry_group (aliased from ancestry in ClickHouse)
+    pub ancestry_group: String,
     pub pvalue: Option<f64>,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
     pub beta_burden: Option<f64>,
     pub mac: Option<i64>,
-    pub locus: Locus,
+    /// Chromosome (e.g., "chr14")
+    pub contig: String,
+    /// Gene start position
+    pub gene_start_position: i32,
 }
 
 // ============================================================================

@@ -577,7 +577,51 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
                 <h3 className="app-section-title">
                   Gene burden associations in locus {regionId} with {analysisMetadata && analysisMetadata.description}
                 </h3>
-                <GeneResultsTable columns={geneResultsColumns} results={geneAssociations} exportColumns={["gene_id"]} analysisId={"height"} burdenSet='pLoF' highlightText='' numRowsRendered={8} />
+                <GeneResultsTable
+                  columns={geneResultsColumns}
+                  results={(() => {
+                    // Filter gene associations by region bounds and ancestry
+                    const { contig, start, stop } = parseRegionId(regionId)
+                    const contigWithoutChr = contig.replace(/^chr/, '')
+
+                    const filtered = geneAssociations.filter((gene) => {
+                      // Filter by ancestry
+                      if (gene.ancestry_group !== ancestryGroup) return false
+
+                      // Filter by region - check if gene overlaps with region
+                      const geneContig = gene.contig || ''
+                      const geneContigNormalized = geneContig.replace(/^chr/, '')
+                      if (geneContigNormalized !== contigWithoutChr) return false
+
+                      // Use gene_start_position for filtering
+                      const geneStart = gene.gene_start_position
+                      if (geneStart === null || geneStart === undefined) return false
+
+                      // Gene is in region if its start position falls within bounds
+                      return geneStart >= start && geneStart <= stop
+                    })
+
+                    // Dedupe by gene_id + annotation, keeping the smallest max_maf
+                    const deduped = new Map<string, typeof filtered[0]>()
+                    for (const gene of filtered) {
+                      const key = `${gene.gene_id}_${gene.annotation}`
+                      const existing = deduped.get(key)
+                      if (!existing || (gene.max_maf < existing.max_maf)) {
+                        deduped.set(key, gene)
+                      }
+                    }
+
+                    // Sort by pvalue (most significant first)
+                    return Array.from(deduped.values()).sort((a, b) =>
+                      (a.pvalue ?? 1) - (b.pvalue ?? 1)
+                    )
+                  })()}
+                  exportColumns={["gene_id"]}
+                  analysisId={analysisMetadata?.analysis_id || ""}
+                  burdenSet='pLoF'
+                  highlightText=''
+                  numRowsRendered={8}
+                />
               </>
             )
           ) : (

@@ -225,21 +225,22 @@ pub struct GeneAssociationRow {
 }
 
 impl GeneAssociationRow {
-    /// Convert to API model with nested locus
+    /// Convert to API model with field names matching frontend types
     pub fn to_api(&self) -> GeneAssociationApi {
         GeneAssociationApi {
             gene_id: self.gene_id.clone(),
             gene_symbol: self.gene_symbol.clone(),
             annotation: self.annotation.clone(),
             max_maf: self.max_maf,
-            phenotype: self.phenotype.clone(),
-            ancestry: self.ancestry.clone(),
+            analysis_id: self.phenotype.clone(),
+            ancestry_group: self.ancestry.clone(),
             pvalue: self.pvalue,
             pvalue_burden: self.pvalue_burden,
             pvalue_skat: self.pvalue_skat,
             beta_burden: self.beta_burden,
             mac: self.mac,
-            locus: Locus::new(self.contig.clone(), self.gene_start_position as u32),
+            contig: self.contig.clone(),
+            gene_start_position: self.gene_start_position,
         }
     }
 }

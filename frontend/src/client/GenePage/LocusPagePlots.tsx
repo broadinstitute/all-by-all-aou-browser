@@ -269,8 +269,9 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
       gene_symbol: v.gene_symbol,
       consequence: v.consequence,
       ac: v.ac_cases ?? undefined,
-      af: v.allele_frequency ?? undefined,
+      af: v.allele_frequency ?? (v as any).association_af ?? undefined,
       beta: v.beta,
+      se: (v as any).se ?? undefined,
       hgvsp: v.hgvsp,
       hgvsc: v.hgvsc,
     }))
