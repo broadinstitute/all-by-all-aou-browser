@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { ManhattanPlotContainer } from '../Manhattan';
+import { OverviewPlotContainer } from '../Manhattan/OverviewPlotContainer';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
@@ -225,16 +226,21 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
     setResultLayout('half');
   };
 
+  const handleOverviewLocusClick = (contig: string, position: number) => {
+    const windowSize = 500000; // ±500kb
+    setRegionId(`${contig}-${Math.max(0, position - windowSize)}-${position + windowSize}`);
+    setResultLayout('half');
+  };
+
   const renderTabContent = () => {
     const tabConfig = TABS.find((t) => t.key === activeTab);
 
     if (activeTab === 'overview') {
       return (
-        <div>
-          <p style={{ padding: '20px', color: '#666' }}>
-            Select a tab above to view Manhattan plots and association data for this phenotype.
-          </p>
-        </div>
+        <OverviewPlotContainer
+          analysisId={analysisMetadataPrepared.analysis_id}
+          onLocusClick={handleOverviewLocusClick}
+        />
       );
     }
 

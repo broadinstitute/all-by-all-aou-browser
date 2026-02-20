@@ -274,6 +274,11 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     "/phenotype/:analysis_id/plots",
                     get(phenotype::plots::get_phenotype_plots),
                 )
+                // --- Unified Overview Route ---
+                .route(
+                    "/phenotype/:analysis_id/overview",
+                    get(phenotype::overview::get_phenotype_overview),
+                )
                 // --- Manhattan Plot Proxy Routes ---
                 .route(
                     "/phenotype/:analysis_id/manhattan",

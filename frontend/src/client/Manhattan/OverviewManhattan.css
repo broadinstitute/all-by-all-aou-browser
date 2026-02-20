@@ -1,0 +1,49 @@
+/* Overview Manhattan - CSS compositing for dual Manhattan plots */
+
+.overview-image-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.overview-image-base {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Same dark blue filter as all other Manhattan plots */
+}
+
+.overview-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Same dark blue filter as base, just with opacity for layering */
+  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(0.5);
+  opacity: 0.85;
+}
+
+.overview-stats {
+  display: flex;
+  gap: 24px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: #666;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+.overview-stats-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.overview-stats-label {
+  font-weight: 500;
+}
+
+.overview-stats-value {
+  color: #333;
+}

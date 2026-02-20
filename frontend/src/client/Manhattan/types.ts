@@ -113,3 +113,52 @@ export interface DisplayHit extends SignificantHit {
   /** Y position normalized to image height (0.0 to 1.0) */
   y_normalized: number;
 }
+
+/**
+ * Coding variant counts by consequence category for unified overview.
+ */
+export interface UnifiedCodingHits {
+  lof: number;
+  missense: number;
+}
+
+/**
+ * A gene with evidence from multiple sources (genome, exome, burden).
+ */
+export interface UnifiedGene {
+  gene_symbol: string;
+  gene_id: string;
+  distance_kb: number;
+  /** Coding hits from genome GWAS */
+  genome_coding_hits?: UnifiedCodingHits;
+  /** Coding hits from exome GWAS */
+  exome_coding_hits?: UnifiedCodingHits;
+  /** Burden test results */
+  burden_results?: BurdenResult[];
+}
+
+/**
+ * A unified locus combining evidence from genome, exome, and burden tests.
+ */
+export interface UnifiedLocus {
+  contig: string;
+  position: number;
+  /** Best p-value from genome GWAS */
+  pvalue_genome?: number;
+  /** Best p-value from exome GWAS */
+  pvalue_exome?: number;
+  /** Genes in this locus with combined evidence */
+  genes: UnifiedGene[];
+}
+
+/**
+ * Response from the /api/phenotype/:id/overview endpoint.
+ */
+export interface UnifiedOverviewResponse {
+  /** URL to genome Manhattan plot image */
+  genome_image_url: string;
+  /** URL to exome Manhattan plot image */
+  exome_image_url: string;
+  /** Unified loci with merged evidence */
+  unified_loci: UnifiedLocus[];
+}

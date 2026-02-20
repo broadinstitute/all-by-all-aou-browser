@@ -16,6 +16,8 @@
   display: block;
   width: 100%;
   height: auto;
+  /* Dark blue filter to match AoU brand - applied to all Manhattan plots */
+  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(0.5);
 }
 
 .manhattan-overlay {

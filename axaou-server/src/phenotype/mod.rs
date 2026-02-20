@@ -5,6 +5,7 @@
 
 pub mod loci;
 pub mod manhattan;
+pub mod overview;
 pub mod plots;
 pub mod qq;
 pub mod significant;

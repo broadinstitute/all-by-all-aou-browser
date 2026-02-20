@@ -327,7 +327,7 @@ fn make_variant_id(contig: &str, position: i32, ref_allele: &str, alt: &str) -> 
 ///
 /// Returns top N GWAS peaks with genes in locus (±200kb), coding variant counts,
 /// and burden test p-values where available.
-async fn fetch_peak_annotations(
+pub(crate) async fn fetch_peak_annotations(
     state: &AppState,
     analysis_id: &str,
     ancestry: &str,

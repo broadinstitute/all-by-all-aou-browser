@@ -1,6 +1,12 @@
 export { ManhattanViewer } from './ManhattanViewer';
 export { ManhattanPlotContainer } from './ManhattanPlotContainer';
+export { OverviewManhattan } from './OverviewManhattan';
+export { OverviewPlotContainer } from './OverviewPlotContainer';
+export { UnifiedLocusTable } from './UnifiedLocusTable';
 export type { ManhattanViewerProps } from './ManhattanViewer';
-export type { ManhattanOverlay, SignificantHit, DisplayHit, HitType } from './types';
+export type { OverviewManhattanProps } from './OverviewManhattan';
+export type { OverviewPlotContainerProps } from './OverviewPlotContainer';
+export type { UnifiedLocusTableProps } from './UnifiedLocusTable';
+export type { ManhattanOverlay, SignificantHit, DisplayHit, HitType, UnifiedLocus, UnifiedGene, UnifiedCodingHits, UnifiedOverviewResponse } from './types';
 export type { PlotType } from './ManhattanPlotContainer';
 export { computeDisplayHits, getChromosomeLayout, getYScale } from './layout';
