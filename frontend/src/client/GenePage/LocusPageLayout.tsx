@@ -40,6 +40,7 @@ import {
   VariantJoined,
   GeneModels,
   VariantDataset,
+  LocusPlotResponse,
 } from '../types'
 import GeneResultsTable from '../GeneResults/GeneResultsTable'
 
@@ -268,6 +269,8 @@ type LocusPageLayoutProps = {
   variantId: string
   queryStates: any
   size: { width: number; height: number }
+  /** Optional locus plot data for PNG-based rendering */
+  locusPlotData?: LocusPlotResponse | null
 }
 
 // Main Component
@@ -279,6 +282,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   variantDatasets,
   size,
   queryStates,
+  locusPlotData,
 }) => {
   const { width } = size
 
@@ -521,7 +525,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
             rightPanelWidth={0}
           >
             <>
-              <LocusPagePlots variantDatasets={datasets} />
+              <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} />
               {!regionId && (
                 <RegionsTrack
                   height={20}

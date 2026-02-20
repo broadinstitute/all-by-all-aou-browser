@@ -18,8 +18,8 @@ export const makeVariantId = (
   alt: string,
   maxLength?: number
 ): string => {
-  const strippedContig = contig.startsWith('chr') ? contig.slice(3) : contig
-  let varId = `${strippedContig}-${pos}-${ref}-${alt}`
+  // Keep chr prefix to match API format (chr12-65805394-C-T)
+  let varId = `${contig}-${pos}-${ref}-${alt}`
   if (maxLength !== undefined) {
     varId = varId.slice(0, maxLength)
   }
@@ -83,7 +83,14 @@ export const genericMerge = <T1 extends object, T2 extends object>(
 
   const mergedData: (T1 & T2)[] = [];
 
-  const customMerge = (objValue: any, srcValue: any) => {
+  // Fields where 0 is a dummy value from the API (associations don't have these)
+  const dummyZeroFields = ['af', 'beta', 'se', 'ac', 'an', 'hom'];
+
+  const customMerge = (objValue: any, srcValue: any, key: string) => {
+    // Don't overwrite valid values with dummy 0s
+    if (dummyZeroFields.includes(key) && srcValue === 0 && objValue !== undefined && objValue !== null && objValue !== 0) {
+      return objValue;
+    }
     if (srcValue !== null && srcValue !== undefined) {
       return srcValue;
     }
@@ -118,20 +125,26 @@ export const genericMerge = <T1 extends object, T2 extends object>(
 };
 
 export const annotateWorstConsequence = <
-  T extends { worst_csq_by_gene_canonical?: WorstCsqByGeneCanonical[] }
+  T extends { worst_csq_by_gene_canonical?: WorstCsqByGeneCanonical[]; consequence?: string | null; hgvsc?: string | null; hgvsp?: string | null }
 >(
   variant: T
 ): T & { hgvsp: string | null; hgvsc: string | null; consequence: string } => {
+  // First try to get from worst_csq_by_gene_canonical (legacy VEP format)
   const vepAnnotation =
     variant.worst_csq_by_gene_canonical && variant.worst_csq_by_gene_canonical.length > 0
       ? variant.worst_csq_by_gene_canonical[0]
-      : { most_severe_consequence: 'unknown', hgvsp: null, hgvsc: null }
+      : null
+
+  // Use VEP annotation if available, otherwise fallback to top-level fields (new extended API format)
+  const consequence = vepAnnotation?.most_severe_consequence || variant.consequence || 'unknown'
+  const hgvsp = vepAnnotation?.hgvsp ?? variant.hgvsp ?? null
+  const hgvsc = vepAnnotation?.hgvsc ?? variant.hgvsc ?? null
 
   return {
     ...variant,
-    hgvsp: vepAnnotation.hgvsp,
-    hgvsc: vepAnnotation.hgvsc,
-    consequence: vepAnnotation.most_severe_consequence,
+    hgvsp,
+    hgvsc,
+    consequence,
   }
 }
 
@@ -172,15 +185,20 @@ export const sortVariantsByCorrelation = (a: VariantJoined, b: VariantJoined) =>
 
 
 export const processGeneBurden = (geneAssociations: GeneAssociations[]): GeneAssociations[] => {
-  return geneAssociations.map((r: GeneAssociations) => ({
-    ...r,
-    chrom: r.contig.replace('chr', ''),
-    contig: r.contig,
-    gene_start_position: r.gene_start_position,
-    pos: r.gene_start_position || 0,
-    beta_burden: r.beta_burden,
-    // pval: r.pvalue,
-  }));
+  if (!geneAssociations || !Array.isArray(geneAssociations)) {
+    return [];
+  }
+  return geneAssociations
+    .filter((r: GeneAssociations) => r && r.contig) // Filter out entries without contig
+    .map((r: GeneAssociations) => ({
+      ...r,
+      chrom: r.contig?.replace('chr', '') || '',
+      contig: r.contig || '',
+      gene_start_position: r.gene_start_position,
+      pos: r.gene_start_position || 0,
+      beta_burden: r.beta_burden,
+      // pval: r.pvalue,
+    }));
 };
 
 

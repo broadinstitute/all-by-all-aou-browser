@@ -18,6 +18,8 @@ export interface ManhattanViewerProps {
   overlay: ManhattanOverlay;
   /** Callback when a significant hit is clicked */
   onHitClick?: (hit: DisplayHit) => void;
+  /** Callback when a peak label is clicked */
+  onPeakClick?: (node: PeakLabelNode) => void;
   /** Callback when hovering over a hit (null = hover out) */
   onHitHover?: (hit: DisplayHit | null) => void;
   /** Show Y-axis with -log10(p) labels */
@@ -41,6 +43,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   imageUrl,
   overlay,
   onHitClick,
+  onPeakClick,
   onHitHover,
   showYAxis = true,
   showStats = true,
@@ -232,6 +235,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 labelAreaHeight={labelAreaHeight}
                 hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
                 onPeakHover={handlePeakHover}
+                onPeakClick={onPeakClick}
               />
             </svg>
           )}

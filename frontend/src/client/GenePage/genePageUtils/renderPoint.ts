@@ -59,7 +59,9 @@ export const renderPoint = ({
 
   const h = height - margin.top - margin.bottom
 
-  const radius = Math.abs(alleleFrequencyScale(getAfField(point.data)))
+  // Calculate radius with fallback for NaN/Infinity (happens when af=0 with log scale)
+  const rawRadius = Math.abs(alleleFrequencyScale(getAfField(point.data)))
+  const radius = Number.isFinite(rawRadius) ? rawRadius : 3
 
   let yValue = h + margin.top + margin.bottom - 50
 

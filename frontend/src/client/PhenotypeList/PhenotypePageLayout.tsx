@@ -7,7 +7,7 @@ import { ManhattanPlotContainer } from '../Manhattan';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
-import { analysisIdAtom, ancestryGroupAtom, geneIdAtom } from '../sharedState';
+import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom } from '../sharedState';
 import { AnalysisMetadata } from '../types';
 import {
   AttributeCards,
@@ -163,6 +163,9 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const analysisId = useRecoilValue(analysisIdAtom);
   const setGeneId = useSetRecoilState(geneIdAtom);
+  const setRegionId = useSetRecoilState(regionIdAtom);
+  const setVariantId = useSetRecoilState(variantIdAtom);
+  const setResultLayout = useSetRecoilState(resultLayoutAtom);
 
   interface Data {
     analysisMetadata: AnalysisMetadata[] | null;
@@ -207,7 +210,19 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   const handleHitClick = (hit: SignificantHit) => {
     if (hit.hit_type === 'gene' && hit.id) {
       setGeneId(hit.id);
+      setResultLayout('half');
+    } else if (hit.hit_type === 'variant' && hit.contig && hit.position) {
+      const windowSize = 500000; // ±500kb
+      setRegionId(`${hit.contig}-${Math.max(0, hit.position - windowSize)}-${hit.position + windowSize}`);
+      setVariantId(hit.id);
+      setResultLayout('half');
     }
+  };
+
+  const handlePeakClick = (node: any) => {
+    const windowSize = 500000; // ±500kb
+    setRegionId(`${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`);
+    setResultLayout('half');
   };
 
   const renderTabContent = () => {
@@ -229,6 +244,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
           analysisId={analysisMetadataPrepared.analysis_id}
           plotType={tabConfig.plotType}
           onHitClick={handleHitClick}
+          onPeakClick={handlePeakClick}
         />
       );
     }

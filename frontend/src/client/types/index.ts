@@ -143,6 +143,68 @@ interface LoadedAnalysis {
   details: AnalysisDetail[];
 }
 
+// =============================================================================
+// Locus Plot Types (for PNG-based locus visualization)
+// =============================================================================
+
+/** Y-axis configuration for locus plot coordinate mapping */
+interface LocusPlotYAxisConfig {
+  /** Threshold where scale switches from linear to log (-log10(p) value) */
+  log_threshold: number;
+  /** Fraction of plot height for the linear portion (0-1) */
+  linear_fraction: number;
+  /** Maximum -log10(p) value for scaling the log portion */
+  max_neg_log_p: number;
+}
+
+/** Image dimensions */
+interface LocusPlotImageDimensions {
+  width: number;
+  height: number;
+}
+
+/** Sidecar metadata for locus plot coordinate mapping */
+interface LocusPlotSidecar {
+  /** Original image dimensions */
+  image: LocusPlotImageDimensions;
+  /** Y-axis configuration for coordinate calculation */
+  y_axis: LocusPlotYAxisConfig;
+  /** Significance threshold marker */
+  threshold: { pvalue: number; y_px: number };
+}
+
+/** Response from /api/phenotype/:id/loci/:locus_id/plot */
+interface LocusPlotResponse {
+  /** URL to the locus plot PNG image */
+  image_url: string;
+  /** Sidecar metadata for coordinate mapping */
+  sidecar: LocusPlotSidecar;
+  /** Locus start position (genomic coordinate) */
+  locus_start: number;
+  /** Locus stop position (genomic coordinate) */
+  locus_stop: number;
+  /** Chromosome */
+  contig: string;
+}
+
+/** Locus metadata from /api/phenotype/:id/loci */
+interface LocusMetadata {
+  locus_id: string;
+  phenotype: string;
+  ancestry: string;
+  contig: string;
+  start: number;
+  stop: number;
+  xstart: number;
+  xstop: number;
+  source: string;
+  lead_variant: string;
+  lead_pvalue: number;
+  exome_count: number;
+  genome_count: number;
+  plot_gcs_uri: string;
+}
+
 export {
   AxaouConfig,
   LookupResult,
@@ -168,5 +230,10 @@ export {
   LdEntry,
   CorrelationEntry,
   GnomadConstraint,
-  LoadedAnalysis
+  LoadedAnalysis,
+  LocusPlotYAxisConfig,
+  LocusPlotImageDimensions,
+  LocusPlotSidecar,
+  LocusPlotResponse,
+  LocusMetadata,
 }

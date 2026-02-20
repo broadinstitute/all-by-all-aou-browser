@@ -229,10 +229,8 @@ registerConsequences(rankedVepConsequences)
 
 export const getCategoryFromConsequence = (consequenceTerm: string): string => {
   const category = categoryByTerm[consequenceTerm]
-  if (category === undefined) {
-    throw new Error(`Category not found for consequence term: ${consequenceTerm}`)
-  }
-  return category
+  // Return 'other' for unknown consequence terms (e.g. from new extended API)
+  return category ?? 'other'
 }
 
 export const getLabelForConsequenceTerm = (consequenceTerm: string) =>

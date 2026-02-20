@@ -58,6 +58,44 @@ pub struct LocusVariantExtendedRow {
     pub is_significant: bool,
 }
 
+/// Full locus variant row for interval queries
+///
+/// Contains all columns from loci_variants needed for API responses.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct LocusVariantFullRow {
+    pub phenotype: String,
+    pub ancestry: String,
+    pub sequencing_type: String,
+    pub contig: String,
+    pub xpos: i64,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub pvalue: f64,
+    pub neg_log10_p: f32,
+    pub is_significant: bool,
+}
+
+impl LocusVariantFullRow {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> VariantAssociationApi {
+        VariantAssociationApi {
+            variant_id: make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position as u32),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            pvalue: self.pvalue,
+            beta: 0.0,  // Not available in loci_variants
+            se: 0.0,    // Not available in loci_variants
+            af: 0.0,    // Not available in loci_variants
+            phenotype: self.phenotype.clone(),
+            ancestry: self.ancestry.clone(),
+            sequencing_type: self.sequencing_type.clone(),
+        }
+    }
+}
+
 /// Significant variant from the `significant_variants` table
 ///
 /// Contains full association statistics for variants that pass
@@ -125,6 +163,31 @@ impl VariantAnnotationRow {
             gene_symbol: self.gene_symbol.clone(),
             consequence: self.consequence.clone(),
             af: self.af_all,
+            hgvsc: None,
+            hgvsp: None,
+            ac: None,
+            an: None,
+            hom: None,
+        }
+    }
+}
+
+impl VariantAnnotationExtendedRow {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> VariantAnnotationApi {
+        VariantAnnotationApi {
+            variant_id: make_variant_id(&self.contig, self.position, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            consequence: self.consequence.clone(),
+            af: self.af,
+            hgvsc: self.hgvsc.clone(),
+            hgvsp: self.hgvsp.clone(),
+            ac: self.ac,
+            an: self.an,
+            hom: self.hom,
         }
     }
 }

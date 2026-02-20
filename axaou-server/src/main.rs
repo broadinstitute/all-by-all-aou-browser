@@ -259,6 +259,14 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     get(phenotype::loci::get_locus_variants),
                 )
                 .route(
+                    "/phenotype/:analysis_id/loci/:locus_id/plot",
+                    get(phenotype::loci::get_locus_plot),
+                )
+                .route(
+                    "/phenotype/:analysis_id/loci/:locus_id/plot/image",
+                    get(phenotype::loci::get_locus_plot_image),
+                )
+                .route(
                     "/phenotype/:analysis_id/significant",
                     get(phenotype::significant::get_significant_variants),
                 )

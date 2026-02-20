@@ -10,6 +10,18 @@ import { axaouDevUrl, pouchDbName } from './Query';
 import { AnalysisMetadata, AxaouConfig, GeneSymbol, LoadedAnalysis, VariantAssociations } from './types';
 import { filterValidAnalyses, getAvailableAnalysisIds } from './utils';
 
+/**
+ * Convert regionId format from "19-32216732-34497056" to "19:32216732-34497056"
+ * for API interval endpoints which expect "chr:start-end" format.
+ */
+const formatRegionIdForApi = (regionId: string): string => {
+  const parts = regionId.split('-')
+  if (parts.length >= 3) {
+    // Format: "19-32216732-34497056" -> "19:32216732-34497056"
+    return `${parts[0]}:${parts.slice(1).join('-')}`
+  }
+  return regionId
+}
 
 async function fetchFromUrlWithCache<T>(base_url: string, params: Record<string, string> = {}): Promise<{
   data?: T;
@@ -141,7 +153,9 @@ export const variantAssociationsRegionQuerySelector = selectorFamily({
     if (sequencingType) queryParams["sequencing_type"] = sequencingType;
     if (queryMode) queryParams["query_mode"] = queryMode;
 
-    const base_url = `${axaouDevUrl}/variants/associations/interval/chr${regionId}`;
+    // Format regionId for API: "19-32216732-34497056" -> "19:32216732-34497056"
+    const apiRegionId = formatRegionIdForApi(regionId);
+    const base_url = `${axaouDevUrl}/variants/associations/interval/chr${apiRegionId}`;
     return fetchFromUrlWithCache<VariantAssociations[]>(base_url, queryParams);
   }
 });

@@ -486,17 +486,17 @@ impl GeneModelsClickHouse {
             "WHERE chrom = ? AND stop >= ? AND start <= ? ORDER BY start",
         );
 
-        // Normalize chromosome (ensure 'chr' prefix)
-        let chrom_with_prefix = if chrom.starts_with("chr") {
-            chrom
+        // Normalize chromosome (remove 'chr' prefix - gene_models uses "4" not "chr4")
+        let chrom_normalized = if chrom.starts_with("chr") {
+            chrom.strip_prefix("chr").unwrap().to_string()
         } else {
-            format!("chr{}", chrom)
+            chrom
         };
 
         let results = self
             .client
             .query(&query)
-            .bind(&chrom_with_prefix)
+            .bind(&chrom_normalized)
             .bind(start)
             .bind(stop)
             .fetch_all::<GeneModelRow>()

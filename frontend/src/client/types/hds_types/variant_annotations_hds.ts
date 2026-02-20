@@ -15,6 +15,13 @@ export interface VariantAnnotationsHds {
     sequencing_type:             string;
     worst_csq_by_gene_canonical: WorstCsqByGeneCanonical[];
     xpos:                        number;
+    // Extended annotation fields from backend
+    ac?:                         number | null;
+    af?:                         number | null;
+    an?:                         number | null;
+    hom?:                        number | null;
+    hgvsc?:                      string | null;
+    hgvsp?:                      string | null;
 }
 
 export interface Locus {

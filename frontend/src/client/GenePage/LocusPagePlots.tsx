@@ -1,6 +1,7 @@
 import React, { useContext } from 'react'
 
-import { RegionViewerContext } from '@axaou/ui'
+import { LocusPlotTrack, RegionViewerContext } from '@axaou/ui'
+import type { LocusPlotSidecar, SignificantHit } from '@axaou/ui'
 import {
   ScaleDiverging,
   scaleDiverging,
@@ -10,7 +11,7 @@ import {
 } from 'd3-scale'
 
 import { LocusPvaluePlot, LeftPanel } from './LocusPvaluePlot'
-import { VariantJoined } from '../types'
+import { VariantJoined, LocusPlotResponse } from '../types'
 import { getCategoryFromConsequence } from '../vepConsequences'
 import {
   GwasCatalogOption,
@@ -31,6 +32,7 @@ import {
 import { interpolateRdBu, interpolateGreens } from 'd3-scale-chromatic'
 import { variantGreenThreshold } from '../PhenotypeList/Utils'
 import { createLogLogScaleY } from './logLogScale'
+import { axaouDevUrl } from '../Query'
 
 export const consequenceCategoryColors = {
   lof: 'rgb(255, 88, 63)',
@@ -161,6 +163,8 @@ export interface VariantPlotProps {
 type AssociationsInGeneProps = {
   variantDatasets: VariantJoined[][]
   variantId?: string
+  /** Optional locus plot data for PNG-based rendering */
+  locusPlotData?: LocusPlotResponse | null
 }
 
 const onVariantHoverLabel =
@@ -204,7 +208,7 @@ const onVariantHoverLabel =
       )[afLabel].toExponential(3)}`
     }
 
-export const LocusPagePlots = ({ variantDatasets }: AssociationsInGeneProps) => {
+export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsInGeneProps) => {
   const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
 
@@ -254,38 +258,95 @@ export const LocusPagePlots = ({ variantDatasets }: AssociationsInGeneProps) => 
     height: 400,
   })
 
+  // Convert variants to SignificantHit format for PNG overlay
+  const significantVariants: SignificantHit[] = variantsAll
+    .filter((v) => v.pvalue && v.pvalue < 1e-2) // Only significant variants
+    .map((v) => ({
+      id: v.variant_id,
+      position: v.locus?.position || 0,
+      contig: v.locus?.contig || '',
+      pvalue: v.pvalue,
+      gene_symbol: v.gene_symbol,
+      consequence: v.consequence,
+      ac: v.ac_cases ?? undefined,
+      af: v.allele_frequency ?? undefined,
+      beta: v.beta,
+      hgvsp: v.hgvsp,
+      hgvsc: v.hgvsc,
+    }))
+
+  // Handle click on PNG overlay variant
+  const onPngVariantClick = (variant: SignificantHit) => {
+    setVariantId(variant.id)
+    setResultsIndex('variant-phewas')
+  }
+
+  // Disable PNG-based rendering - use canvas-based plot with DB data instead
+  const usePngPlot = false // locusPlotData && locusPlotData.image_url
+
+  // Construct full image URL (API returns relative path like /api/...)
+  const fullImageUrl = locusPlotData?.image_url
+    ? `${axaouDevUrl}${locusPlotData.image_url.replace(/^\/api/, '')}`
+    : ''
+
   return (
     <React.Fragment>
       <LocusPagePlotStyles>
-        <div className='left-panel'>
-          <LeftPanel
-            variantDatasets={variantDatasets}
-            height={genePageVariantPvaluePlotHeight}
-            width={leftPanelWidth}
-            axisTicks={axisTicks}
-          />
-        </div>
-        <LocusPvaluePlot
-          variantDatasets={variantDatasets}
-          activeAnalysis={undefined}
-          activeVariant={hoveredVariant}
-          betaScale={betaScale}
-          alleleFrequencyScale={alleleFrequencyScale}
-          transparency={transparency}
-          height={genePageVariantPvaluePlotHeight}
-          scalePosition={scalePosition}
-          width={centerPanelWidth}
-          leftPanelWidth={0}
-          rightPanelWidth={rightPanelWidth}
-          pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
-          applyStroke={false}
-          onClickPoint={onClickVariant}
-          thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
-          pointLabel={onVariantHoverLabel({
-            showAnalysisDescription: variantDatasets.length === 1 ? false : true,
-          })}
-          gwasCatalogOption={gwasCatalogOption}
-        />
+        {usePngPlot ? (
+          // PNG-based locus plot with interactive overlay
+          <>
+            <div className='left-panel'>
+              <LeftPanel
+                variantDatasets={variantDatasets}
+                height={genePageVariantPvaluePlotHeight}
+                width={leftPanelWidth}
+                axisTicks={axisTicks}
+              />
+            </div>
+            <LocusPlotTrack
+              imageUrl={fullImageUrl}
+              sidecar={locusPlotData.sidecar}
+              locusStart={locusPlotData.locus_start}
+              locusStop={locusPlotData.locus_stop}
+              variants={significantVariants}
+              height={genePageVariantPvaluePlotHeight}
+              onClickVariant={onPngVariantClick}
+            />
+          </>
+        ) : (
+          // Canvas-based fallback rendering
+          <>
+            <div className='left-panel'>
+              <LeftPanel
+                variantDatasets={variantDatasets}
+                height={genePageVariantPvaluePlotHeight}
+                width={leftPanelWidth}
+                axisTicks={axisTicks}
+              />
+            </div>
+            <LocusPvaluePlot
+              variantDatasets={variantDatasets}
+              activeAnalysis={undefined}
+              activeVariant={hoveredVariant}
+              betaScale={betaScale}
+              alleleFrequencyScale={alleleFrequencyScale}
+              transparency={transparency}
+              height={genePageVariantPvaluePlotHeight}
+              scalePosition={scalePosition}
+              width={centerPanelWidth}
+              leftPanelWidth={0}
+              rightPanelWidth={rightPanelWidth}
+              pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
+              applyStroke={false}
+              onClickPoint={onClickVariant}
+              thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
+              pointLabel={onVariantHoverLabel({
+                showAnalysisDescription: variantDatasets.length === 1 ? false : true,
+              })}
+              gwasCatalogOption={gwasCatalogOption}
+            />
+          </>
+        )}
       </LocusPagePlotStyles>
     </React.Fragment>
   )

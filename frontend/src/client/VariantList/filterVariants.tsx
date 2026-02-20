@@ -21,7 +21,7 @@ const filterVariants = (
         const category = getCategoryFromConsequence(variant.consequence) || 'other'
         return filter.includeCategories[category]
       }
-      return false
+      return true // Allow variants without consequence annotation
     })
   }
 

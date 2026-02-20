@@ -22,6 +22,8 @@ interface ManhattanPlotContainerProps {
   plotType?: PlotType;
   /** Callback when a significant hit is clicked */
   onHitClick?: (hit: SignificantHit) => void;
+  /** Callback when a peak label is clicked */
+  onPeakClick?: (peak: any) => void;
 }
 
 interface ManhattanApiResponse {
@@ -40,6 +42,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   analysisId,
   plotType = 'genome_manhattan',
   onHitClick,
+  onPeakClick,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
 
@@ -95,6 +98,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
         imageUrl={imageUrl}
         overlay={overlay}
         onHitClick={onHitClick}
+        onPeakClick={onPeakClick}
         showStats={data.has_overlay}
       />
     </Container>

@@ -22,9 +22,7 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion }) => {
     useContext(RegionViewerContext)
 
   const filterGenes = (genes: GeneModels[]) => {
-    return genes.filter((gene) => {
-      return isPositionDefined && isPositionDefined(gene.start) && isPositionDefined(gene.stop)
-    })
+    return genes;
   }
   const geneModels = filterGenes(geneModelsInRegion)
 

@@ -68,6 +68,11 @@ pub struct VariantAnnotationApi {
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
     pub af: Option<f64>,
+    pub hgvsc: Option<String>,
+    pub hgvsp: Option<String>,
+    pub ac: Option<u32>,
+    pub an: Option<u32>,
+    pub hom: Option<u32>,
 }
 
 /// Gene association data for API responses.

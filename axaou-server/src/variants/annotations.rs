@@ -8,7 +8,7 @@
 
 use crate::api::AppState;
 use crate::clickhouse::models::{
-    SignificantVariantRow, VariantAnnotationExtendedRow, VariantAnnotationRow,
+    LocusVariantFullRow, SignificantVariantRow, VariantAnnotationExtendedRow, VariantAnnotationRow,
 };
 use crate::clickhouse::xpos::{compute_xpos, parse_interval_to_xpos, parse_variant_id};
 use crate::error::AppError;
@@ -56,7 +56,7 @@ pub async fn get_annotation_by_id(
     State(state): State<Arc<AppState>>,
     Path(variant_id): Path<String>,
     Query(params): Query<SingleAnnotationQuery>,
-) -> Result<Json<Option<VariantAnnotationRow>>, AppError> {
+) -> Result<Json<Option<VariantAnnotationApi>>, AppError> {
     let (xpos, ref_allele, alt_allele) = parse_variant_id(&variant_id)?;
     let use_extended = params.extended.unwrap_or(false);
 
@@ -72,7 +72,7 @@ pub async fn get_annotation_by_id(
         for table in tables {
             let query = format!(
                 r#"
-                SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af AS af_all
+                SELECT xpos, contig, position, ref, alt, ac, af, an, hom, gene_id, gene_symbol, consequence, hgvsc, hgvsp, amino_acids, polyphen2, lof, filters
                 FROM {}
                 WHERE xpos = ? AND ref = ? AND alt = ?
                 LIMIT 1
@@ -86,14 +86,14 @@ pub async fn get_annotation_by_id(
                 .bind(xpos)
                 .bind(&ref_allele)
                 .bind(&alt_allele)
-                .fetch_optional::<VariantAnnotationRow>()
+                .fetch_optional::<VariantAnnotationExtendedRow>()
                 .await
                 .map_err(|e| {
                     AppError::DataTransformError(format!("ClickHouse query error: {}", e))
                 })?;
 
-            if row.is_some() {
-                return Ok(Json(row));
+            if let Some(r) = row {
+                return Ok(Json(Some(r.to_api())));
             }
         }
 
@@ -117,7 +117,7 @@ pub async fn get_annotation_by_id(
             .await
             .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-        Ok(Json(row))
+        Ok(Json(row.map(|r| r.to_api())))
     }
 }
 
@@ -157,10 +157,9 @@ pub async fn get_annotations_by_interval(
 ) -> Result<Json<LookupResult<VariantAnnotationApi>>, AppError> {
     let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
-    let limit = params.limit.unwrap_or(1000);
     let use_extended = params.extended.unwrap_or(false);
 
-    let rows = if use_extended {
+    let api_rows: Vec<VariantAnnotationApi> = if use_extended {
         // Use new separate tables
         let table = match params.sequencing_type.unwrap_or_default() {
             SequencingTypeParam::Exome => "exome_annotations",
@@ -169,45 +168,42 @@ pub async fn get_annotations_by_interval(
 
         let query = format!(
             r#"
-            SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af AS af_all
+            SELECT xpos, contig, position, ref, alt, ac, af, an, hom, gene_id, gene_symbol, consequence, hgvsc, hgvsp, amino_acids, polyphen2, lof, filters
             FROM {}
             WHERE xpos >= ? AND xpos <= ?
-            LIMIT ?
             "#,
             table
         );
 
-        state
+        let rows = state
             .clickhouse
             .query(&query)
             .bind(xpos_start)
             .bind(xpos_end)
-            .bind(limit)
-            .fetch_all::<VariantAnnotationRow>()
+            .fetch_all::<VariantAnnotationExtendedRow>()
             .await
-            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+        rows.into_iter().map(|r| r.to_api()).collect()
     } else {
         // Use legacy single table
         let query = r#"
             SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af_all
             FROM variant_annotations
             WHERE xpos >= ? AND xpos <= ?
-            LIMIT ?
         "#;
 
-        state
+        let rows = state
             .clickhouse
             .query(query)
             .bind(xpos_start)
             .bind(xpos_end)
-            .bind(limit)
             .fetch_all::<VariantAnnotationRow>()
             .await
-            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
-    };
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    // Convert to API format
-    let api_rows: Vec<VariantAnnotationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+        rows.into_iter().map(|r| r.to_api()).collect()
+    };
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
@@ -268,39 +264,43 @@ pub async fn get_annotations_by_gene(
     let where_clause = conditions.join(" OR ");
     let use_extended = params.extended.unwrap_or(false);
 
-    let query = if use_extended {
+    let api_rows: Vec<VariantAnnotationApi> = if use_extended {
         let table = match params.sequencing_type.unwrap_or_default() {
             SequencingTypeParam::Exome => "exome_annotations",
             SequencingTypeParam::Genome => "genome_annotations",
         };
-        format!(
+        let query = format!(
             r#"
-            SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af AS af_all
+            SELECT xpos, contig, position, ref, alt, ac, af, an, hom, gene_id, gene_symbol, consequence, hgvsc, hgvsp, amino_acids, polyphen2, lof, filters
             FROM {}
             WHERE {}
             "#,
             table, where_clause
-        )
+        );
+        let rows = state
+            .clickhouse
+            .query(&query)
+            .fetch_all::<VariantAnnotationExtendedRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+        rows.into_iter().map(|r| r.to_api()).collect()
     } else {
-        format!(
+        let query = format!(
             r#"
             SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af_all
             FROM variant_annotations
             WHERE {}
             "#,
             where_clause
-        )
+        );
+        let rows = state
+            .clickhouse
+            .query(&query)
+            .fetch_all::<VariantAnnotationRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+        rows.into_iter().map(|r| r.to_api()).collect()
     };
-
-    let rows = state
-        .clickhouse
-        .query(&query)
-        .fetch_all::<VariantAnnotationRow>()
-        .await
-        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
-
-    // Convert to API format
-    let api_rows: Vec<VariantAnnotationApi> = rows.into_iter().map(|r| r.to_api()).collect();
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
@@ -313,6 +313,14 @@ pub async fn get_annotations_by_gene(
 pub struct AssociationQuery {
     /// Analysis ID / phenotype (required)
     pub analysis_id: String,
+
+    /// Ancestry group filter
+    #[serde(default)]
+    pub ancestry_group: Option<String>,
+
+    /// Sequencing type filter (exome/genome)
+    #[serde(default)]
+    pub sequencing_type: Option<String>,
 
     /// Query mode (fast/slow) - accepted but currently ignored
     #[serde(default)]
@@ -356,8 +364,8 @@ pub async fn get_association_by_variant(
 
 /// GET /api/variants/associations/interval/:interval
 ///
-/// Returns association stats for all significant variants in an interval
-/// for a specific phenotype.
+/// Returns association stats for all variants in an interval for a specific phenotype.
+/// Uses loci_variants table which contains all variants (not just significant ones).
 pub async fn get_associations_by_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
@@ -366,20 +374,26 @@ pub async fn get_associations_by_interval(
     let timer = QueryTimer::start();
     let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
 
+    let ancestry = params.ancestry_group.as_deref().unwrap_or("meta");
+    let sequencing_type = params.sequencing_type.as_deref().unwrap_or("genome");
+
     let query = r#"
-        SELECT phenotype, ancestry, sequencing_type, xpos, contig, position,
-               ref, alt, pvalue, beta, se, af
-        FROM significant_variants
-        WHERE phenotype = ? AND xpos >= ? AND xpos <= ?
+        SELECT phenotype, ancestry, sequencing_type, contig, xpos, position,
+               ref, alt, pvalue, neg_log10_p, is_significant
+        FROM loci_variants
+        WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
+          AND xpos >= ? AND xpos <= ?
     "#;
 
     let rows = state
         .clickhouse
         .query(query)
         .bind(&params.analysis_id)
+        .bind(ancestry)
+        .bind(sequencing_type)
         .bind(xpos_start)
         .bind(xpos_end)
-        .fetch_all::<SignificantVariantRow>()
+        .fetch_all::<LocusVariantFullRow>()
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 

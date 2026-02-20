@@ -1,5 +1,5 @@
 import { Button } from '@gnomad/ui'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRecoilState, useRecoilValue } from 'recoil'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
@@ -27,8 +27,23 @@ import {
   VariantAssociations,
   VariantJoined,
   VariantDataset,
+  LocusPlotResponse,
+  LocusMetadata,
 } from '../types'
 import { LocusPageLayout } from './LocusPageLayout'
+
+/**
+ * Convert regionId format from "19-32216732-34497056" to "19:32216732-34497056"
+ * for API interval endpoints which expect "chr:start-end" format.
+ */
+const formatRegionIdForApi = (regionId: string): string => {
+  const parts = regionId.split('-')
+  if (parts.length >= 3) {
+    // Format: "19-32216732-34497056" -> "19:32216732-34497056"
+    return `${parts[0]}:${parts.slice(1).join('-')}`
+  }
+  return regionId
+}
 
 const filterByVariantId =
   (variantId: string | undefined | null) =>
@@ -72,7 +87,7 @@ const processVariants = ({
   variantId?: string;
 }): VariantDataset[] => {
 
-  const sequencingTypes = ["exomes", "genomes"];
+  const sequencingTypes = ["exome", "genome"];
   const ancestryGroups = ["afr", "amr", "eas", "eur", "mid", "sas", "meta"];
 
   return analyses.flatMap((analysisId) =>
@@ -112,6 +127,10 @@ const processVariants = ({
             logp: -Math.log10(v.pvalue),
             // pos: v.locus.position,
             analysis_description: v.analysis_id,
+            allele_count: v.allele_count ?? v.ac,
+            allele_frequency: v.allele_frequency ?? v.af,
+            allele_number: v.allele_number ?? v.an,
+            homozygote_count: v.homozygote_count ?? v.hom,
 
             combined_counts: `${renderCountText(v.ac_cases)} / ${renderCountText(
               v.an_cases
@@ -162,10 +181,10 @@ export const LocusPageDataContainer = () => {
     },
   ]
 
-  const sequencingTypes = ["exomes", "genomes"];
+  const sequencingTypes = ["exome", "genome"];
 
   const variantAssociationsGeneQueries = analyses.flatMap((analysisID) =>
-    ['exomes'].map((seqType) => ({
+    ['exome'].map((seqType) => ({
       url: `${axaouDevUrl}/variants/associations/gene/${geneIdOrName}?ancestry_group=${ancestryGroup}&analysis_id=${analysisID}&sequencing_type=${seqType}`,
       name: `variantAssociations-${analysisID}-${seqType}-${ancestryGroup}`,
       queryMode: 'two_step',
@@ -175,7 +194,7 @@ export const LocusPageDataContainer = () => {
 
   const variantAnnotationGeneQueries = sequencingTypes.map(seqType =>
   ({
-    url: `${axaouDevUrl}/variants/annotations/gene/${geneIdOrName}?ancestry_group=${ancestryGroup}&sequencing_type=${seqType}`,
+    url: `${axaouDevUrl}/variants/annotations/gene/${geneIdOrName}?ancestry_group=${ancestryGroup}&sequencing_type=${seqType}&extended=true`,
     name: `variantAnnotations-${seqType}-${ancestryGroup}`,
   })
   )
@@ -193,27 +212,30 @@ export const LocusPageDataContainer = () => {
 
   geneQueries = [...geneQueries, ...variantAssociationsGeneQueries, ...variantAnnotationGeneQueries]
 
+  // Format regionId for API: "19-32216732-34497056" -> "19:32216732-34497056"
+  const apiRegionId = regionId ? formatRegionIdForApi(regionId) : ''
+
   const variantAnnotationRegionQueries = sequencingTypes.map(seqType =>
   ({
-    url: `${axaouDevUrl}/variants/annotations/interval/chr${regionId}?ancestry_group=${ancestryGroup}&sequencing_type=${seqType}`,
+    url: `${axaouDevUrl}/variants/annotations/interval/chr${apiRegionId}?ancestry_group=${ancestryGroup}&sequencing_type=${seqType}&extended=true`,
     name: `variantAnnotations-${seqType}-${ancestryGroup}`,
   })
   )
 
   const regionQueries = [
     {
-      url: `${axaouDevUrl}/genes/model/interval/chr${regionId}`,
+      url: `${axaouDevUrl}/genes/model/interval/chr${apiRegionId}`,
       name: 'geneModels',
     },
     {
-      url: `${axaouDevUrl}/genes/associations/interval/chr${regionId}?analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id`,
+      url: `${axaouDevUrl}/genes/associations/interval/chr${apiRegionId}?analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id`,
       name: `geneAssociations`,
     },
     ...sequencingTypes.map((seqType) => ({
-      url: `${axaouDevUrl}/variants/associations/interval/chr${regionId}?ancestry_group=${ancestryGroup}&analysis_id=${analysisId}&sequencing_type=${seqType}`,
+      url: `${axaouDevUrl}/variants/associations/interval/chr${apiRegionId}?ancestry_group=${ancestryGroup}&analysis_id=${analysisId}&sequencing_type=${seqType}`,
       name: `variantAssociations-${analysisId}-${seqType}-${ancestryGroup}`,
       queryMode: 'two_step',
-      queryModeMinItems: seqType == "genomes" ? 2000 : Infinity
+      queryModeMinItems: seqType == "genome" ? 2000 : Infinity
     })),
     ...variantAnnotationRegionQueries,
   ]
@@ -263,6 +285,80 @@ export const LocusPageDataContainer = () => {
   const singleAnalysisMetadata =
     analysesMetadata && analysesMetadata.find((a) => a.analysis_id === analysisId)
 
+  // Locus plot data state
+  const [locusPlotData, setLocusPlotData] = useState<LocusPlotResponse | null>(null)
+
+  // Fetch locus plot data when we have a gene model or region
+  useEffect(() => {
+    const fetchLocusPlot = async () => {
+      try {
+        // First, find loci that overlap with our region
+        const lociUrl = `${axaouDevUrl}/phenotype/${analysisId}/loci?ancestry=${ancestryGroup}`
+        const lociResponse = await fetch(lociUrl)
+        if (!lociResponse.ok) {
+          setLocusPlotData(null)
+          return
+        }
+
+        const loci: LocusMetadata[] = await lociResponse.json()
+
+        // Find the first locus that overlaps with the current gene/region
+        const geneModel = geneModels[0]
+        let overlappingLocus: LocusMetadata | undefined
+
+        if (regionId) {
+          // Parse regionId format: "19-32216732-34497056"
+          const parts = regionId.split('-')
+          if (parts.length >= 3) {
+            const contig = parts[0]
+            const contigWithChr = contig.startsWith('chr') ? contig : `chr${contig}`
+            const start = parseInt(parts[1], 10)
+            const stop = parseInt(parts[2], 10)
+
+            overlappingLocus = loci.find(
+              (l) =>
+                l.contig === contigWithChr &&
+                l.start <= stop &&
+                l.stop >= start &&
+                l.plot_gcs_uri // Only consider loci with plots
+            )
+          }
+        } else if (geneModel) {
+          overlappingLocus = loci.find(
+            (l) =>
+              l.contig === geneModel.chrom &&
+              l.start <= (geneModel.stop || 0) &&
+              l.stop >= (geneModel.start || 0) &&
+              l.plot_gcs_uri // Only consider loci with plots
+          )
+        }
+
+        if (!overlappingLocus) {
+          setLocusPlotData(null)
+          return
+        }
+
+        // Fetch the locus plot data
+        const plotUrl = `${axaouDevUrl}/phenotype/${analysisId}/loci/${overlappingLocus.locus_id}/plot?ancestry=${ancestryGroup}`
+        const plotResponse = await fetch(plotUrl)
+        if (!plotResponse.ok) {
+          setLocusPlotData(null)
+          return
+        }
+
+        const plotData: LocusPlotResponse = await plotResponse.json()
+        setLocusPlotData(plotData)
+      } catch (error) {
+        console.error('Failed to fetch locus plot:', error)
+        setLocusPlotData(null)
+      }
+    }
+
+    // Only fetch if we have the necessary data
+    if (analysisId && ancestryGroup && (geneModels.length > 0 || regionId)) {
+      fetchLocusPlot()
+    }
+  }, [analysisId, ancestryGroup, geneModels, regionId])
 
   let geneAssociationsForAncestry: GeneAssociations[] = []
   if (geneIdOrName) {
@@ -319,6 +415,7 @@ export const LocusPageDataContainer = () => {
       variantDatasets={variantDatasets}
       variantId={variantId || "my-variant"}
       queryStates={queryStates}
+      locusPlotData={locusPlotData}
     />
   )
 }
