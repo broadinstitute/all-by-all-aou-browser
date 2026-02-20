@@ -52,7 +52,8 @@ export function usePeakLabelLayout(
   peaks: Peak[] | undefined,
   width: number,
   height: number,
-  contig: string = 'all'
+  contig: string = 'all',
+  maxLabels: number = 25
 ): PeakLabelLayout {
   const layout = getChromosomeLayout(contig);
   const yScale = getYScale();
@@ -70,9 +71,15 @@ export function usePeakLabelLayout(
           return peakContig === contig;
         });
 
+    // Sort by p-value (most significant first) and limit to maxLabels
+    // to prevent SVG collision chaos with too many labels
+    const topPeaks = [...filteredPeaks]
+      .sort((a, b) => a.pvalue - b.pvalue)
+      .slice(0, maxLabels);
+
     const nodes: PeakLabelNode[] = [];
 
-    for (const peak of filteredPeaks) {
+    for (const peak of topPeaks) {
       const xNorm = layout.getX(peak.contig, peak.position);
       const yNorm = yScale.getY(peak.pvalue);
 
@@ -180,7 +187,7 @@ export function usePeakLabelLayout(
     }
 
     return { nodes, labelAreaHeight };
-  }, [peaks, width, height, layout, yScale, contig]);
+  }, [peaks, width, height, layout, yScale, contig, maxLabels]);
 }
 
 /**

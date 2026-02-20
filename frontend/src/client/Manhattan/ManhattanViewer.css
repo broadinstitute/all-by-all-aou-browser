@@ -36,6 +36,15 @@
   pointer-events: none;
 }
 
+/* Table-to-plot hover highlight (using AoU purple) */
+.manhattan-table-highlight {
+  fill: rgba(38, 34, 98, 0.85);
+  stroke: #fff;
+  stroke-width: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(92, 77, 154, 0.8));
+}
+
 /* Chromosome labels strip */
 .manhattan-chrom-labels {
   position: relative;
@@ -144,12 +153,30 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
+.manhattan-table tbody tr {
+  transition: background-color 0.1s ease;
+}
+
 .manhattan-table tbody tr:hover {
   background: #f8f8f8;
 }
 
+/* Locus Navigator table styles */
+.manhattan-table-locus {
+  min-width: 600px;
+}
+
+.manhattan-table-locus td:first-child {
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
+}
+
 .manhattan-row-hovered {
   background: #fff3f3 !important;
+}
+
+.manhattan-row-selected {
+  background: #e3f2fd !important;
 }
 
 /* Sticky Variant column */
@@ -172,10 +199,10 @@
 }
 
 /* Hide CSQ and HGVS columns (3rd and 4th) for variant table only */
-.manhattan-table:not(.manhattan-table-gene) td:nth-child(3),
-.manhattan-table:not(.manhattan-table-gene) th:nth-child(3),
-.manhattan-table:not(.manhattan-table-gene) td:nth-child(4),
-.manhattan-table:not(.manhattan-table-gene) th:nth-child(4) {
+.manhattan-table:not(.manhattan-table-gene):not(.manhattan-table-locus) td:nth-child(3),
+.manhattan-table:not(.manhattan-table-gene):not(.manhattan-table-locus) th:nth-child(3),
+.manhattan-table:not(.manhattan-table-gene):not(.manhattan-table-locus) td:nth-child(4),
+.manhattan-table:not(.manhattan-table-gene):not(.manhattan-table-locus) th:nth-child(4) {
   display: none;
 }
 

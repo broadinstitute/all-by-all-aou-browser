@@ -76,6 +76,9 @@ struct PeakGeneRow {
     pub gene_id: String,
     pub distance_kb: f64,
     pub coding_variant_count: u32,
+    pub lof_count: u32,
+    pub missense_count: u32,
+    pub synonymous_count: u32,
 }
 
 /// Burden result row from ClickHouse
@@ -107,6 +110,13 @@ pub struct GeneInLocus {
     pub gene_id: String,
     pub distance_kb: f64,
     pub coding_variant_count: u32,
+    /// Coding variant counts by consequence category
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lof_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missense_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub synonymous_count: Option<u32>,
     /// Burden results for each annotation category (pLoF, missenseLC, etc.)
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub burden_results: Vec<BurdenResult>,
@@ -391,13 +401,16 @@ async fn fetch_peak_annotations(
             WHERE gm.symbol != ''
               AND gm.symbol NOT LIKE 'ENSG%'
         ),
-        -- Count coding variants per gene at each peak
+        -- Count coding variants per gene at each peak, broken down by consequence
         coding_variants AS (
             SELECT
                 pv.contig,
                 intDiv(pv.position, 1000000) as bin,
                 pv.gene_symbol,
-                count(*) as coding_count
+                count(*) as coding_count,
+                countIf(pv.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost')) as lof_count,
+                countIf(pv.consequence = 'missense_variant') as missense_count,
+                countIf(pv.consequence = 'synonymous_variant') as synonymous_count
             FROM peak_variants pv
             WHERE pv.gene_symbol IS NOT NULL
             GROUP BY pv.contig, bin, pv.gene_symbol
@@ -409,7 +422,10 @@ async fn fetch_peak_annotations(
             lg.gene_symbol,
             lg.gene_id,
             round(lg.distance_to_peak / 1000, 1) as distance_kb,
-            toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count
+            toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
+            toUInt32(coalesce(cv.lof_count, 0)) as lof_count,
+            toUInt32(coalesce(cv.missense_count, 0)) as missense_count,
+            toUInt32(coalesce(cv.synonymous_count, 0)) as synonymous_count
         FROM locus_genes lg
         LEFT JOIN coding_variants cv
             ON cv.contig = lg.contig
@@ -502,6 +518,9 @@ async fn fetch_peak_annotations(
         let key = (row.contig.clone(), row.peak_position);
         let burden_results = burden_map.get(&row.gene_id).cloned().unwrap_or_default();
 
+        // Helper to convert 0 to None for cleaner JSON
+        let opt_count = |c: u32| if c > 0 { Some(c) } else { None };
+
         match &mut current_peak {
             Some(peak) if peak.contig == key.0 && peak.position == key.1 => {
                 // Add gene to existing peak
@@ -510,6 +529,9 @@ async fn fetch_peak_annotations(
                     gene_id: row.gene_id,
                     distance_kb: row.distance_kb,
                     coding_variant_count: row.coding_variant_count,
+                    lof_count: opt_count(row.lof_count),
+                    missense_count: opt_count(row.missense_count),
+                    synonymous_count: opt_count(row.synonymous_count),
                     burden_results,
                 });
             }
@@ -527,6 +549,9 @@ async fn fetch_peak_annotations(
                         gene_id: row.gene_id,
                         distance_kb: row.distance_kb,
                         coding_variant_count: row.coding_variant_count,
+                        lof_count: opt_count(row.lof_count),
+                        missense_count: opt_count(row.missense_count),
+                        synonymous_count: opt_count(row.synonymous_count),
                         burden_results,
                     }],
                 });
@@ -617,44 +642,68 @@ pub async fn get_manhattan_overlay(
         xpos_filter = xpos_filter
     );
 
-    let rows: Vec<SignificantVariantRow> = state
-        .clickhouse
-        .query(&query)
-        .bind(&analysis_id)  // for IN subquery
-        .bind(&analysis_id)  // for outer WHERE
-        .bind(ancestry)
-        .bind(sequencing_type)
-        .fetch_all()
-        .await
-        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+    // For genome-wide view, skip fetching individual variants (huge payload).
+    // Just get the count and rely on peaks for navigation.
+    let (significant_hits, hit_count) = if contig == "all" {
+        // Fast path: count only
+        let count_query = r#"
+            SELECT count() as cnt
+            FROM loci_variants
+            WHERE phenotype = ?
+              AND ancestry = ?
+              AND sequencing_type = ?
+              AND is_significant = true
+        "#;
+        let count: u64 = state
+            .clickhouse
+            .query(count_query)
+            .bind(&analysis_id)
+            .bind(ancestry)
+            .bind(sequencing_type)
+            .fetch_one()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("Count query error: {}", e)))?;
+        (vec![], count as usize)
+    } else {
+        // Per-chromosome view: fetch full variant data
+        let rows: Vec<SignificantVariantRow> = state
+            .clickhouse
+            .query(&query)
+            .bind(&analysis_id)  // for IN subquery
+            .bind(&analysis_id)  // for outer WHERE
+            .bind(ancestry)
+            .bind(sequencing_type)
+            .fetch_all()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    // Convert to SignificantHit with raw coordinates and annotations
-    let significant_hits: Vec<SignificantHit> = rows
-        .into_iter()
-        .map(|row| {
-            let variant_id = make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt);
-            SignificantHit {
-                hit_type: HitType::Variant,
-                id: variant_id.clone(),
-                label: variant_id,
-                contig: row.contig,
-                position: row.position,
-                pvalue: row.pvalue,
-                beta: Some(row.beta),
-                gene_symbol: row.gene_symbol,
-                consequence: row.consequence,
-                hgvsc: row.hgvsc,
-                hgvsp: row.hgvsp,
-                ac: row.ac,
-                pvalue_burden: None,
-                pvalue_skat: None,
-            }
-        })
-        .collect();
+        let hits: Vec<SignificantHit> = rows
+            .into_iter()
+            .map(|row| {
+                let variant_id = make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt);
+                SignificantHit {
+                    hit_type: HitType::Variant,
+                    id: variant_id.clone(),
+                    label: variant_id,
+                    contig: row.contig,
+                    position: row.position,
+                    pvalue: row.pvalue,
+                    beta: Some(row.beta),
+                    gene_symbol: row.gene_symbol,
+                    consequence: row.consequence,
+                    hgvsc: row.hgvsc,
+                    hgvsp: row.hgvsp,
+                    ac: row.ac,
+                    pvalue_burden: None,
+                    pvalue_skat: None,
+                }
+            })
+            .collect();
+        let count = hits.len();
+        (hits, count)
+    };
 
-    let hit_count = significant_hits.len();
-
-    // Fetch peak annotations (top 20 peaks with nearby genes)
+    // Fetch all peak annotations for the locus navigator table (no limit)
     let peaks = match fetch_peak_annotations(
         &state,
         &analysis_id,
@@ -662,7 +711,7 @@ pub async fn get_manhattan_overlay(
         sequencing_type,
         annotation_table,
         contig,
-        20,
+        10000,
     )
     .await
     {
@@ -747,10 +796,52 @@ async fn get_gene_manhattan_overlay(
 
     let hit_count = significant_hits.len();
 
+    // Synthesize peaks from gene hits so the frontend can use unified Peak-based
+    // components (labels, table navigation) for both variant and gene Manhattans
+    let peaks: Vec<Peak> = significant_hits
+        .iter()
+        .map(|hit| {
+            let mut burden_results = Vec::new();
+            // Add burden result if we have any p-values
+            if hit.pvalue_burden.is_some() || hit.pvalue_skat.is_some() {
+                burden_results.push(BurdenResult {
+                    annotation: "Overall".to_string(),
+                    pvalue: Some(hit.pvalue),
+                    pvalue_burden: hit.pvalue_burden,
+                    pvalue_skat: hit.pvalue_skat,
+                });
+            }
+
+            Peak {
+                contig: hit.contig.clone(),
+                position: hit.position,
+                pvalue: hit.pvalue,
+                genes: vec![GeneInLocus {
+                    gene_symbol: hit.gene_symbol.clone().unwrap_or_else(|| hit.label.clone()),
+                    gene_id: hit.id.clone(),
+                    distance_kb: 0.0,
+                    coding_variant_count: 0,
+                    lof_count: None,
+                    missense_count: None,
+                    synonymous_count: None,
+                    burden_results,
+                }],
+            }
+        })
+        .collect();
+
+    // On genome-wide view, discard significant_hits array to save payload size.
+    // The peaks array now holds the required navigation data.
+    let display_hits = if contig == "all" {
+        vec![]
+    } else {
+        significant_hits
+    };
+
     Ok(Json(ManhattanOverlay {
-        significant_hits,
+        significant_hits: display_hits,
         hit_count,
-        peaks: None, // Gene Manhattan doesn't have peak annotations
+        peaks: Some(peaks),
     }))
 }
 

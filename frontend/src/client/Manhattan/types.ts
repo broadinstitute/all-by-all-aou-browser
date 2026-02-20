@@ -70,6 +70,12 @@ export interface GeneInLocus {
   distance_kb: number;
   /** Number of coding variants at this peak annotated to this gene */
   coding_variant_count: number;
+  /** Loss-of-function variant count (stop_gained, frameshift, splice) */
+  lof_count?: number;
+  /** Missense variant count */
+  missense_count?: number;
+  /** Synonymous variant count */
+  synonymous_count?: number;
   /** Burden test results for each annotation category */
   burden_results?: BurdenResult[];
 }
