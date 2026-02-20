@@ -1,12 +1,12 @@
 import React from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 
 import { ManhattanViewer } from './ManhattanViewer';
 import type { ManhattanOverlay, SignificantHit } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -45,6 +45,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   onPeakClick,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
+  const [contig, setContig] = useRecoilState(selectedContigAtom);
 
   interface Data {
     manhattanData: ManhattanApiResponse | null;
@@ -54,11 +55,11 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}&contig=${contig}`,
         name: 'manhattanData',
       },
     ],
-    deps: [analysisId, ancestryGroup, plotType],
+    deps: [analysisId, ancestryGroup, plotType, contig],
     cacheEnabled,
   });
 
@@ -67,17 +68,36 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     return null;
   }
 
-  // Hide entirely if there's an error (plot not available)
-  if (queryStates.manhattanData?.error) {
+  // Show message if per-chromosome data isn't available
+  if (queryStates.manhattanData?.error || !queryStates.manhattanData?.data) {
+    // If we're viewing a specific chromosome and it failed, show a message with option to go back
+    if (contig !== 'all') {
+      return (
+        <Container>
+          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+            <p>Per-chromosome Manhattan plot for <strong>{contig}</strong> is not available.</p>
+            <button
+              onClick={() => setContig('all')}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                background: '#fff',
+              }}
+            >
+              &larr; Back to genome-wide view
+            </button>
+          </div>
+        </Container>
+      );
+    }
+    // For genome-wide view errors, hide entirely
     return null;
   }
 
   const data = queryStates.manhattanData?.data;
-
-  // Hide entirely if no data
-  if (!data) {
-    return null;
-  }
 
   // Construct the full image URL
   // The API returns a relative URL like "/api/phenotype/{id}/manhattan/image"
@@ -100,6 +120,8 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
         onHitClick={onHitClick}
         onPeakClick={onPeakClick}
         showStats={data.has_overlay}
+        contig={contig}
+        onContigClick={setContig}
       />
     </Container>
   );

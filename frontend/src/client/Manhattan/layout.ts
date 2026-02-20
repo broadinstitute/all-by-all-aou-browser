@@ -66,41 +66,66 @@ interface ChromosomeInfo {
 /**
  * ChromosomeLayout maps genomic coordinates to normalized X positions (0-1).
  * Matches the layout algorithm in hail-decoder/src/manhattan/layout.rs.
+ * Supports both genome-wide view (contig='all') and single-chromosome view.
  */
 export class ChromosomeLayout {
   private offsets: Map<string, { start: number; pxPerBp: number }>;
   private pxPerBp: number;
   public chromosomes: ChromosomeInfo[];
+  /** The contig this layout is for ('all' for genome-wide) */
+  public readonly contig: string;
 
-  constructor() {
-    const totalGaps = (CHROM_ORDER.length - 1) * GAP_PX;
-    const availableWidth = REF_WIDTH - totalGaps;
-    this.pxPerBp = availableWidth / TOTAL_BP;
-
+  constructor(contig: string = 'all') {
+    this.contig = contig;
     this.offsets = new Map();
     this.chromosomes = [];
-    let currentX = 0;
 
-    for (const name of CHROM_ORDER) {
+    if (contig === 'all') {
+      // Genome-wide layout: all chromosomes concatenated with gaps
+      const totalGaps = (CHROM_ORDER.length - 1) * GAP_PX;
+      const availableWidth = REF_WIDTH - totalGaps;
+      this.pxPerBp = availableWidth / TOTAL_BP;
+
+      let currentX = 0;
+
+      for (const name of CHROM_ORDER) {
+        const length = GRCH38_CHROM_LENGTHS[name];
+        const width = length * this.pxPerBp;
+
+        this.offsets.set(name, { start: currentX, pxPerBp: this.pxPerBp });
+
+        this.chromosomes.push({
+          name,
+          startNormalized: currentX / REF_WIDTH,
+          endNormalized: (currentX + width) / REF_WIDTH,
+          length,
+        });
+
+        currentX += width + GAP_PX;
+      }
+    } else {
+      // Single chromosome layout: the entire X axis spans one chromosome
+      const name = contig.startsWith('chr') ? contig.slice(3) : contig;
       const length = GRCH38_CHROM_LENGTHS[name];
-      const width = length * this.pxPerBp;
 
-      this.offsets.set(name, { start: currentX, pxPerBp: this.pxPerBp });
+      if (!length) {
+        throw new Error(`Unknown chromosome: ${contig}`);
+      }
 
+      this.pxPerBp = REF_WIDTH / length;
+      this.offsets.set(name, { start: 0, pxPerBp: this.pxPerBp });
       this.chromosomes.push({
         name,
-        startNormalized: currentX / REF_WIDTH,
-        endNormalized: (currentX + width) / REF_WIDTH,
+        startNormalized: 0,
+        endNormalized: 1,
         length,
       });
-
-      currentX += width + GAP_PX;
     }
   }
 
   /**
    * Convert a genomic coordinate to normalized X position (0-1).
-   * Returns null if the contig is unknown.
+   * Returns null if the contig is unknown or not part of this layout.
    */
   getX(contig: string, position: number): number | null {
     // Normalize contig name (strip "chr" prefix if present)
@@ -113,6 +138,20 @@ export class ChromosomeLayout {
 
     const xPx = offset.start + position * offset.pxPerBp;
     return xPx / REF_WIDTH;
+  }
+
+  /**
+   * Reverse-map a normalized X coordinate back to a chromosome name.
+   * Returns null if the position falls in a gap or outside the layout.
+   * Only useful for genome-wide layout (returns the single chromosome for single-chrom layout).
+   */
+  getChromosomeAtX(xNormalized: number): string | null {
+    for (const chrom of this.chromosomes) {
+      if (xNormalized >= chrom.startNormalized && xNormalized <= chrom.endNormalized) {
+        return chrom.name;
+      }
+    }
+    return null;
   }
 }
 
@@ -176,16 +215,19 @@ export class YScale {
 // Utility functions
 // =============================================================================
 
-/** Singleton instances for reuse */
-let layoutInstance: ChromosomeLayout | null = null;
+/** Cached layout instances keyed by contig */
+const layoutInstances = new Map<string, ChromosomeLayout>();
 let scaleInstance: YScale | null = null;
 
-/** Get or create the chromosome layout singleton */
-export function getChromosomeLayout(): ChromosomeLayout {
-  if (!layoutInstance) {
-    layoutInstance = new ChromosomeLayout();
+/**
+ * Get or create a chromosome layout for the given contig.
+ * @param contig 'all' for genome-wide, or 'chr1'-'chrY' for single chromosome
+ */
+export function getChromosomeLayout(contig: string = 'all'): ChromosomeLayout {
+  if (!layoutInstances.has(contig)) {
+    layoutInstances.set(contig, new ChromosomeLayout(contig));
   }
-  return layoutInstance;
+  return layoutInstances.get(contig)!;
 }
 
 /** Get or create the Y-scale singleton */
@@ -198,10 +240,13 @@ export function getYScale(): YScale {
 
 /**
  * Convert raw hits from the API to display hits with computed coordinates.
- * Filters out hits that can't be positioned (unknown contigs).
+ * Filters out hits that can't be positioned (unknown contigs or contigs
+ * not part of the selected layout).
+ * @param hits Raw significant hits from the API
+ * @param contig Layout contig - 'all' for genome-wide, or specific chromosome
  */
-export function computeDisplayHits(hits: SignificantHit[]): DisplayHit[] {
-  const layout = getChromosomeLayout();
+export function computeDisplayHits(hits: SignificantHit[], contig: string = 'all'): DisplayHit[] {
+  const layout = getChromosomeLayout(contig);
   const scale = getYScale();
 
   const displayHits: DisplayHit[] = [];
@@ -209,7 +254,7 @@ export function computeDisplayHits(hits: SignificantHit[]): DisplayHit[] {
   for (const hit of hits) {
     const x = layout.getX(hit.contig, hit.position);
     if (x === null) {
-      continue; // Skip unknown contigs
+      continue; // Skip unknown contigs or contigs not in this layout
     }
 
     const y = scale.getY(hit.pvalue);

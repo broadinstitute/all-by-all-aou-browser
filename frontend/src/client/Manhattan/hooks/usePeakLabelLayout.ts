@@ -43,13 +43,18 @@ function estimateLabelWidth(label: string, codingCount: number, hasBurden: boole
 /**
  * Hook that computes peak label positions and the required label area height.
  * Returns positioned nodes and the computed height needed for labels.
+ * @param peaks Peak data from the API
+ * @param width Container width in pixels
+ * @param height Container height in pixels
+ * @param contig Layout contig - 'all' for genome-wide, or specific chromosome
  */
 export function usePeakLabelLayout(
   peaks: Peak[] | undefined,
   width: number,
-  height: number
+  height: number,
+  contig: string = 'all'
 ): PeakLabelLayout {
-  const layout = getChromosomeLayout();
+  const layout = getChromosomeLayout(contig);
   const yScale = getYScale();
 
   return useMemo(() => {
@@ -57,9 +62,17 @@ export function usePeakLabelLayout(
       return { nodes: [], labelAreaHeight: 0 };
     }
 
+    // Filter peaks to only those on the selected chromosome (if not 'all')
+    const filteredPeaks = contig === 'all'
+      ? peaks
+      : peaks.filter((p) => {
+          const peakContig = p.contig.startsWith('chr') ? p.contig : `chr${p.contig}`;
+          return peakContig === contig;
+        });
+
     const nodes: PeakLabelNode[] = [];
 
-    for (const peak of peaks) {
+    for (const peak of filteredPeaks) {
       const xNorm = layout.getX(peak.contig, peak.position);
       const yNorm = yScale.getY(peak.pvalue);
 
@@ -167,7 +180,7 @@ export function usePeakLabelLayout(
     }
 
     return { nodes, labelAreaHeight };
-  }, [peaks, width, height, layout, yScale]);
+  }, [peaks, width, height, layout, yScale, contig]);
 }
 
 /**

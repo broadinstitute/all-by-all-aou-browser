@@ -5,7 +5,8 @@ import { Tooltip } from './components/Tooltip';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { PeakLabels } from './components/PeakLabels';
-import { computeDisplayHits } from './layout';
+import { computeDisplayHits, getChromosomeLayout } from './layout';
+import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import type { ManhattanOverlay, DisplayHit } from './types';
 import './ManhattanViewer.css';
 
@@ -30,6 +31,10 @@ export interface ManhattanViewerProps {
   minWidth?: number;
   /** Custom class name for the container */
   className?: string;
+  /** Currently selected chromosome ('all' for genome-wide, or 'chr1'-'chrY') */
+  contig?: string;
+  /** Callback when a chromosome is clicked (for zoom navigation) */
+  onContigClick?: (contig: string) => void;
 }
 
 /**
@@ -49,6 +54,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   showStats = true,
   minWidth = 800,
   className,
+  contig = 'all',
+  onContigClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -63,15 +70,16 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
 
   // Compute display coordinates from raw hits
   const displayHits = useMemo(
-    () => computeDisplayHits(overlay.significant_hits),
-    [overlay.significant_hits]
+    () => computeDisplayHits(overlay.significant_hits, contig),
+    [overlay.significant_hits, contig]
   );
 
   // Compute peak label positions and required label area height
   const { nodes: peakLabelNodes, labelAreaHeight } = usePeakLabelLayout(
     overlay.peaks,
     dimensions.width,
-    dimensions.height
+    dimensions.height,
+    contig
   );
 
   // Use spatial indexing for efficient hit detection
@@ -121,11 +129,23 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     onHitHover?.(null);
   }, [onHitHover]);
 
-  const handleClick = useCallback(() => {
-    if (hoveredHit && onHitClick) {
-      onHitClick(hoveredHit);
-    }
-  }, [hoveredHit, onHitClick]);
+  const handleClick = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (hoveredHit && onHitClick) {
+        onHitClick(hoveredHit);
+      } else if (!hoveredHit && contig === 'all' && onContigClick) {
+        // Click-to-zoom: determine which chromosome was clicked
+        const rect = e.currentTarget.getBoundingClientRect();
+        const xNormalized = (e.clientX - rect.left) / dimensions.width;
+        const layout = getChromosomeLayout('all');
+        const clickedChrom = layout.getChromosomeAtX(xNormalized);
+        if (clickedChrom) {
+          onContigClick(`chr${clickedChrom}`);
+        }
+      }
+    },
+    [hoveredHit, onHitClick, contig, onContigClick, dimensions.width]
+  );
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -157,6 +177,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   }
 
   const hasPeaks = peakLabelNodes.length > 0;
+  const isZoomedIn = contig !== 'all';
 
   return (
     <div
@@ -164,6 +185,43 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       className={`manhattan-container ${className || ''}`}
       style={containerStyle}
     >
+      {/* Chromosome navigation controls */}
+      {imageLoaded && (
+        <div
+          className="manhattan-chromosome-nav"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginBottom: '8px',
+            marginLeft: showYAxis ? Y_AXIS_WIDTH : 0,
+          }}
+        >
+          {isZoomedIn && (
+            <button
+              onClick={() => onContigClick?.('all')}
+              style={{
+                cursor: 'pointer',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                fontSize: '12px',
+              }}
+            >
+              &larr; Back to All
+            </button>
+          )}
+          <span style={{ fontSize: '12px', color: '#666' }}>Chromosome:</span>
+          <ChromosomeSelector />
+          {!isZoomedIn && (
+            <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+              (or click on plot to zoom)
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="manhattan-plot-row" style={{ display: 'flex' }}>
         {/* Y-Axis */}
         {showYAxis && imageLoaded && (

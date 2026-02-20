@@ -195,11 +195,24 @@ impl VariantAnnotationExtendedRow {
 /// Phenotype plot metadata from the `phenotype_plots` table
 ///
 /// Contains GCS URIs for pre-rendered Manhattan plot images.
+/// The `contig` field specifies which chromosome (e.g., "chr1", "chr22", "chrX")
+/// or "all" for genome-wide plots. This field is optional for backward compatibility
+/// with existing data that doesn't have per-chromosome plots.
 #[derive(Debug, Clone, Serialize, Deserialize, Row)]
 pub struct PlotRow {
     pub phenotype: String,
     pub ancestry: String,
     pub plot_type: String,
+    pub gcs_uri: String,
+}
+
+/// Extended plot row with contig field for per-chromosome plots
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct PlotRowWithContig {
+    pub phenotype: String,
+    pub ancestry: String,
+    pub plot_type: String,
+    pub contig: String,
     pub gcs_uri: String,
 }
 

@@ -2,8 +2,7 @@ import { useRef } from 'react'
 import styled from 'styled-components'
 
 import { CategoryFilterControl, KeyboardShortcut, SearchInput } from '@gnomad/ui'
-import { selectedContigAtom } from '../sharedState'
-import { useRecoilState } from 'recoil'
+import { ChromosomeSelector } from '../Shared/ChromosomeSelector'
 
 const consequenceCategories = [
   {
@@ -106,7 +105,6 @@ type Props = {
 
 const VariantFilterControls = ({ onChange, value }: Props) => {
   const searchInput = useRef(null)
-  const [contig, setContig] = useRecoilState(selectedContigAtom)
 
   return (
     <SettingsWrapper>
@@ -157,19 +155,7 @@ const VariantFilterControls = ({ onChange, value }: Props) => {
         />
 
         <strong>Contig:</strong>
-        <select
-          value={contig}
-          onChange={(e) => setContig(e.target.value)}
-        >
-          <option value='all'>All</option>
-          {[...Array(22)].map((_, i) => (
-            <option key={`chr${i + 1}`} value={`chr${i + 1}`}>
-              chr{i + 1}
-            </option>
-          ))}
-          <option value='chrX'>chrX</option>
-          <option value='chrY'>chrY</option>
-        </select>
+        <ChromosomeSelector />
       </div>
     </SettingsWrapper>
   )

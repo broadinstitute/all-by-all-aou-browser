@@ -6,6 +6,7 @@
 
 use crate::api::AppState;
 use crate::clickhouse::models::PlotRow;
+use crate::clickhouse::xpos::compute_xpos;
 use crate::error::AppError;
 use axum::{
     body::Body,
@@ -30,6 +31,9 @@ pub struct ManhattanQuery {
     /// Plot type filter (e.g., "genome_manhattan", "exome_manhattan", "gene_manhattan")
     /// Defaults to "genome_manhattan"
     pub plot_type: Option<String>,
+    /// Chromosome filter (e.g., "chr1", "chr22", "chrX")
+    /// Defaults to "all" for genome-wide view
+    pub contig: Option<String>,
 }
 
 /// Significant variant row from ClickHouse (with annotations)
@@ -201,11 +205,21 @@ async fn get_manhattan_uri(
     analysis_id: &str,
     ancestry: Option<&str>,
     plot_type: Option<&str>,
+    contig: &str,
 ) -> Result<String, AppError> {
     // Default plot_type to genome_manhattan if not specified
-    let plot_type = plot_type.unwrap_or("genome_manhattan");
+    let base_plot_type = plot_type.unwrap_or("genome_manhattan");
     // Default ancestry to meta if not specified
     let ancestry = ancestry.unwrap_or("meta");
+
+    // For per-chromosome view, construct plot_type as "{contig}_{base_type}"
+    // e.g., "chr1_genome_manhattan", "chr1_exome_manhattan"
+    // For genome-wide view ("all"), use the base plot_type directly
+    let effective_plot_type = if contig == "all" {
+        base_plot_type.to_string()
+    } else {
+        format!("{}_{}", contig, base_plot_type)
+    };
 
     let query = r#"
         SELECT phenotype, ancestry, plot_type, gcs_uri
@@ -218,7 +232,7 @@ async fn get_manhattan_uri(
         .clickhouse
         .query(query)
         .bind(analysis_id)
-        .bind(plot_type)
+        .bind(&effective_plot_type)
         .bind(ancestry)
         .fetch_optional::<PlotRow>()
         .await
@@ -228,7 +242,7 @@ async fn get_manhattan_uri(
         Some(plot) => Ok(plot.gcs_uri),
         None => Err(AppError::NotFound(format!(
             "Manhattan plot not found for phenotype '{}' with plot_type '{}' and ancestry '{}'",
-            analysis_id, plot_type, ancestry
+            analysis_id, effective_plot_type, ancestry
         ))),
     }
 }
@@ -243,12 +257,16 @@ pub async fn get_manhattan_image(
 ) -> Result<Response, AppError> {
     debug!("Fetching Manhattan image for phenotype: {}", analysis_id);
 
+    // Default contig to "all" if not specified
+    let contig = params.contig.as_deref().unwrap_or("all");
+
     // Get the GCS URI from ClickHouse
     let gcs_uri = get_manhattan_uri(
         &state,
         &analysis_id,
         params.ancestry.as_deref(),
         params.plot_type.as_deref(),
+        contig,
     )
     .await?;
 
@@ -305,8 +323,18 @@ async fn fetch_peak_annotations(
     ancestry: &str,
     sequencing_type: &str,
     annotation_table: &str,
+    contig: &str,
     limit: u32,
 ) -> Result<Vec<Peak>, AppError> {
+    // Compute xpos bounds for chromosome filtering
+    let xpos_filter = if contig != "all" {
+        let xpos_start = compute_xpos(contig, 0);
+        let xpos_end = xpos_start + 1_000_000_000;
+        format!("AND lv.xpos >= {} AND lv.xpos < {}", xpos_start, xpos_end)
+    } else {
+        String::new()
+    };
+
     // Complex CTE query to aggregate peaks and annotate with nearby genes
     // Uses loci_variants with is_significant filter since significant_variants may be empty
     let query = format!(
@@ -333,6 +361,7 @@ async fn fetch_peak_annotations(
               AND lv.ancestry = ?
               AND lv.sequencing_type = ?
               AND lv.is_significant = true
+              {xpos_filter}
         ),
         -- Cluster peaks into 1Mb bins, take top variant per bin
         peaks AS (
@@ -388,7 +417,8 @@ async fn fetch_peak_annotations(
             AND cv.gene_symbol = lg.gene_symbol
         ORDER BY lg.peak_pvalue ASC, lg.distance_to_peak ASC
         "#,
-        annotation_table = annotation_table
+        annotation_table = annotation_table,
+        xpos_filter = xpos_filter
     );
 
     let rows: Vec<PeakGeneRow> = state
@@ -526,10 +556,11 @@ pub async fn get_manhattan_overlay(
 
     let ancestry = params.ancestry.as_deref().unwrap_or("meta");
     let plot_type = params.plot_type.as_deref().unwrap_or("genome_manhattan");
+    let contig = params.contig.as_deref().unwrap_or("all");
 
     // Handle gene Manhattan separately
     if plot_type == "gene_manhattan" {
-        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry).await;
+        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry, contig).await;
     }
 
     // Determine sequencing type from plot_type for variant Manhattan
@@ -543,6 +574,15 @@ pub async fn get_manhattan_overlay(
     let annotation_table = match sequencing_type {
         "exome" => "exome_annotations",
         _ => "genome_annotations",
+    };
+
+    // Compute xpos bounds for chromosome filtering (more efficient than string contig)
+    let xpos_filter = if contig != "all" {
+        let xpos_start = compute_xpos(contig, 0);
+        let xpos_end = xpos_start + 1_000_000_000;
+        format!("AND lv.xpos >= {} AND lv.xpos < {}", xpos_start, xpos_end)
+    } else {
+        String::new()
     };
 
     // Use loci_variants with is_significant filter since significant_variants may be empty
@@ -570,9 +610,11 @@ pub async fn get_manhattan_overlay(
             AND lv.ancestry = ?
             AND lv.sequencing_type = ?
             AND lv.is_significant = true
+            {xpos_filter}
         ORDER BY lv.pvalue ASC
         "#,
-        annotation_table = annotation_table
+        annotation_table = annotation_table,
+        xpos_filter = xpos_filter
     );
 
     let rows: Vec<SignificantVariantRow> = state
@@ -619,6 +661,7 @@ pub async fn get_manhattan_overlay(
         ancestry,
         sequencing_type,
         annotation_table,
+        contig,
         20,
     )
     .await
@@ -642,10 +685,21 @@ async fn get_gene_manhattan_overlay(
     state: &AppState,
     analysis_id: &str,
     ancestry: &str,
+    contig: &str,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
+    // Compute xpos bounds for chromosome filtering
+    let xpos_filter = if contig != "all" {
+        let xpos_start = compute_xpos(contig, 0);
+        let xpos_end = xpos_start + 1_000_000_000;
+        format!("AND xpos >= {} AND xpos < {}", xpos_start, xpos_end)
+    } else {
+        String::new()
+    };
+
     // Query significant genes from gene_associations
     // Filter by phenotype, ancestry, and significant p-value threshold
-    let query = r#"
+    let query = format!(
+        r#"
         SELECT
             gene_id, gene_symbol, contig, gene_start_position AS position,
             pvalue, pvalue_burden, pvalue_skat, beta_burden
@@ -654,13 +708,16 @@ async fn get_gene_manhattan_overlay(
             AND ancestry = ?
             AND pvalue IS NOT NULL
             AND pvalue < 0.05
+            {xpos_filter}
         ORDER BY pvalue ASC
         LIMIT 500
-    "#;
+        "#,
+        xpos_filter = xpos_filter
+    );
 
     let rows: Vec<SignificantGeneRow> = state
         .clickhouse
-        .query(query)
+        .query(&query)
         .bind(analysis_id)
         .bind(ancestry)
         .fetch_all()
@@ -707,12 +764,16 @@ pub async fn get_manhattan_data(
 ) -> Result<Json<ManhattanResponse>, AppError> {
     debug!("Fetching Manhattan data for phenotype: {}", analysis_id);
 
+    // Default contig to "all" if not specified
+    let contig = params.contig.as_deref().unwrap_or("all");
+
     // First verify the plot exists by checking the URI
     let _gcs_uri = get_manhattan_uri(
         &state,
         &analysis_id,
         params.ancestry.as_deref(),
         params.plot_type.as_deref(),
+        contig,
     )
     .await?;
 
@@ -723,6 +784,7 @@ pub async fn get_manhattan_data(
         Query(ManhattanQuery {
             ancestry: params.ancestry.clone(),
             plot_type: params.plot_type.clone(),
+            contig: params.contig.clone(),
         }),
     )
     .await;
@@ -745,6 +807,9 @@ pub async fn get_manhattan_data(
     }
     if let Some(ref pt) = params.plot_type {
         query_params.push(format!("plot_type={}", pt));
+    }
+    if let Some(ref c) = params.contig {
+        query_params.push(format!("contig={}", c));
     }
     let query_string = if query_params.is_empty() {
         String::new()
