@@ -16,6 +16,8 @@ export interface PeakLabelsProps {
   hoveredHitPosition?: { contig: string; position: number } | null;
   /** Callback when hovering a peak label - includes cursor position for tooltip */
   onPeakHover?: (node: PeakLabelNode | null, cursorX?: number, cursorY?: number) => void;
+  /** Callback when a peak label is right-clicked */
+  onPeakContextMenu?: (node: PeakLabelNode, clientX: number, clientY: number) => void;
 }
 
 /**
@@ -29,6 +31,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
   onPeakClick,
   hoveredHitPosition,
   onPeakHover,
+  onPeakContextMenu,
 }) => {
   const [hoveredPeakId, setHoveredPeakId] = useState<string | null>(null);
 
@@ -93,6 +96,10 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             onMouseMove={(e) => handleMouseMove(e, node)}
             onMouseLeave={handleMouseLeave}
             onClick={() => onPeakClick?.(node)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onPeakContextMenu?.(node, e.clientX, e.clientY);
+            }}
             style={{ cursor: 'pointer' }}
           >
             {/* Invisible wider hit area for easier hovering */}
@@ -119,7 +126,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               r={isHovered ? 5 : 3}
               className={`manhattan-peak-dot ${isHovered ? 'manhattan-peak-dot-hovered' : ''}`}
             />
-            {/* Gene label - angled */}
+            {/* Gene label - angled with burden dots, coding indicator, multi-gene count */}
             <text
               x={node.x}
               y={node.y}
@@ -127,9 +134,24 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               transform={`rotate(${LABEL_ANGLE}, ${node.x}, ${node.y})`}
               textAnchor="start"
             >
-              {node.hasBurden && '* '}
-              {node.label}
-              {node.codingCount > 0 && ` (${node.codingCount})`}
+              {/* Burden type dots - pLoF in red, missense in yellow */}
+              {node.burdenTypes.includes('pLoF') && (
+                <tspan fill="#d32f2f">●</tspan>
+              )}
+              {node.burdenTypes.includes('missenseLC') && (
+                <tspan fill="#f9a825">●</tspan>
+              )}
+              {node.burdenTypes.length > 0 && ' '}
+              {/* Gene symbol */}
+              <tspan>{node.label}</tspan>
+              {/* Coding indicator */}
+              {node.hasCoding && (
+                <tspan fill="#1565c0" fontWeight="bold"> (C)</tspan>
+              )}
+              {/* Multi-gene indicator */}
+              {node.implicatedCount > 1 && (
+                <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>
+              )}
             </text>
           </g>
         );

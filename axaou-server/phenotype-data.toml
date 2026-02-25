@@ -1,0 +1,125 @@
+# Manhattan Plot Configuration for axaou
+#
+# Generate plots:
+#   hail-decoder pool submit heavy -- manhattan-batch --config manhattan-style.toml
+#
+# Ingest to ClickHouse:
+#   hail-decoder pool submit heavy -- ingest manhattan --config manhattan-style.toml
+
+# =============================================================================
+# Job Settings (manhattan-batch)
+# =============================================================================
+
+[job]
+# Required: Path to assets JSON from axaou-server query-assets
+assets_json = "/Users/msolomon/data/axaou-local/v8-assets.json"
+
+# Required: Output directory for generated plots
+output_dir = "gs://axaou-central-tmp/manhattans-batch11"
+
+# Filter to specific ancestries (empty = all)
+ancestries = ["meta"]
+
+# Generate locus zoom plots for significant regions
+locus_plots = true
+
+# Specific phenotypes to process (currently in ClickHouse + height)
+analysis_ids = [
+  # Currently in ClickHouse
+  "1740585",
+  "1740601",
+  "1740620",
+  "1740623",
+  "1740660",
+  "3000593",
+  "3007220",
+  "3007238",
+  "3013429",
+  "3015183",
+  # Adding height
+  "height",
+]
+
+# For random sampling (disabled when using analysis_ids):
+# sample = 0.1
+# limit = 10
+
+# Thresholds
+threshold = 5e-8        # Genome-wide significance
+gene_threshold = 2.5e-6 # Gene burden significance
+locus_threshold = 0.01  # Locus plot inclusion threshold
+locus_window = 1000000  # 1MB window around significant hits
+
+# Image dimensions
+width = 3000
+height = 800
+
+# P-value field in source tables
+y_field = "Pvalue"
+
+# =============================================================================
+# Ingest Settings (ingest manhattan)
+# =============================================================================
+
+[ingest]
+# Input directory (defaults to job.output_dir if not specified)
+# input_dir = "gs://axaou-central-tmp/manhattans-batch8"
+
+# ClickHouse connection
+# Remote (for GCP pool workers via internal IP):
+clickhouse_url = "http://10.128.15.247:8123"
+# Local (for running on your machine):
+# clickhouse_url = "http://localhost:8123"
+
+database = "default"
+
+# Table initialization: "create", "replace", or "append"
+init_strategy = "replace"
+
+# =============================================================================
+# Styling Configuration
+# =============================================================================
+# NOTE: Using explicit [styling.*] sections to avoid serde flatten issues
+# with top-level sections conflicting with [job] and [ingest]
+
+[styling.defaults]
+# Use transparent background for flexible compositing
+background = "transparent"
+
+# Alternating chromosome colors using AoU brand purple (#262262 = rgb(38,34,98))
+chrom_colors = ["#262262", "#5c4d9a"]
+
+# Threshold line styling (genome-wide significance)
+threshold_line_color = "#B71C1C"
+threshold_line_alpha = 0.5
+
+# Default point styling
+point_radius = 2.5
+point_alpha = 0.8
+
+[styling.variant]
+# Variant plots (exome/genome) use slightly smaller points
+point_radius = 2.0
+point_alpha = 0.7
+
+[styling.variant.exome]
+# Exome variants - use the website blue
+chrom_colors = ["#262262", "#5c4d9a"]
+
+[styling.variant.genome]
+# Genome variants - same colors for consistency
+chrom_colors = ["#262262", "#5c4d9a"]
+
+[styling.gene_burden]
+# Gene burden plots use larger points
+point_radius = 8
+point_alpha = 0.9
+# Use AoU brand purple shades for gene burden
+chrom_colors = ["#262262", "#7a6cb0"]
+
+[styling.locus]
+# Locus zoom plot colors for exome vs genome variants
+# Use AoU brand purple for exome, lighter shade for genome
+exome_color = "#262262"
+genome_color = "#5c4d9a"
+point_radius = 3.0

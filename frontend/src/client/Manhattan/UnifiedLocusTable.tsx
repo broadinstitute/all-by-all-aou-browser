@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
+import { LocusContextMenu } from './components/LocusContextMenu';
 import './ManhattanViewer.css';
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -24,55 +25,40 @@ export interface UnifiedLocusTableProps {
 }
 
 /**
- * Get annotation color scheme
+ * Get unique burden annotation types with significant p-values for a gene
+ * Returns array like ['pLoF', 'missenseLC'] for genes with those significant burden tests
  */
-function getAnnotationColor(ann: string) {
-  if (ann === 'pLoF') return { dot: '#d32f2f', bg: 'rgba(211,47,47,0.12)', text: '#b71c1c' };
-  if (ann === 'missenseLC') return { dot: '#f9a825', bg: 'rgba(249,168,37,0.15)', text: '#f57f17' };
-  if (ann === 'synonymous') return { dot: '#388e3c', bg: 'rgba(56,142,60,0.12)', text: '#1b5e20' };
-  return { dot: '#757575', bg: 'rgba(117,117,117,0.1)', text: '#616161' };
-}
-
-/**
- * Format annotation name for display
- */
-function formatAnn(ann: string) {
-  if (ann === 'pLoF') return 'pLoF';
-  if (ann === 'missenseLC') return 'Missense';
-  if (ann === 'synonymous') return 'Syn';
-  return ann;
-}
-
-/**
- * Get significant burden hits for a gene
- */
-function getGeneBurdenHits(g: UnifiedGene): { annotation: string; test: string; pvalue: number }[] {
+function getGeneBurdenTypes(g: UnifiedGene): string[] {
   if (!g.burden_results) return [];
-  const hits: { annotation: string; test: string; pvalue: number }[] = [];
+  const types = new Set<string>();
   for (const b of g.burden_results) {
-    if (b.pvalue && b.pvalue < SIG_THRESHOLD) {
-      hits.push({ annotation: b.annotation, test: 'SKAT-O', pvalue: b.pvalue });
-    }
-    if (b.pvalue_burden && b.pvalue_burden < SIG_THRESHOLD) {
-      hits.push({ annotation: b.annotation, test: 'Burden', pvalue: b.pvalue_burden });
-    }
-    if (b.pvalue_skat && b.pvalue_skat < SIG_THRESHOLD) {
-      hits.push({ annotation: b.annotation, test: 'SKAT', pvalue: b.pvalue_skat });
+    const hasSig =
+      (b.pvalue && b.pvalue < SIG_THRESHOLD) ||
+      (b.pvalue_burden && b.pvalue_burden < SIG_THRESHOLD) ||
+      (b.pvalue_skat && b.pvalue_skat < SIG_THRESHOLD);
+    if (hasSig) {
+      types.add(b.annotation);
     }
   }
-  return hits.sort((a, b) => a.pvalue - b.pvalue);
+  return Array.from(types);
+}
+
+/**
+ * Get total coding variant counts for a gene (genome + exome)
+ */
+function getGeneCodingCounts(g: UnifiedGene): { lof: number; missense: number } {
+  const lof = (g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0);
+  const missense = (g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0);
+  return { lof, missense };
 }
 
 /**
  * Check if gene has implicated evidence (burden or coding hits)
  */
 function geneHasEvidence(g: UnifiedGene): boolean {
-  const hasBurdenHit = getGeneBurdenHits(g).length > 0;
-  const hasGenomeCoding =
-    (g.genome_coding_hits?.lof ?? 0) > 0 || (g.genome_coding_hits?.missense ?? 0) > 0;
-  const hasExomeCoding =
-    (g.exome_coding_hits?.lof ?? 0) > 0 || (g.exome_coding_hits?.missense ?? 0) > 0;
-  return hasBurdenHit || hasGenomeCoding || hasExomeCoding;
+  const hasBurden = getGeneBurdenTypes(g).length > 0;
+  const coding = getGeneCodingCounts(g);
+  return hasBurden || coding.lof > 0 || coding.missense > 0;
 }
 
 /**
@@ -92,6 +78,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
 }) => {
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    contig: string;
+    position: number;
+  } | null>(null);
 
   // Sort by best p-value
   const sortedLoci = useMemo(() => {
@@ -171,55 +164,14 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Legend for annotation colors */}
+          {/* Legend */}
           <span style={{ fontSize: 10, color: '#666' }}>
-            <span style={{ color: '#d32f2f' }}>●</span> pLoF
+            Burden: <span style={{ color: '#d32f2f' }}>●</span>pLoF{' '}
+            <span style={{ color: '#f9a825' }}>●</span>Mis{' '}
+            <span style={{ color: '#388e3c' }}>●</span>Syn
           </span>
-          <span style={{ fontSize: 10, color: '#666' }}>
-            <span style={{ color: '#f9a825' }}>●</span> Missense
-          </span>
-          <span style={{ fontSize: 10, color: '#666', marginLeft: 8 }}>
-            <span
-              style={{
-                fontSize: 9,
-                padding: '1px 4px',
-                background: '#e3f2fd',
-                borderRadius: 2,
-                fontWeight: 500,
-              }}
-            >
-              G
-            </span>{' '}
-            Genome
-          </span>
-          <span style={{ fontSize: 10, color: '#666' }}>
-            <span
-              style={{
-                fontSize: 9,
-                padding: '1px 4px',
-                background: '#fff3e0',
-                borderRadius: 2,
-                fontWeight: 500,
-              }}
-            >
-              E
-            </span>{' '}
-            Exome
-          </span>
-          <span style={{ fontSize: 10, color: '#666', marginLeft: 8 }}>
-            <span
-              style={{
-                fontSize: 9,
-                padding: '1px 4px',
-                background: 'rgba(156, 39, 176, 0.15)',
-                color: '#7b1fa2',
-                borderRadius: 2,
-                fontWeight: 500,
-              }}
-            >
-              Burden only
-            </span>{' '}
-            No GWAS signal
+          <span style={{ fontSize: 10, color: '#262262', fontWeight: 500 }}>
+            (nLOF) (nMIS)
           </span>
           {customLabelMode && (
             <>
@@ -265,7 +217,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             <th>P-value (Genome)</th>
             <th>P-value (Exome)</th>
             <th title="Gene burden test results">P-value (Burden)</th>
-            <th title="Coding variants from significant GWAS hits">Coding Hits</th>
           </tr>
         </thead>
         <tbody>
@@ -274,19 +225,21 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             const isSelected = selectedPeakIds.has(locusId);
             const hasLabel = customLabelMode ? isSelected : index < 25;
 
-            // Genes with burden hits
-            const genesWithBurden = locus.genes
-              .map((g) => ({ gene: g, hits: getGeneBurdenHits(g) }))
-              .filter((x) => x.hits.length > 0);
-            const genesWithoutBurden = locus.genes.filter(
-              (g) => getGeneBurdenHits(g).length === 0
-            );
+            // Partition genes: implicated first, then non-implicated
+            const implicatedGenes = locus.genes.filter(geneHasEvidence);
+            const nonImplicatedGenes = locus.genes.filter((g) => !geneHasEvidence(g));
 
             // Best burden p-value across all genes
             const bestBurdenPvalue = locus.genes.reduce((best, g) => {
-              const hits = getGeneBurdenHits(g);
-              if (hits.length === 0) return best;
-              const minP = Math.min(...hits.map((h) => h.pvalue));
+              const types = getGeneBurdenTypes(g);
+              if (types.length === 0) return best;
+              // Find best p-value across all burden results
+              let minP = Infinity;
+              for (const b of g.burden_results || []) {
+                if (b.pvalue && b.pvalue < minP) minP = b.pvalue;
+                if (b.pvalue_burden && b.pvalue_burden < minP) minP = b.pvalue_burden;
+                if (b.pvalue_skat && b.pvalue_skat < minP) minP = b.pvalue_skat;
+              }
               return minP < best ? minP : best;
             }, Infinity);
 
@@ -310,7 +263,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 </td>
                 <td
                   onClick={() => onLocusClick?.(locus.contig, locus.position)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      contig: locus.contig,
+                      position: locus.position,
+                    });
+                  }}
                   style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
+                  title="Click to view locus, right-click for options"
                 >
                   {locus.contig}:{locus.position.toLocaleString()}
                   {isBurdenOnly && (
@@ -330,129 +293,53 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   )}
                 </td>
                 <td>
-                  {/* Genes with burden hits shown first with badges */}
-                  {genesWithBurden.map(({ gene: g, hits }, i) => {
-                    const topHits = hits.slice(0, 2);
-                    const hasGenomeCoding =
-                      (g.genome_coding_hits?.lof ?? 0) > 0 ||
-                      (g.genome_coding_hits?.missense ?? 0) > 0;
-                    const hasExomeCoding =
-                      (g.exome_coding_hits?.lof ?? 0) > 0 ||
-                      (g.exome_coding_hits?.missense ?? 0) > 0;
+                  {/* Implicated genes shown first - ALL of them, never truncated */}
+                  {implicatedGenes.map((g, i) => {
+                    const burdenTypes = getGeneBurdenTypes(g);
+                    const coding = getGeneCodingCounts(g);
+                    const hasBurden = burdenTypes.length > 0;
+                    const hasCoding = coding.lof > 0 || coding.missense > 0;
 
                     return (
-                      <div
+                      <span
                         key={g.gene_id}
-                        style={{ marginBottom: i < genesWithBurden.length - 1 ? 4 : 0 }}
+                        style={{
+                          display: 'inline-block',
+                          marginRight: 8,
+                          marginBottom: 2,
+                        }}
                       >
                         <span style={{ fontWeight: 600 }}>{g.gene_symbol}</span>
-                        <span style={{ fontSize: 10, color: '#888', marginLeft: 4 }}>
-                          ({Math.round(g.distance_kb)}kb)
-                        </span>
-                        <span style={{ marginLeft: 6 }}>
-                          {topHits.map((hit, j) => {
-                            const colors = getAnnotationColor(hit.annotation);
-                            return (
-                              <span
-                                key={`${hit.annotation}-${hit.test}`}
-                                style={{
-                                  fontSize: 10,
-                                  marginLeft: j > 0 ? 4 : 0,
-                                  padding: '1px 5px',
-                                  borderRadius: 3,
-                                  background: colors.bg,
-                                  color: colors.text,
-                                  fontWeight: 500,
-                                }}
-                              >
-                                <span style={{ color: colors.dot }}>●</span>{' '}
-                                {formatAnn(hit.annotation)} ({hit.test})
-                              </span>
-                            );
-                          })}
-                          {hits.length > 2 && (
-                            <span style={{ fontSize: 10, color: '#888', marginLeft: 4 }}>
-                              +{hits.length - 2}
-                            </span>
-                          )}
-                        </span>
-                        {/* G/E badges for coding hits */}
-                        {hasGenomeCoding && (
-                          <span
-                            style={{
-                              fontSize: 9,
-                              marginLeft: 4,
-                              padding: '1px 4px',
-                              background: '#e3f2fd',
-                              borderRadius: 2,
-                              fontWeight: 500,
-                            }}
-                          >
-                            G
+                        {/* Burden dots - one per annotation type */}
+                        {burdenTypes.includes('pLoF') && (
+                          <span style={{ color: '#d32f2f', marginLeft: 2 }} title="pLoF burden">●</span>
+                        )}
+                        {burdenTypes.includes('missenseLC') && (
+                          <span style={{ color: '#f9a825', marginLeft: 1 }} title="Missense burden">●</span>
+                        )}
+                        {burdenTypes.includes('synonymous') && (
+                          <span style={{ color: '#388e3c', marginLeft: 1 }} title="Synonymous burden">●</span>
+                        )}
+                        {/* Coding counts inline - AoU dark blue */}
+                        {hasCoding && (
+                          <span style={{ fontSize: 10, marginLeft: 2, color: '#262262', fontWeight: 500 }}>
+                            {coding.lof > 0 && (
+                              <span>({coding.lof}LOF)</span>
+                            )}
+                            {coding.missense > 0 && (
+                              <span style={{ marginLeft: coding.lof > 0 ? 2 : 0 }}>({coding.missense}MIS)</span>
+                            )}
                           </span>
                         )}
-                        {hasExomeCoding && (
-                          <span
-                            style={{
-                              fontSize: 9,
-                              marginLeft: 2,
-                              padding: '1px 4px',
-                              background: '#fff3e0',
-                              borderRadius: 2,
-                              fontWeight: 500,
-                            }}
-                          >
-                            E
-                          </span>
-                        )}
-                      </div>
+                      </span>
                     );
                   })}
-                  {/* Other genes on same line */}
-                  {genesWithoutBurden.length > 0 && (
-                    <div style={{ color: '#666', fontSize: 11 }}>
-                      {genesWithoutBurden.slice(0, 4).map((g) => {
-                        const hasGenomeCoding =
-                          (g.genome_coding_hits?.lof ?? 0) > 0 ||
-                          (g.genome_coding_hits?.missense ?? 0) > 0;
-                        const hasExomeCoding =
-                          (g.exome_coding_hits?.lof ?? 0) > 0 ||
-                          (g.exome_coding_hits?.missense ?? 0) > 0;
-                        return (
-                          <span key={g.gene_id} style={{ marginRight: 6 }}>
-                            {g.gene_symbol}
-                            {hasGenomeCoding && (
-                              <span
-                                style={{
-                                  fontSize: 9,
-                                  marginLeft: 2,
-                                  padding: '1px 3px',
-                                  background: '#e3f2fd',
-                                  borderRadius: 2,
-                                }}
-                              >
-                                G
-                              </span>
-                            )}
-                            {hasExomeCoding && (
-                              <span
-                                style={{
-                                  fontSize: 9,
-                                  marginLeft: 2,
-                                  padding: '1px 3px',
-                                  background: '#fff3e0',
-                                  borderRadius: 2,
-                                }}
-                              >
-                                E
-                              </span>
-                            )}
-                          </span>
-                        );
-                      })}
-                      {genesWithoutBurden.length > 4 &&
-                        ` +${genesWithoutBurden.length - 4} more`}
-                    </div>
+                  {/* Non-implicated genes condensed */}
+                  {nonImplicatedGenes.length > 0 && (
+                    <span style={{ color: '#888', fontSize: 11 }}>
+                      {nonImplicatedGenes.slice(0, 3).map((g) => g.gene_symbol).join(', ')}
+                      {nonImplicatedGenes.length > 3 && ` +${nonImplicatedGenes.length - 3}`}
+                    </span>
                   )}
                   {locus.genes.length === 0 && '—'}
                 </td>
@@ -460,42 +347,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 <td>{locus.pvalue_exome?.toExponential(2) ?? '—'}</td>
                 <td>
                   {bestBurdenPvalue !== Infinity ? bestBurdenPvalue.toExponential(2) : '—'}
-                </td>
-                <td style={{ fontSize: 11 }}>
-                  {/* Per-gene LoF/missense variant counts */}
-                  {locus.genes
-                    .filter((g) => geneHasEvidence(g))
-                    .slice(0, 3)
-                    .map((g) => {
-                      const genomeLof = g.genome_coding_hits?.lof ?? 0;
-                      const genomeMis = g.genome_coding_hits?.missense ?? 0;
-                      const exomeLof = g.exome_coding_hits?.lof ?? 0;
-                      const exomeMis = g.exome_coding_hits?.missense ?? 0;
-                      const totalLof = genomeLof + exomeLof;
-                      const totalMis = genomeMis + exomeMis;
-
-                      if (totalLof === 0 && totalMis === 0) return null;
-
-                      return (
-                        <div key={g.gene_id} style={{ whiteSpace: 'nowrap' }}>
-                          <span style={{ color: '#666' }}>{g.gene_symbol}:</span>{' '}
-                          {totalLof > 0 && (
-                            <span style={{ color: '#d32f2f', fontWeight: 500 }}>
-                              {totalLof} LoF
-                            </span>
-                          )}
-                          {totalLof > 0 && totalMis > 0 && ', '}
-                          {totalMis > 0 && (
-                            <span style={{ color: '#f57f17', fontWeight: 500 }}>
-                              {totalMis} mis
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  {locus.genes.every((g) => !geneHasEvidence(g)) && (
-                    <span style={{ color: '#999' }}>—</span>
-                  )}
                 </td>
               </tr>
             );
@@ -519,6 +370,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
         >
           Show more ({filteredLoci.length - visibleRowCount} remaining)
         </button>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <LocusContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          contig={contextMenu.contig}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   );

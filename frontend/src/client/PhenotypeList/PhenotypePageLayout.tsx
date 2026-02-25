@@ -5,6 +5,7 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { ManhattanPlotContainer } from '../Manhattan';
 import { OverviewPlotContainer } from '../Manhattan/OverviewPlotContainer';
+import { PhenotypeGeneBurdenTab } from './PhenotypeGeneBurdenTab';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
@@ -145,7 +146,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { key: 'overview', label: 'Overview' },
-  { key: 'gene-burden', label: 'Gene Burden', plotType: 'gene_manhattan' },
+  { key: 'gene-burden', label: 'Gene Burden' },
   { key: 'exome-variants', label: 'Exome Variants', plotType: 'exome_manhattan' },
   { key: 'genome-variants', label: 'Genome Variants', plotType: 'genome_manhattan' },
 ];
@@ -240,6 +241,16 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
         <OverviewPlotContainer
           analysisId={analysisMetadataPrepared.analysis_id}
           onLocusClick={handleOverviewLocusClick}
+          // TODO: Implement per-chromosome overview (see 74-chromosome-overviews.md)
+          // For now, chromosome selector is present but doesn't change the view
+        />
+      );
+    }
+
+    if (activeTab === 'gene-burden') {
+      return (
+        <PhenotypeGeneBurdenTab
+          analysisId={analysisMetadataPrepared.analysis_id}
         />
       );
     }

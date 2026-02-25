@@ -5,6 +5,8 @@ import { Tooltip } from './components/Tooltip';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { PeakLabels } from './components/PeakLabels';
+import { ChromosomeLabels } from './components/ChromosomeLabels';
+import { LocusContextMenu } from './components/LocusContextMenu';
 import { computeDisplayHits, getChromosomeLayout } from './layout';
 import type { Peak } from './types';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
@@ -36,6 +38,8 @@ export interface ManhattanViewerProps {
   contig?: string;
   /** Callback when a chromosome is clicked (for zoom navigation) */
   onContigClick?: (contig: string) => void;
+  /** Callback when a locus is clicked (for split-screen navigation) */
+  onLocusClick?: (contig: string, position: number) => void;
 }
 
 /**
@@ -57,6 +61,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   className,
   contig = 'all',
   onContigClick,
+  onLocusClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -76,6 +81,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    contig: string;
+    position: number;
+  } | null>(null);
 
   // Compute display coordinates from raw hits
   const displayHits = useMemo(
@@ -103,10 +115,20 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   );
 
   // Memoize sorted peaks for the table (expensive for large datasets)
+  // Filter by current chromosome when zoomed in
   const sortedPeaks = useMemo(() => {
     if (!overlay.peaks) return [];
-    return [...overlay.peaks].sort((a, b) => a.pvalue - b.pvalue);
-  }, [overlay.peaks]);
+    let peaks = [...overlay.peaks];
+    // Filter to current chromosome when zoomed in
+    if (contig !== 'all') {
+      const chromName = contig.startsWith('chr') ? contig : `chr${contig}`;
+      peaks = peaks.filter((p) => {
+        const peakChrom = p.contig.startsWith('chr') ? p.contig : `chr${p.contig}`;
+        return peakChrom === chromName;
+      });
+    }
+    return peaks.sort((a, b) => a.pvalue - b.pvalue);
+  }, [overlay.peaks, contig]);
 
   // Filter peaks to only those with gene evidence (burden hits OR coding LoF/missense)
   const SIG_THRESHOLD = 2.5e-6;
@@ -375,6 +397,14 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                onPeakContextMenu={(node, clientX, clientY) => {
+                  setContextMenu({
+                    x: clientX,
+                    y: clientY,
+                    contig: node.peak.contig,
+                    position: node.peak.position,
+                  });
+                }}
               />
             </svg>
           )}
@@ -401,6 +431,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
         </div>
       </div>
 
+      {/* Chromosome labels */}
+      {imageLoaded && dimensions.width > 0 && (
+        <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
+          <ChromosomeLabels width={dimensions.width} contig={contig} />
+        </div>
+      )}
+
       {/* Stats bar */}
       {showStats && imageLoaded && overlay.hit_count > 0 && (
         <div className="manhattan-stats" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
@@ -418,10 +455,10 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       )}
 
       {/* Hit table - adapts columns based on hit type & zoom level */}
-      {imageLoaded && (displayHits.length > 0 || (!isZoomedIn && overlay.peaks && overlay.peaks.length > 0)) && (
+      {imageLoaded && (displayHits.length > 0 || filteredPeaks.length > 0) && (
         <div className="manhattan-table-container" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          {!isZoomedIn && filteredPeaks.length > 0 ? (
-            // Locus Navigator Table (Genome-wide view)
+          {filteredPeaks.length > 0 ? (
+            // Locus Navigator Table (works in both genome-wide and per-chromosome views)
             <>
               {/* Control panel above table */}
               <div style={{
@@ -522,7 +559,6 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     <th>Locus</th>
                     <th>Genes in Locus</th>
                     <th>P-value</th>
-                    <th title="Significant GWAS variants with LoF or missense consequences">Coding Hits</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -531,63 +567,33 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     const isSelected = selectedPeakIds.has(peakId);
                     const hasLabel = customLabelMode ? isSelected : index < 25;
 
-                    // Color by annotation type (not significance)
-                    const getAnnotationColor = (ann: string) => {
-                      if (ann === 'pLoF') return { dot: '#d32f2f', bg: 'rgba(211,47,47,0.12)', text: '#b71c1c' };
-                      if (ann === 'missenseLC') return { dot: '#f9a825', bg: 'rgba(249,168,37,0.15)', text: '#f57f17' };
-                      if (ann === 'synonymous') return { dot: '#388e3c', bg: 'rgba(56,142,60,0.12)', text: '#1b5e20' };
-                      return { dot: '#757575', bg: 'rgba(117,117,117,0.1)', text: '#616161' };
-                    };
-
-                    // Helper to format annotation name
-                    const formatAnn = (ann: string) => {
-                      if (ann === 'pLoF') return 'pLoF';
-                      if (ann === 'missenseLC') return 'Missense';
-                      if (ann === 'synonymous') return 'Syn';
-                      return ann;
-                    };
-
                     // Significance threshold for burden tests
                     const SIG_THRESHOLD = 2.5e-6;
 
-                    // Find significant burden hits per gene
-                    const getGeneBurdenHits = (g: typeof peak.genes[0]) => {
+                    // Get burden annotation types for a gene
+                    const getGeneBurdenTypes = (g: typeof peak.genes[0]): string[] => {
                       if (!g.burden_results) return [];
-                      const hits: { annotation: string; test: string; pvalue: number }[] = [];
+                      const types = new Set<string>();
                       for (const b of g.burden_results) {
-                        // Check each test type for significance
-                        if (b.pvalue && b.pvalue < SIG_THRESHOLD) {
-                          hits.push({ annotation: b.annotation, test: 'SKAT-O', pvalue: b.pvalue });
-                        }
-                        if (b.pvalue_burden && b.pvalue_burden < SIG_THRESHOLD) {
-                          hits.push({ annotation: b.annotation, test: 'Burden', pvalue: b.pvalue_burden });
-                        }
-                        if (b.pvalue_skat && b.pvalue_skat < SIG_THRESHOLD) {
-                          hits.push({ annotation: b.annotation, test: 'SKAT', pvalue: b.pvalue_skat });
-                        }
+                        const hasSig =
+                          (b.pvalue && b.pvalue < SIG_THRESHOLD) ||
+                          (b.pvalue_burden && b.pvalue_burden < SIG_THRESHOLD) ||
+                          (b.pvalue_skat && b.pvalue_skat < SIG_THRESHOLD);
+                        if (hasSig) types.add(b.annotation);
                       }
-                      // Sort by p-value
-                      return hits.sort((a, b) => a.pvalue - b.pvalue);
+                      return Array.from(types);
                     };
 
-                    // Find genes with significant burden results
-                    const genesWithBurden = peak.genes
-                      .map((g) => ({ gene: g, hits: getGeneBurdenHits(g) }))
-                      .filter((x) => x.hits.length > 0);
-                    const genesWithoutBurden = peak.genes.filter(
-                      (g) => getGeneBurdenHits(g).length === 0
-                    );
+                    // Check if gene has evidence (burden or coding)
+                    const geneHasEvidence = (g: typeof peak.genes[0]): boolean => {
+                      const hasBurden = getGeneBurdenTypes(g).length > 0;
+                      const hasCoding = (g.lof_count || 0) > 0 || (g.missense_count || 0) > 0;
+                      return hasBurden || hasCoding;
+                    };
 
-                    // Sum coding variants by category across all genes in locus
-                    const totals = peak.genes.reduce(
-                      (acc, g) => ({
-                        total: acc.total + (g.coding_variant_count || 0),
-                        lof: acc.lof + (g.lof_count || 0),
-                        missense: acc.missense + (g.missense_count || 0),
-                        synonymous: acc.synonymous + (g.synonymous_count || 0),
-                      }),
-                      { total: 0, lof: 0, missense: 0, synonymous: 0 }
-                    );
+                    // Partition genes
+                    const implicatedGenes = peak.genes.filter(geneHasEvidence);
+                    const nonImplicatedGenes = peak.genes.filter((g) => !geneHasEvidence(g));
 
                     return (
                       <tr
@@ -604,87 +610,69 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           />
                         </td>
                         <td
-                          onClick={() => onContigClick?.(peak.contig)}
+                          onClick={() => onLocusClick?.(peak.contig, peak.position)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              contig: peak.contig,
+                              position: peak.position,
+                            });
+                          }}
                           style={{ cursor: 'pointer' }}
+                          title="Click to view locus, right-click for options"
                         >
                           {peak.contig}:{peak.position.toLocaleString()}
                         </td>
                         <td>
-                          {/* Genes with burden hits shown first */}
-                          {genesWithBurden.map(({ gene: g, hits }, i) => {
-                            // Show top 2 hits for this gene
-                            const topHits = hits.slice(0, 2);
+                          {/* Implicated genes shown first - ALL of them */}
+                          {implicatedGenes.map((g) => {
+                            const burdenTypes = getGeneBurdenTypes(g);
+                            const lof = g.lof_count || 0;
+                            const mis = g.missense_count || 0;
+                            const hasCoding = lof > 0 || mis > 0;
+
                             return (
-                              <div key={g.gene_id} style={{ marginBottom: i < genesWithBurden.length - 1 ? 4 : 0 }}>
+                              <span
+                                key={g.gene_id}
+                                style={{
+                                  display: 'inline-block',
+                                  marginRight: 8,
+                                  marginBottom: 2,
+                                }}
+                              >
                                 <span style={{ fontWeight: 600 }}>{g.gene_symbol}</span>
-                                <span style={{ fontSize: 10, color: '#888', marginLeft: 4 }}>
-                                  ({Math.round(g.distance_kb)}kb)
-                                </span>
-                                <span style={{ marginLeft: 6 }}>
-                                  {topHits.map((hit, j) => {
-                                    const colors = getAnnotationColor(hit.annotation);
-                                    return (
-                                      <span
-                                        key={`${hit.annotation}-${hit.test}`}
-                                        style={{
-                                          fontSize: 10,
-                                          marginLeft: j > 0 ? 4 : 0,
-                                          padding: '1px 5px',
-                                          borderRadius: 3,
-                                          background: colors.bg,
-                                          color: colors.text,
-                                          fontWeight: 500,
-                                        }}
-                                      >
-                                        <span style={{ color: colors.dot }}>●</span> {formatAnn(hit.annotation)} ({hit.test})
-                                      </span>
-                                    );
-                                  })}
-                                  {hits.length > 2 && (
-                                    <span style={{ fontSize: 10, color: '#888', marginLeft: 4 }}>
-                                      +{hits.length - 2}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
+                                {/* Burden dots */}
+                                {burdenTypes.includes('pLoF') && (
+                                  <span style={{ color: '#d32f2f', marginLeft: 2 }} title="pLoF burden">●</span>
+                                )}
+                                {burdenTypes.includes('missenseLC') && (
+                                  <span style={{ color: '#f9a825', marginLeft: 1 }} title="Missense burden">●</span>
+                                )}
+                                {burdenTypes.includes('synonymous') && (
+                                  <span style={{ color: '#388e3c', marginLeft: 1 }} title="Synonymous burden">●</span>
+                                )}
+                                {/* Coding counts - AoU dark blue */}
+                                {hasCoding && (
+                                  <span style={{ fontSize: 10, marginLeft: 2, color: '#262262', fontWeight: 500 }}>
+                                    {lof > 0 && <span>({lof}LOF)</span>}
+                                    {mis > 0 && <span style={{ marginLeft: lof > 0 ? 2 : 0 }}>({mis}MIS)</span>}
+                                  </span>
+                                )}
+                              </span>
                             );
                           })}
-                          {/* Other genes on same line */}
-                          {genesWithoutBurden.length > 0 && (
-                            <div style={{ color: '#666', fontSize: 11 }}>
-                              {genesWithoutBurden.slice(0, 4).map((g) => g.gene_symbol).join(', ')}
-                              {genesWithoutBurden.length > 4 && ` +${genesWithoutBurden.length - 4} more`}
-                            </div>
+                          {/* Non-implicated genes condensed */}
+                          {nonImplicatedGenes.length > 0 && (
+                            <span style={{ color: '#888', fontSize: 11 }}>
+                              {nonImplicatedGenes.slice(0, 3).map((g) => g.gene_symbol).join(', ')}
+                              {nonImplicatedGenes.length > 3 && ` +${nonImplicatedGenes.length - 3}`}
+                            </span>
                           )}
                           {peak.genes.length === 0 && '—'}
                         </td>
                         <td>{peak.pvalue.toExponential(2)}</td>
-                        <td style={{ fontSize: 11 }}>
-                          {/* Show per-gene LoF/missense variant counts only */}
-                          {peak.genes
-                            .filter((g) => (g.lof_count || 0) + (g.missense_count || 0) > 0)
-                            .slice(0, 3)
-                            .map((g) => (
-                              <div key={g.gene_id} style={{ whiteSpace: 'nowrap' }}>
-                                <span style={{ color: '#666' }}>{g.gene_symbol}:</span>{' '}
-                                {g.lof_count ? (
-                                  <span style={{ color: '#d32f2f', fontWeight: 500 }}>{g.lof_count} LoF</span>
-                                ) : null}
-                                {g.lof_count && g.missense_count ? ', ' : null}
-                                {g.missense_count ? (
-                                  <span style={{ color: '#f57f17', fontWeight: 500 }}>{g.missense_count} mis</span>
-                                ) : null}
-                              </div>
-                            ))}
-                          {peak.genes.filter((g) => (g.lof_count || 0) + (g.missense_count || 0) > 0).length > 3 && (
-                            <div style={{ color: '#999', fontSize: 10 }}>
-                              +{peak.genes.filter((g) => (g.lof_count || 0) + (g.missense_count || 0) > 0).length - 3} more
-                            </div>
-                          )}
-                          {peak.genes.every((g) => !(g.lof_count || 0) && !(g.missense_count || 0)) && (
-                            <span style={{ color: '#999' }}>—</span>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}
@@ -777,6 +765,17 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       {/* Loading state */}
       {!imageLoaded && !imageError && (
         <div className="manhattan-loading">Loading Manhattan plot...</div>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <LocusContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          contig={contextMenu.contig}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   );

@@ -3,6 +3,8 @@ import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { PeakLabels } from './components/PeakLabels';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
+import { ChromosomeLabels } from './components/ChromosomeLabels';
+import { LocusContextMenu } from './components/LocusContextMenu';
 import { getChromosomeLayout } from './layout';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
@@ -87,6 +89,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [genomeLoaded, setGenomeLoaded] = useState(false);
   const [exomeLoaded, setExomeLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    contig: string;
+    position: number;
+  } | null>(null);
 
   // Convert unified loci to peaks format for label layout
   const peaks = useMemo(() => unifiedLociToPeaks(unifiedLoci), [unifiedLoci]);
@@ -222,6 +231,14 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                 hoveredHitPosition={null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                onPeakContextMenu={(node, clientX, clientY) => {
+                  setContextMenu({
+                    x: clientX,
+                    y: clientY,
+                    contig: node.peak.contig,
+                    position: node.peak.position,
+                  });
+                }}
               />
             </svg>
           )}
@@ -237,6 +254,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
           )}
         </div>
       </div>
+
+      {/* Chromosome labels */}
+      {imagesLoaded && dimensions.width > 0 && (
+        <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
+          <ChromosomeLabels width={dimensions.width} contig="all" />
+        </div>
+      )}
 
       {/* Stats bar */}
       {imagesLoaded && (
@@ -255,6 +279,17 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
       {/* Loading state */}
       {!imagesLoaded && !imageError && (
         <div className="manhattan-loading">Loading Manhattan plots...</div>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <LocusContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          contig={contextMenu.contig}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   );

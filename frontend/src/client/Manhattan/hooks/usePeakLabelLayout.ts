@@ -23,6 +23,12 @@ export interface PeakLabelNode {
   hasBurden: boolean;
   codingCount: number;
   collisionRadius: number;
+  /** Array of burden annotation types found (e.g., ['pLoF', 'missenseLC']) */
+  burdenTypes: string[];
+  /** Whether the top gene has significant coding variants */
+  hasCoding: boolean;
+  /** Total number of implicated genes in this peak */
+  implicatedCount: number;
 }
 
 export interface PeakLabelLayout {
@@ -33,10 +39,19 @@ export interface PeakLabelLayout {
 /**
  * Estimates the width of a label string in pixels
  */
-function estimateLabelWidth(label: string, codingCount: number, hasBurden: boolean): number {
+function estimateLabelWidth(
+  label: string,
+  burdenTypes: string[],
+  hasCoding: boolean,
+  implicatedCount: number
+): number {
   let text = label;
-  if (hasBurden) text = '* ' + text;
-  if (codingCount > 0) text += ` (${codingCount})`;
+  // Add space for burden dots (2 chars each: dot + space)
+  if (burdenTypes.length > 0) text = '●'.repeat(burdenTypes.length) + ' ' + text;
+  // Add space for coding indicator
+  if (hasCoding) text += ' (C)';
+  // Add space for multi-gene indicator
+  if (implicatedCount > 1) text += ` +${implicatedCount - 1}`;
   return text.length * CHAR_WIDTH + LABEL_PADDING * 2;
 }
 
@@ -97,12 +112,32 @@ export function usePeakLabelLayout(
         continue;
       }
 
-      const hasBurden = peak.genes.some(
-        (g) => g.burden_results?.some((b) => b.pvalue < 2.5e-6) ?? false
-      );
+      // Collect burden types from all genes in this peak
+      const SIG_THRESHOLD = 2.5e-6;
+      const burdenTypesSet = new Set<string>();
+      let implicatedCount = 0;
+      for (const g of peak.genes) {
+        const hasGeneBurden = g.burden_results?.some((b) => (b.pvalue ?? Infinity) < SIG_THRESHOLD) ?? false;
+        const hasGeneCoding = (g.coding_variant_count || 0) > 0;
+        if (hasGeneBurden || hasGeneCoding) {
+          implicatedCount++;
+        }
+        if (g.burden_results) {
+          for (const b of g.burden_results) {
+            if ((b.pvalue ?? Infinity) < SIG_THRESHOLD) {
+              burdenTypesSet.add(b.annotation);
+            }
+          }
+        }
+      }
+      const burdenTypes = Array.from(burdenTypesSet);
+      const hasBurden = burdenTypes.length > 0;
 
-      const codingCount = topGene.coding_variant_count;
-      const labelWidth = estimateLabelWidth(topGene.gene_symbol, codingCount, hasBurden);
+      // Check if top gene has coding variants
+      const codingCount = topGene.coding_variant_count || 0;
+      const hasCoding = codingCount > 0;
+
+      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount);
 
       // For angled labels, calculate collision radius
       const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
@@ -124,6 +159,9 @@ export function usePeakLabelLayout(
         hasBurden,
         codingCount,
         collisionRadius,
+        burdenTypes,
+        hasCoding,
+        implicatedCount,
       });
     }
 

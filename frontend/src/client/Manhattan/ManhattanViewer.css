@@ -289,3 +289,43 @@
   stroke: #fff;
   stroke-width: 2;
 }
+
+/* Responsive table columns - hide P-value and Coding Hits columns at narrow widths */
+/* Use container query so it works in split-screen layouts */
+.manhattan-table-container {
+  container-type: inline-size;
+  container-name: locus-table;
+}
+
+@container locus-table (max-width: 700px) {
+  /* Hide P-value columns at narrow widths */
+  /* Columns: 1=Label, 2=Locus, 3=Genes, 4=P-genome, 5=P-exome, 6=P-burden */
+  .manhattan-table-locus th:nth-child(4),
+  .manhattan-table-locus td:nth-child(4),
+  .manhattan-table-locus th:nth-child(5),
+  .manhattan-table-locus td:nth-child(5),
+  .manhattan-table-locus th:nth-child(6),
+  .manhattan-table-locus td:nth-child(6) {
+    display: none;
+  }
+
+  .manhattan-table-locus {
+    min-width: 400px;
+  }
+}
+
+/* Fallback media query for older browsers without container query support */
+@supports not (container-type: inline-size) {
+  @media (max-width: 1200px) {
+    .manhattan-table-locus th:nth-child(4),
+    .manhattan-table-locus td:nth-child(4),
+    .manhattan-table-locus th:nth-child(5),
+    .manhattan-table-locus td:nth-child(5),
+    .manhattan-table-locus th:nth-child(6),
+    .manhattan-table-locus td:nth-child(6),
+    .manhattan-table-locus th:nth-child(7),
+    .manhattan-table-locus td:nth-child(7) {
+      display: none;
+    }
+  }
+}
