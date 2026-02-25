@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
 import type { UnifiedOverviewResponse } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -31,6 +31,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   onLocusClick,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
+  const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
 
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
@@ -96,13 +97,44 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     [onLocusClick]
   );
 
+  // Get data reference (may be null during loading)
+  const data = queryStates.overviewData?.data ?? null;
+
+  // Filter loci by selected chromosome (must be called unconditionally for hooks rules)
+  const filteredLoci = useMemo(() => {
+    if (!data) return [];
+    if (selectedContig === 'all') return data.unified_loci;
+    // Normalize to match backend format which generally uses 'chrN'
+    const targetContig = selectedContig.startsWith('chr')
+      ? selectedContig
+      : `chr${selectedContig}`;
+    return data.unified_loci.filter((l) => l.contig === targetContig);
+  }, [data, selectedContig]);
+
+  // Construct full image URLs with optional contig parameter
+  const contigParam = selectedContig !== 'all' ? `&contig=${selectedContig}` : '';
+
+  const genomeImageUrl = useMemo(() => {
+    if (!data) return '';
+    return data.genome_image_url.startsWith('/')
+      ? `${axaouDevUrl.replace('/api', '')}${data.genome_image_url}${contigParam}`
+      : `${data.genome_image_url}${contigParam}`;
+  }, [data, contigParam]);
+
+  const exomeImageUrl = useMemo(() => {
+    if (!data) return '';
+    return data.exome_image_url.startsWith('/')
+      ? `${axaouDevUrl.replace('/api', '')}${data.exome_image_url}${contigParam}`
+      : `${data.exome_image_url}${contigParam}`;
+  }, [data, contigParam]);
+
   // Hide entirely while loading (avoids layout shift)
   if (anyLoading()) {
     return null;
   }
 
   // Show message if data isn't available
-  if (queryStates.overviewData?.error || !queryStates.overviewData?.data) {
+  if (queryStates.overviewData?.error || !data) {
     return (
       <Container>
         <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
@@ -112,33 +144,24 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     );
   }
 
-  const data = queryStates.overviewData.data;
-
-  // Construct full image URLs
-  const genomeImageUrl = data.genome_image_url.startsWith('/')
-    ? `${axaouDevUrl.replace('/api', '')}${data.genome_image_url}`
-    : data.genome_image_url;
-
-  const exomeImageUrl = data.exome_image_url.startsWith('/')
-    ? `${axaouDevUrl.replace('/api', '')}${data.exome_image_url}`
-    : data.exome_image_url;
-
   return (
     <Container>
       <OverviewManhattan
         genomeImageUrl={genomeImageUrl}
         exomeImageUrl={exomeImageUrl}
-        unifiedLoci={data.unified_loci}
+        unifiedLoci={filteredLoci}
         selectedPeakIds={selectedPeakIds}
         customLabelMode={customLabelMode}
         onPeakClick={handlePeakClick}
         showYAxis={true}
+        contig={selectedContig}
+        onResetContig={() => setSelectedContig('all')}
       />
 
-      {data.unified_loci.length > 0 && (
+      {filteredLoci.length > 0 && (
         <div style={{ marginLeft: Y_AXIS_WIDTH }}>
           <UnifiedLocusTable
-            unifiedLoci={data.unified_loci}
+            unifiedLoci={filteredLoci}
             onLocusClick={handleLocusClick}
             selectedPeakIds={selectedPeakIds}
             onTogglePeak={togglePeak}

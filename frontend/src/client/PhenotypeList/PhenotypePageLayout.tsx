@@ -241,8 +241,6 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
         <OverviewPlotContainer
           analysisId={analysisMetadataPrepared.analysis_id}
           onLocusClick={handleOverviewLocusClick}
-          // TODO: Implement per-chromosome overview (see 74-chromosome-overviews.md)
-          // For now, chromosome selector is present but doesn't change the view
         />
       );
     }

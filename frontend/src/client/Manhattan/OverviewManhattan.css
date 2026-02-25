@@ -47,3 +47,24 @@
 .overview-stats-value {
   color: #333;
 }
+
+/* Back to All button for per-chromosome view */
+.overview-back-button {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: GothamBook, sans-serif;
+  background-color: rgba(38, 34, 98, 0.9);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+}
+
+.overview-back-button:hover {
+  background-color: rgba(38, 34, 98, 1);
+}

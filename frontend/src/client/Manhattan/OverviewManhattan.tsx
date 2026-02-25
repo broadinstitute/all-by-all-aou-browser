@@ -5,6 +5,7 @@ import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { LocusContextMenu } from './components/LocusContextMenu';
+import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
@@ -26,6 +27,10 @@ export interface OverviewManhattanProps {
   onPeakClick?: (node: PeakLabelNode) => void;
   /** Show Y-axis with -log10(p) labels */
   showYAxis?: boolean;
+  /** Currently selected chromosome ('all' for genome-wide view) */
+  contig?: string;
+  /** Callback to reset to genome-wide view */
+  onResetContig?: () => void;
 }
 
 /**
@@ -80,6 +85,8 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   customLabelMode = false,
   onPeakClick,
   showYAxis = true,
+  contig = 'all',
+  onResetContig,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -111,7 +118,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     peaksForLabels,
     dimensions.width,
     dimensions.height,
-    'all',
+    contig,
     customLabelMode ? 500 : 25
   );
 
@@ -209,6 +216,17 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
               onError={handleImageError}
               draggable={false}
             />
+
+            {/* Back to All button for per-chromosome view */}
+            {contig !== 'all' && onResetContig && imagesLoaded && (
+              <button
+                className="overview-back-button"
+                onClick={onResetContig}
+                title="Return to genome-wide view"
+              >
+                ← Back to All
+              </button>
+            )}
           </div>
 
           {/* Peak labels SVG - spans label area and plot */}
@@ -258,13 +276,17 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
       {/* Chromosome labels */}
       {imagesLoaded && dimensions.width > 0 && (
         <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <ChromosomeLabels width={dimensions.width} contig="all" />
+          <ChromosomeLabels width={dimensions.width} contig={contig} />
         </div>
       )}
 
       {/* Stats bar */}
       {imagesLoaded && (
         <div className="overview-stats" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
+          <div className="overview-stats-item">
+            <span className="overview-stats-label">Chromosome:</span>
+            <ChromosomeSelector />
+          </div>
           <div className="overview-stats-item">
             <span className="overview-stats-label">Combined loci:</span>
             <span className="overview-stats-value">{unifiedLoci.length.toLocaleString()}</span>
