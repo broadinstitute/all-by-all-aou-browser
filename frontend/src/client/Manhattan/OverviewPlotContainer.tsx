@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilState, useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
 import type { UnifiedOverviewResponse } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -32,6 +32,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
+  const setGeneId = useSetRecoilState(geneIdAtom);
+  const setResultLayout = useSetRecoilState(resultLayoutAtom);
 
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
@@ -81,13 +83,20 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     setSelectedPeakIds(ids);
   }, []);
 
+  const handleGeneClick = useCallback((geneId: string) => {
+    setGeneId(geneId);
+    setResultLayout('half');
+  }, [setGeneId, setResultLayout]);
+
   const handlePeakClick = useCallback(
     (node: any) => {
-      if (onLocusClick && node.peak) {
+      if (node.peak && node.peak.genes && node.peak.genes.length > 0) {
+        handleGeneClick(node.peak.genes[0].gene_id);
+      } else if (onLocusClick && node.peak) {
         onLocusClick(node.peak.contig, node.peak.position);
       }
     },
-    [onLocusClick]
+    [handleGeneClick, onLocusClick]
   );
 
   const handleLocusClick = useCallback(
@@ -163,6 +172,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
           <UnifiedLocusTable
             unifiedLoci={filteredLoci}
             onLocusClick={handleLocusClick}
+            onGeneClick={handleGeneClick}
             selectedPeakIds={selectedPeakIds}
             onTogglePeak={togglePeak}
             customLabelMode={customLabelMode}

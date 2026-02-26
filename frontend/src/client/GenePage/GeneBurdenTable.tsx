@@ -206,9 +206,19 @@ export const GeneBurdenTable = ({
   membershipFilters,
   setMembershipFilters,
 }: Props) => {
+  const [selectedMaf, setSelectedMaf] = React.useState<number>(0.001)
 
-  // Prepare all rows sorted by annotation then MAF
-  const allRows = prepareAllMafTableData(geneAssociations)
+  // Prepare all rows sorted by annotation then MAF, keeping only one row per annotation
+  // (deduplicate by annotation, keeping the first/most significant one)
+  const allRows = React.useMemo(() => {
+    const filtered = prepareAllMafTableData(geneAssociations).filter(row => row.max_maf === selectedMaf)
+    const seen = new Set<string>()
+    return filtered.filter(row => {
+      if (seen.has(row.annotation)) return false
+      seen.add(row.annotation)
+      return true
+    })
+  }, [geneAssociations, selectedMaf])
 
   // Also keep the old tableData for lambda GC rows
   const tableData: any = prepareTableData(
@@ -228,6 +238,18 @@ export const GeneBurdenTable = ({
 
   return (
     <div>
+      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <strong>Max MAF:</strong>
+        <select
+          value={selectedMaf}
+          onChange={(e) => setSelectedMaf(Number(e.target.value))}
+          style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
+        >
+          <option value={0.01}>1%</option>
+          <option value={0.001}>0.1%</option>
+          <option value={0.0001}>0.01%</option>
+        </select>
+      </div>
       <Table>
         <thead>
           <tr>

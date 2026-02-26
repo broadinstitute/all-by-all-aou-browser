@@ -1,12 +1,12 @@
 import React from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilState, useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import styled from 'styled-components';
 
 import { ManhattanViewer } from './ManhattanViewer';
 import type { ManhattanOverlay, SignificantHit } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -46,6 +46,13 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [contig, setContig] = useRecoilState(selectedContigAtom);
+  const setGeneId = useSetRecoilState(geneIdAtom);
+  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+
+  const handleGeneClick = React.useCallback((geneId: string) => {
+    setGeneId(geneId);
+    setResultLayout('half');
+  }, [setGeneId, setResultLayout]);
 
   interface Data {
     manhattanData: ManhattanApiResponse | null;
@@ -119,6 +126,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
         overlay={overlay}
         onHitClick={onHitClick}
         onPeakClick={onPeakClick}
+        onGeneClick={handleGeneClick}
         showStats={data.has_overlay}
         contig={contig}
         onContigClick={setContig}

@@ -50,7 +50,17 @@ const filterVariants = (
 
   if (membershipFilters && !Object.values(membershipFilters).every((item) => !item)) {
     filteredVariants = filteredVariants.filter((v) => {
-      return v.annotation && membershipFilters[v.annotation as keyof MembershipFilterOptions]
+      const cat = getCategoryFromConsequence(v.consequence || 'unknown')
+
+      if (cat === 'lof' && membershipFilters.pLoF) return true;
+      if (cat === 'missense' && membershipFilters.missense) return true;
+      if (cat === 'synonymous' && membershipFilters.synonymous) return true;
+      if (cat === 'non-coding' && membershipFilters['non-coding']) return true;
+
+      // Fallback for gene associations which use 'annotation' directly
+      if (v.annotation && membershipFilters[v.annotation as keyof MembershipFilterOptions]) return true;
+
+      return false;
     })
   }
 

@@ -40,6 +40,8 @@ export interface ManhattanViewerProps {
   onContigClick?: (contig: string) => void;
   /** Callback when a locus is clicked (for split-screen navigation) */
   onLocusClick?: (contig: string, position: number) => void;
+  /** Callback when a gene symbol is clicked */
+  onGeneClick?: (geneId: string) => void;
 }
 
 /**
@@ -62,6 +64,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   contig = 'all',
   onContigClick,
   onLocusClick,
+  onGeneClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -642,7 +645,16 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                   marginBottom: 2,
                                 }}
                               >
-                                <span style={{ fontWeight: 600 }}>{g.gene_symbol}</span>
+                                <span
+                                  style={{ fontWeight: 600, cursor: 'pointer', color: '#1565c0' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onGeneClick?.(g.gene_id);
+                                  }}
+                                  title={`View ${g.gene_symbol} page`}
+                                >
+                                  {g.gene_symbol}
+                                </span>
                                 {/* Burden dots */}
                                 {burdenTypes.includes('pLoF') && (
                                   <span style={{ color: '#d32f2f', marginLeft: 2 }} title="pLoF burden">●</span>
@@ -666,7 +678,21 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           {/* Non-implicated genes condensed */}
                           {nonImplicatedGenes.length > 0 && (
                             <span style={{ color: '#888', fontSize: 11 }}>
-                              {nonImplicatedGenes.slice(0, 3).map((g) => g.gene_symbol).join(', ')}
+                              {nonImplicatedGenes.slice(0, 3).map((g, idx) => (
+                                <React.Fragment key={g.gene_id}>
+                                  <span
+                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onGeneClick?.(g.gene_id);
+                                    }}
+                                    title={`View ${g.gene_symbol} page`}
+                                  >
+                                    {g.gene_symbol}
+                                  </span>
+                                  {idx < 2 && idx < nonImplicatedGenes.length - 1 && ', '}
+                                </React.Fragment>
+                              ))}
                               {nonImplicatedGenes.length > 3 && ` +${nonImplicatedGenes.length - 3}`}
                             </span>
                           )}

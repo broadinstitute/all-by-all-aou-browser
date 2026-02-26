@@ -404,17 +404,17 @@ const Phewas = ({
 
   const splitCategory = (category: string) => {
     if (typeof category !== 'string') {
-      return []
+      return ['Unknown Category']
     }
     if (!category) {
-      return []
+      return ['Unknown Category']
     }
     if (category.includes('|')) {
       return ['Other', ...category.split(' | ')]
-    } else if (category.includes('>')) {
+    } else if (category.includes(' > ')) {
       return category.split(' > ')
     }
-    return []
+    return [category]
   }
 
   const classifications = useMemo(() => {
@@ -767,13 +767,7 @@ const Phewas = ({
           // @ts-expect-error
           classifications={classifications}
           categoryListMaxHeight='90vh'
-          isStateExternallyControlled
           {...classificationSelectorInternalState}
-          expanded={[
-            "hierarchical$$$AxAoU Category$$$AxAoU$$",
-            "hierarchical$$$AxAoU Category$$$"
-          ]}
-
         />
       </div>
     </ControlContainer>
