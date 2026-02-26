@@ -152,23 +152,25 @@ pub async fn get_top_associations(
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 
-/// Response type for gene symbol list
+/// Response type for gene symbol list with IDs
 #[derive(Debug, Clone, Serialize, Deserialize, Row)]
 pub struct GeneSymbolRow {
     pub gene_symbol: String,
+    pub gene_id: String,
 }
 
 /// GET /api/genes/all-symbols
 ///
-/// Returns distinct gene symbols for autocomplete functionality.
-/// Results are ordered alphabetically.
+/// Returns distinct gene symbols with their IDs for autocomplete functionality.
+/// Results are ordered alphabetically by gene symbol.
 pub async fn get_all_symbols(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<String>>, AppError> {
+) -> Result<Json<Vec<GeneSymbolRow>>, AppError> {
     let query = r#"
-        SELECT DISTINCT gene_symbol
+        SELECT gene_symbol, any(gene_id) as gene_id
         FROM gene_associations
         WHERE gene_symbol != ''
+        GROUP BY gene_symbol
         ORDER BY gene_symbol
     "#;
 
@@ -179,8 +181,7 @@ pub async fn get_all_symbols(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    let symbols: Vec<String> = rows.into_iter().map(|r| r.gene_symbol).collect();
-    Ok(Json(symbols))
+    Ok(Json(rows))
 }
 
 /// Query parameters for specific gene associations via query string
