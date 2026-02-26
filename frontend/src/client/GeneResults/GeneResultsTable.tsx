@@ -79,7 +79,7 @@ class GeneResultsTable extends PureComponent<Props, State> {
             columns={columns}
             data={results}
             numRowsRendered={this.props.numRowsRendered}
-            rowKey={(result: GeneAssociations) => `${result.gene_symbol}-${result.gene_id}-${result.annotation}-${result.ancestry_group}`}
+            rowKey={(result: GeneAssociations) => `${result.gene_symbol}-${result.gene_id}-${result.annotation}-${result.max_maf}-${result.ancestry_group}`}
             sortKey={sortKey}
             sortOrder={sortAscending ? 'ascending' : 'descending'}
             onRequestSort={this.setSortKey}

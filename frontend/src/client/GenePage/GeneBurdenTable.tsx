@@ -104,6 +104,34 @@ export const prepareTableData = (geneAssociations: GeneAssociations[]) => {
   }, {})
 }
 
+// Format MAF for display (e.g., 0.01 -> "1%", 0.001 -> "0.1%", 0.0001 -> "0.01%")
+const formatMaf = (maf: number): string => {
+  if (maf >= 0.01) return `${(maf * 100).toFixed(0)}%`
+  if (maf >= 0.001) return `${(maf * 100).toFixed(1)}%`
+  return `${(maf * 100).toFixed(2)}%`
+}
+
+// Sort order for annotations
+const annotationOrder: Record<string, number> = {
+  'pLoF': 1,
+  'pLoF;missenseLC': 2,
+  'missenseLC': 3,
+  'synonymous': 4,
+}
+
+// Sort and prepare data for the new table format
+export const prepareAllMafTableData = (geneAssociations: GeneAssociations[]) => {
+  // Filter to standard annotations and sort by annotation then MAF
+  return geneAssociations
+    .filter(g => ['pLoF', 'pLoF;missenseLC', 'missenseLC', 'synonymous'].includes(g.annotation))
+    .sort((a, b) => {
+      const annotationDiff = (annotationOrder[a.annotation] || 99) - (annotationOrder[b.annotation] || 99)
+      if (annotationDiff !== 0) return annotationDiff
+      // Sort by MAF descending (1% first, then 0.1%, then 0.01%)
+      return (b.max_maf || 0) - (a.max_maf || 0)
+    })
+}
+
 interface Props {
   geneAssociations: GeneAssociations[]
   analysisMetadata?: AnalysisMetadata
@@ -164,6 +192,14 @@ export const GeneQc: React.FC<{ geneAssociations: GeneAssociations[]; burdenSet:
   return <>{geneQcFlag}</>
 }
 
+// Display label for annotations
+const annotationLabel: Record<string, string> = {
+  'pLoF': 'pLoF',
+  'pLoF;missenseLC': 'pLoF + missenseLC',
+  'missenseLC': 'missenseLC',
+  'synonymous': 'synonymous',
+}
+
 export const GeneBurdenTable = ({
   geneAssociations,
   analysisMetadata,
@@ -171,13 +207,24 @@ export const GeneBurdenTable = ({
   setMembershipFilters,
 }: Props) => {
 
+  // Prepare all rows sorted by annotation then MAF
+  const allRows = prepareAllMafTableData(geneAssociations)
+
+  // Also keep the old tableData for lambda GC rows
   const tableData: any = prepareTableData(
     geneAssociations.map((g: GeneAssociations) => ({
       ...g,
     }))
   );
-
   const renderCell = createRenderCell(tableData);
+
+  // Render a p-value cell with highlighting
+  const renderPvalueCell = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-'
+    let highlightColor = value < geneYellowThreshold ? yellowThresholdColor : null
+    highlightColor = value < geneGreenThreshold ? greenThresholdColor : highlightColor
+    return <RoundedNumber num={value} highlightColor={highlightColor} />
+  }
 
   return (
     <div>
@@ -185,82 +232,45 @@ export const GeneBurdenTable = ({
         <thead>
           <tr>
             <th scope='col'>Category</th>
+            <th scope='col'>MAF</th>
             <th scope='col'>P-value SKATO</th>
             <th scope='col'>P-value burden</th>
             <th scope='col'>P-value SKAT</th>
-            <th scope='col'>Gene QC</th>
             {membershipFilters && <th scope='col'>Filter</th>}
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <th>pLoF</th>
-            <td>{renderCell('pLoF', 'pvalue')}</td>
-            <td>{renderCell('pLoF', 'pvalue_burden')}</td>
-            <td>{renderCell('pLoF', 'pvalue_skat')}</td>
-            <td>
-              <GeneQc geneAssociations={geneAssociations} burdenSet={'pLoF'} />
-            </td>
-            {membershipFilters && (
-              <td>
-                <Checkbox
-                  label=''
-                  checked={membershipFilters.pLoF || false}
-                  id='pLoF-membership'
-                  disabled={false}
-                  onChange={(checked: boolean) => {
-                    setMembershipFilters({ ...membershipFilters, pLoF: checked })
-                  }}
-                />
+          {allRows.map((row, idx) => (
+            <tr key={`${row.annotation}-${row.max_maf}`}>
+              <th>{annotationLabel[row.annotation] || row.annotation}</th>
+              <td>{formatMaf(row.max_maf)}</td>
+              <td>{renderPvalueCell(row.pvalue)}</td>
+              <td>{renderPvalueCell(row.pvalue_burden)}</td>
+              <td>{renderPvalueCell(row.pvalue_skat)}</td>
+              {membershipFilters && (
+                <td>
+                  <Checkbox
+                    label=''
+                    checked={membershipFilters[row.annotation] || false}
+                    id={`${row.annotation}-${row.max_maf}-membership`}
+                    disabled={false}
+                    onChange={(checked: boolean) => {
+                      setMembershipFilters({ ...membershipFilters, [row.annotation]: checked })
+                    }}
+                  />
+                </td>
+              )}
+            </tr>
+          ))}
+          {allRows.length === 0 && (
+            <tr>
+              <td colSpan={membershipFilters ? 6 : 5} style={{ textAlign: 'center', color: '#666' }}>
+                No burden test results available
               </td>
-            )}
-          </tr>
-          <tr>
-            <th>missenseLC, LC</th>
-            <td>{renderCell('missenseLC', 'pvalue')}</td>
-            <td>{renderCell('missenseLC', 'pvalue_burden')}</td>
-            <td>{renderCell('missenseLC', 'pvalue_skat')}</td>
-            <td>
-              <GeneQc geneAssociations={geneAssociations} burdenSet={'missenseLC'} />
-            </td>
-            {membershipFilters && (
-              <td>
-                <Checkbox
-                  label=''
-                  checked={membershipFilters['missense'] || false}
-                  id='missenseLC-membership'
-                  disabled={false}
-                  onChange={(checked: boolean) => {
-                    setMembershipFilters({ ...membershipFilters, "missense": checked })
-                  }}
-                />
-              </td>
-            )}
-          </tr>
-          <tr>
-            <th>Synonymous</th>
-            <td>{renderCell('synonymous', 'pvalue')}</td>
-            <td>{renderCell('synonymous', 'pvalue_burden')}</td>
-            <td>{renderCell('synonymous', 'pvalue_skat')}</td>
-            <td>
-              <GeneQc geneAssociations={geneAssociations} burdenSet={'synonymous'} />
-            </td>
-            {membershipFilters && (
-              <td>
-                <Checkbox
-                  label=''
-                  checked={membershipFilters.synonymous || false}
-                  id='synonymous-membership'
-                  disabled={false}
-                  onChange={(checked: boolean) => {
-                    setMembershipFilters({ ...membershipFilters, synonymous: checked })
-                  }}
-                />
-              </td>
-            )}
-          </tr>
+            </tr>
+          )}
           <tr style={{ borderTop: '1px double black' }}>
-            <th className='tooltip'>
+            <th className='tooltip' colSpan={2}>
               <TooltipAnchor
                 tooltip={
                   'The lambda GC (genomic control) across all phenotypes for synonymous variants in this gene.'
@@ -274,10 +284,10 @@ export const GeneBurdenTable = ({
             <td>{renderCell('synonymous', 'synonymous_lambda_gc_skat')}</td>
           </tr>
           <tr>
-            <th className='tooltip'>
+            <th className='tooltip' colSpan={2}>
               <TooltipAnchor
                 tooltip={
-                  'The lambda GC (genomic control) for this phenotype across all ${burden_set} variants this gene for the SKAT-O test.'
+                  'The lambda GC (genomic control) for this phenotype across all variants in this gene.'
                 }
               >
                 <span style={{ whiteSpace: 'nowrap' }}>Pheno Lambda GC</span>

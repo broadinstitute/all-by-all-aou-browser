@@ -36,3 +36,6 @@ rand = "0.9"
 
 # Hail Data Access
 hail-decoder = { path = "../../../idk/hail-decoder" }
+
+# Unix resource limits
+rlimit = "0.10"

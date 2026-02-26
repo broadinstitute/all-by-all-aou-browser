@@ -120,6 +120,10 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Increase file descriptor limit to avoid "Too many open files" errors
+    // macOS defaults to 256 which is too low for concurrent GCS requests
+    increase_fd_limit();
+
     // Initialize tracing subscriber for logging
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -583,4 +587,31 @@ fn print_summary(assets: &AnalysisAssets) {
     }
 
     println!();
+}
+
+/// Increase file descriptor limit to handle concurrent GCS requests.
+/// macOS defaults to 256 soft limit which is too low.
+fn increase_fd_limit() {
+    use rlimit::{Resource, setrlimit, getrlimit};
+
+    const TARGET_LIMIT: u64 = 10240;
+
+    match getrlimit(Resource::NOFILE) {
+        Ok((soft, hard)) => {
+            let new_soft = TARGET_LIMIT.min(hard);
+            if soft < new_soft {
+                match setrlimit(Resource::NOFILE, new_soft, hard) {
+                    Ok(()) => {
+                        tracing::info!("Increased file descriptor limit: {} → {}", soft, new_soft);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to increase file descriptor limit: {}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to get file descriptor limit: {}", e);
+        }
+    }
 }

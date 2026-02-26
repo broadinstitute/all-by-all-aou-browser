@@ -423,6 +423,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     // 'chrom',
     // 'position',
     'annotation',
+    'max_maf',
     // 'ancestry_group',
     'pvalue',
     'pvalue_skat',
@@ -601,18 +602,8 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
                       return geneStart >= start && geneStart <= stop
                     })
 
-                    // Dedupe by gene_id + annotation, keeping the smallest max_maf
-                    const deduped = new Map<string, typeof filtered[0]>()
-                    for (const gene of filtered) {
-                      const key = `${gene.gene_id}_${gene.annotation}`
-                      const existing = deduped.get(key)
-                      if (!existing || (gene.max_maf < existing.max_maf)) {
-                        deduped.set(key, gene)
-                      }
-                    }
-
-                    // Sort by pvalue (most significant first)
-                    return Array.from(deduped.values()).sort((a, b) =>
+                    // Sort by pvalue (most significant first), showing all MAF thresholds
+                    return filtered.sort((a, b) =>
                       (a.pvalue ?? 1) - (b.pvalue ?? 1)
                     )
                   })()}

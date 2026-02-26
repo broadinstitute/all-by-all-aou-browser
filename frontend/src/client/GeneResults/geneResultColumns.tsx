@@ -123,6 +123,20 @@ const geneResultsColumns = [
     }
   },
   {
+    key: 'max_maf',
+    displayId: 'max_maf',
+    heading: 'MAF',
+    grow: 0,
+    minWidth: 60,
+    render: (row: GeneAssociations) => {
+      const maf = row.max_maf
+      if (maf == null) return '-'
+      if (maf >= 0.01) return `${(maf * 100).toFixed(0)}%`
+      if (maf >= 0.001) return `${(maf * 100).toFixed(1)}%`
+      return `${(maf * 100).toFixed(2)}%`
+    }
+  },
+  {
     key: 'top_pvalue',
     displayId: 'top_pvalue',
     heading: 'Top P-value',
