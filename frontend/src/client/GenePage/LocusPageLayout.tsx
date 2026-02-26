@@ -316,7 +316,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
         },
       ]
     })()
-    : exons || [{ start: 0, stop: 100 }]
+    : (exons && exons.length > 0) ? exons : [{ start: 0, stop: 100 }]
 
   let Container = PageWithGeneBurdenDetails
 

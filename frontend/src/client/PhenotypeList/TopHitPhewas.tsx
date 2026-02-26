@@ -3,8 +3,6 @@
 
 import React from 'react'
 import { useQuery } from '@axaou/ui'
-import { useHistory } from 'react-router-dom'
-import queryString from 'query-string'
 
 import { DocumentTitle, Spinner, StatusMessage, TitleWithScrollButtons } from '../UserInterface'
 import { Titles as TitlesBase, HalfPage } from '../UserInterface'
@@ -27,6 +25,10 @@ import {
   burdenSetAtom,
   resultLayoutAtom,
   phewasOptsAtom,
+  geneIdAtom,
+  analysisIdAtom,
+  resultIndexAtom,
+  regionIdAtom,
 } from '../sharedState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
@@ -167,10 +169,14 @@ const TopHitPhewasLayout = withSize()(
 interface Props { }
 
 const TopHitPhewas: React.FC<Props> = () => {
-  const history = useHistory()
-
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
+
+  const setGeneId = useSetRecoilState(geneIdAtom)
+  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const setResultIndex = useSetRecoilState(resultIndexAtom)
+  const setRegionId = useSetRecoilState(regionIdAtom)
+  const setResultLayout = useSetRecoilState(resultLayoutAtom)
 
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -179,7 +185,7 @@ const TopHitPhewas: React.FC<Props> = () => {
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
       { url: `${axaouDevUrl}/categories`, name: 'categories' },
       {
-        url: `${axaouDevUrl}/genes/top-associations/${burdenSet}?ancestry_group=${ancestryGroup}`,
+        url: `${axaouDevUrl}/genes/top-associations?ancestry=${ancestryGroup}&annotation=${burdenSet}&limit=5000`,
         name: 'geneAssociations',
       },
       { url: `${axaouDevUrl}/config`, name: 'config' },
@@ -223,19 +229,15 @@ const TopHitPhewas: React.FC<Props> = () => {
         geneAssociations.data,
         analysesMetadata.data
       ),
-      getAvailableAnalysisIds(availableAnalysesState!.data!)
+      getAvailableAnalysisIds(availableAnalysesState?.data)
     );
 
   const onPointClick = ({ gene_id, analysis_id }: GenePhewasAnnotated) => {
-    const queryParams = queryString.parse(location.search)
-    const { resultLayout } = queryParams || 'full'
-    const newLayout = resultLayout === 'full' ? 'small' : resultLayout
-    const search = queryString.stringify({ ...queryParams, resultLayout: newLayout })
-
-    history.push({
-      pathname: `/gene/${gene_id}/phenotype/${analysis_id}`,
-      search,
-    })
+    setGeneId(gene_id)
+    setAnalysisId(analysis_id)
+    setRegionId(null)
+    setResultIndex('gene-phewas')
+    setResultLayout('half')
   }
 
   const categoriesPrepared = categories.data.map(modifyCategoryColor)

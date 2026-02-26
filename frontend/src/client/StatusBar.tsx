@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 
-import { Link, ExternalLink } from '@gnomad/ui'
+import { Link } from '@gnomad/ui'
 import { useQuery } from '@axaou/ui'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
@@ -11,10 +11,8 @@ import {
   useGetActiveItems
 } from './sharedState'
 import { AnalysisMetadata, GeneModels } from './types'
-import { ColorMarker, TogglePaneButton } from './UserInterface'
+import { LayoutToggle, LayoutMode } from './UserInterface'
 import { getAnalysisDisplayTitle } from './utils'
-import AriaModal from "react-aria-modal";
-
 const Container = styled.div`
   display: flex;
   flex-direction: row;
@@ -35,74 +33,6 @@ const Container = styled.div`
     margin-right: 3px;
   }
 `
-
-const NoticeContainer = styled.div`
-  padding: 20px;
-  background-color: white;
-  border-radius: 5px;
-  width: 50%;
-  margin: 0 auto;
-  font-size: 16px;
-
-  h1 {
-    font-size: 24px;
-    margin-bottom: 20px;
-  }
-
-  p {
-    margin-bottom: 1em;
-    line-height: 1.4;
-  }
-
-  button {
-    float: right;
-    margin-top: -10px;
-    margin-right: -10px;
-    background-color: #262262;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-`;
-
-const DataUpdateNotice: React.FC = () => {
-  const [isModalOpen, setModalOpen] = useState(false);
-
-  return (
-    <>
-      <div
-        className="status-bar-item"
-        onClick={() => setModalOpen(true)}
-        style={{ cursor: "pointer", marginLeft: 20, fontSize: 16 }}
-      >
-        ℹ️ Data Update Notice
-      </div>
-      {isModalOpen && (
-        <AriaModal
-          titleText="Data Update Notice"
-          onExit={() => setModalOpen(false)}
-          initialFocus="#close-button"
-        >
-          <NoticeContainer>
-            <button
-              id="close-button"
-              onClick={() => setModalOpen(false)}
-            >
-              Close
-            </button>
-            <h1>Data Update Notice</h1>
-            <p>
-              The <em>All of Us</em> Researcher Workbench team released an incremental update for the All by All tables related to the Personal and Family Health History (PFHH) and Phecode phenotypes to align with data processing and quality assurance. <ExternalLink href="https://support.researchallofus.org/hc/en-us/articles/34401312793748">Visit the User Support Hub for more information</ExternalLink>.
-
-            </p>
-          </NoticeContainer>
-        </AriaModal>
-      )}
-    </>
-  );
-};
 
 interface Data {
   geneModels: GeneModels[] | null
@@ -147,7 +77,7 @@ export const StatusBar: React.FC = () => {
   }
 
 
-  const { geneId, analysisId, regionId, variantId, burdenSet, selectedAnalyses } = useGetActiveItems()
+  const { geneId, analysisId, regionId, variantId, selectedAnalyses } = useGetActiveItems()
 
   const setResultIndex = useSetRecoilState(resultIndexAtom)
   const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
@@ -184,27 +114,11 @@ export const StatusBar: React.FC = () => {
 
   const geneModel = geneModels.data[0]
 
-  let burdenMarkerColor = 'grey'
-
-  if (burdenSet === 'pLoF') {
-    burdenMarkerColor = '#FF583F'
-  } else if (burdenSet === 'missenseLC') {
-    burdenMarkerColor = '#F0C94D'
-  } else {
-    burdenMarkerColor = '#757575'
-  }
+  // Determine the right-side label based on what's active
+  const rightLabel = regionId ? 'Locus' : geneId && geneId !== 'undefined' ? 'Gene' : 'Details';
 
   return (
     <Container>
-      <div className="status-bar-item">
-        <TogglePaneButton
-          paneIsClosed={resultsLayout === 'hidden'}
-          tooltip={resultsLayout === 'hidden' ? "Expand left-hand panel" : "Collapse left-hand panel"}
-          onClick={() =>
-            setResultsLayout(resultsLayout === 'hidden' ? 'half' : 'hidden')
-          }
-        />
-      </div>
       {analysisId && (
         <div className='status-bar-item'>
           <strong>Phenotype:</strong>
@@ -252,56 +166,11 @@ export const StatusBar: React.FC = () => {
           </Link>
         </div>
       )}
-      {/* <div className='status-bar-item'> */}
-      {/*   <strong>Ancestry group:</strong> */}
-      {/*   <select */}
-      {/*     value={ancestryGroup} */}
-      {/*     onChange={(e) => setAncestryGroup(e.target.value as AncestryGroupCodes)} */}
-      {/*   > */}
-      {/*     <option value='afr'>AFR</option> */}
-      {/*     <option value='amr'>AMR</option> */}
-      {/*     <option value='eas'>EAS</option> */}
-      {/*     <option value='eur'>EUR</option> */}
-      {/*     <option value='mid'>MID</option> */}
-      {/*     <option value='sas'>SAS</option> */}
-      {/*     <option value='meta'>META</option> */}
-      {/*   </select> */}
-      {/* </div> */}
-      {/* <div className='status-bar-item'> */}
-      {/*   <strong>Sequencing type:</strong> */}
-      {/*   <select */}
-      {/*     value={sequencingType} */}
-      {/*     onChange={(e) => setSequencingType(e.target.value as SequencingType)} */}
-      {/*   > */}
-      {/*     <option value='genomes'>WGS</option> */}
-      {/*     <option value='exomes'>WES</option> */}
-      {/*     <option value='exomes_and_genomes'>WES + WGS</option> */}
-      {/*     {/* <option value='genomes'>WES + WGS</option> */}
-      {/*   </select> */}
-      {/* </div> */}
-      <div className='status-bar-item'>
-        <strong>Burden set:</strong>
-        <ColorMarker color={burdenMarkerColor} />
-        {burdenSet}
-      </div>
-      <DataUpdateNotice />
-      {/* <Link */}
-      {/*   style={{ cursor: 'pointer' }} */}
-      {/*   onClick={() => { */}
-      {/*     setResultIndex('analyses') */}
-      {/*     setResultsLayout('half') */}
-      {/*   }} */}
-      {/* > */}
-      {/*   Analyses */}
-      {/* </Link> */}
-      <div className='status-bar-item' style={{ marginLeft: 'auto', marginRight: 50 }}>
-        <TogglePaneButton
-          paneIsClosed={resultsLayout === 'full'}
-          direction="right"
-          tooltip={resultsLayout === 'full' ? "Expand right-hand panel" : "Collapse right-hand panel"}
-          onClick={() =>
-            setResultsLayout(resultsLayout === 'full' ? 'half' : 'full')
-          }
+      <div className="status-bar-item" style={{ marginLeft: 'auto', marginRight: 20 }}>
+        <LayoutToggle
+          value={resultsLayout as LayoutMode}
+          onChange={(mode) => setResultsLayout(mode)}
+          rightLabel={rightLabel}
         />
       </div>
     </Container>

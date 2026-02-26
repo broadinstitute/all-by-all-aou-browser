@@ -630,7 +630,7 @@ const PhenotypeTable = (props: PhenotypeTableProps) => {
       onVisibleRowsChange={onVisibleRowsChange}
       // @ts-expect-error
       ref={grid}
-      rowKey={(phenotype: any) => `${(phenotype as any).analysis_id}-${(phenotype as any).gene_id}`}
+      rowKey={(phenotype: any, index: number) => `${(phenotype as any).analysis_id}-${(phenotype as any).gene_id}-${index}`}
       sortKey={sortKey}
       sortOrder={sortOrder ? 'ascending' : 'descending'}
     />
