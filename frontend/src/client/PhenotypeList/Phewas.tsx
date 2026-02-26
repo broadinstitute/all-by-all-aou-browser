@@ -369,7 +369,7 @@ const Phewas = ({
     })
   }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup])
 
-  const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
+  const pValueKeyName = !isGenePhewas ? 'pvalue' : pValueTypeToPValueKeyName[pValueType]
 
   const {
     betaIntervalMin,
@@ -493,7 +493,7 @@ const Phewas = ({
   }
 
   const betaPlotWarningElem =
-    pValueType === P_VALUE_BURDEN ? null : (
+    (!isGenePhewas || pValueType === P_VALUE_BURDEN) ? null : (
       <div>
         Note: the displayed pvalues and betas are derived from distinct statistical tests (
         {testMismatchWarningLabel} and Burden, respectively)

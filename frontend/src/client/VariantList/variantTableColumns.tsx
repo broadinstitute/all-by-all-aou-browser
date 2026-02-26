@@ -357,7 +357,7 @@ export const getVariantColumns = ({
               onClick={() => {
                 setVariantId(row.variant_id)
                 setResultIndex("variant-phewas")
-                setResultLayout(resultLayout => resultLayout === 'full' ? 'half' : resultLayout)
+                setResultLayout(resultLayout => (resultLayout === 'full' || resultLayout === 'hidden') ? 'half' : resultLayout)
 
               }}
             />
@@ -388,7 +388,7 @@ export const getVariantColumns = ({
               onClick={() => {
                 setVariantId(row.variant_id)
                 setResultIndex("variant-phewas")
-                setResultLayout(resultLayout => resultLayout === 'full' ? 'half' : resultLayout)
+                setResultLayout(resultLayout => (resultLayout === 'full' || resultLayout === 'hidden') ? 'half' : resultLayout)
 
               }}
             />

@@ -152,11 +152,11 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/variants/associations/phewas/chr${variantId}?ancestryGroup=${ancestryGroup}`,
+        url: `${axaouDevUrl}/variants/associations/phewas/${variantId}`,
         name: 'variantAssociations',
       },
       {
-        url: `${axaouDevUrl}/variants/annotations/chr${variantId}?ancestry_group=${ancestryGroup}`,
+        url: `${axaouDevUrl}/variants/annotations/${variantId}?extended=true`,
         name: 'variantAnnotations',
       },
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
@@ -165,20 +165,6 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     deps: [variantId, ancestryGroup, sequencingType],
     cacheEnabled,
   })
-
-  return (
-    <Container>
-      <h1>
-        Variant Page Coming Soon.{' '}
-        <a
-          style={{ color: 'blue', cursor: 'pointer' }}
-          onClick={() => setVariantId(null)}
-        >
-          Go back..
-        </a>
-      </h1>
-    </Container>
-  );
 
   if (anyLoading()) {
     return (
@@ -241,7 +227,9 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     )
   }
 
-  const variantAnnotationsWithId = addVariantIdsToList(queryStates.variantAnnotations?.data ?? []);
+  const rawAnnotation = queryStates.variantAnnotations?.data;
+  const annotationArray = Array.isArray(rawAnnotation) ? rawAnnotation : (rawAnnotation ? [rawAnnotation] : []);
+  const variantAnnotationsWithId = addVariantIdsToList(annotationArray);
   const associationsWithId = addVariantIdsToList(queryStates.variantAssociations?.data ?? []);
 
   console.log(queryStates)
@@ -254,14 +242,17 @@ const ConnectedVariantPhewas = ({ size }: any) => {
 
   const uniquePhenotypes = variantAssociations.data
     .map((variantAssociation) => {
+      // Backend maps phenotype to 'phenotype', fall back to 'analysis_id' just in case
+      const assocAnalysisId = (variantAssociation as any).phenotype || variantAssociation.analysis_id;
       const analysisMeta = analysesMetadata.data!.find(
-        (analysis) => analysis.analysis_id === variantAssociation.analysis_id // TODO: fixme should be phenoname?
+        (analysis) => analysis.analysis_id === assocAnalysisId
       )
-      console.log(analysisMeta)
+
       if (analysisMeta) {
         return {
           ...variantAssociation,
           ...analysisMeta,
+          analysis_id: analysisMeta.analysis_id,
           phenocode: analysisMeta.analysis_id,
           BETA: variantAssociation.beta,
           pvalue: variantAssociation.pvalue,
