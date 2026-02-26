@@ -86,9 +86,50 @@ impl LocusVariantFullRow {
             ref_allele: self.ref_allele.clone(),
             alt: self.alt.clone(),
             pvalue: self.pvalue,
-            beta: 0.0,  // Not available in loci_variants
-            se: 0.0,    // Not available in loci_variants
-            af: 0.0,    // Not available in loci_variants
+            beta: 0.0,
+            se: 0.0,
+            af: 0.0,
+            phenotype: self.phenotype.clone(),
+            ancestry: self.ancestry.clone(),
+            sequencing_type: self.sequencing_type.clone(),
+        }
+    }
+}
+
+/// Full locus variant row with association stats (beta, se, af)
+///
+/// Extended version that includes nullable association statistics.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct LocusVariantFullRowWithStats {
+    pub phenotype: String,
+    pub ancestry: String,
+    pub sequencing_type: String,
+    pub contig: String,
+    pub xpos: i64,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub pvalue: f64,
+    pub neg_log10_p: f32,
+    pub is_significant: bool,
+    pub beta: Option<f64>,
+    pub se: Option<f64>,
+    pub af: Option<f64>,
+}
+
+impl LocusVariantFullRowWithStats {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> VariantAssociationApi {
+        VariantAssociationApi {
+            variant_id: make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position as u32),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            pvalue: self.pvalue,
+            beta: self.beta.unwrap_or(0.0),
+            se: self.se.unwrap_or(0.0),
+            af: self.af.unwrap_or(0.0),
             phenotype: self.phenotype.clone(),
             ancestry: self.ancestry.clone(),
             sequencing_type: self.sequencing_type.clone(),

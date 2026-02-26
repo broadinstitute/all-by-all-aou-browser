@@ -189,6 +189,20 @@ impl fmt::Display for SequencingType {
     }
 }
 
+/// Details about a loaded analysis asset
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalysisDetail {
+    pub sequencing_type: String,
+    pub ancestry_group: String,
+}
+
+/// A loaded analysis with its available sequencing and ancestry details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoadedAnalysis {
+    pub analysis_id: String,
+    pub details: Vec<AnalysisDetail>,
+}
+
 /// Type of analysis asset (result file)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

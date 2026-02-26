@@ -340,13 +340,15 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
         if (regionId) {
           const { start, stop } = parseRegionId(regionId);
           filtered = filtered.filter((variant) => {
-            const variantPos = variant.locus.position;
+            const variantPos = variant.locus?.position;
+            if (variantPos === undefined) return false;
             return variantPos >= start && variantPos <= stop;
           });
         } else if (geneModel) {
           const { start, stop } = geneModel;
           filtered = filtered.filter((variant) => {
-            const variantPos = variant.locus.position;
+            const variantPos = variant.locus?.position;
+            if (variantPos === undefined) return false;
             return variantPos >= start && variantPos <= stop;
           });
         }

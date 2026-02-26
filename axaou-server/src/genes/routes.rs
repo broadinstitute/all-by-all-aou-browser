@@ -183,6 +183,48 @@ pub async fn get_all_symbols(
     Ok(Json(symbols))
 }
 
+/// Query parameters for specific gene associations via query string
+#[derive(Debug, Deserialize)]
+pub struct GeneAssociationsQueryParams {
+    pub gene_id: String,
+    pub analysis_id: String,
+    pub ancestry_group: String,
+    #[serde(default)]
+    pub use_index: Option<String>,
+}
+
+/// GET /api/genes/associations
+///
+/// Returns gene associations for a specific gene, phenotype, and ancestry.
+/// Maps to the frontend's specific query parameter format.
+pub async fn get_genes_associations(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<GeneAssociationsQueryParams>,
+) -> Result<Json<Vec<crate::models::GeneAssociationApi>>, AppError> {
+    let base_query = r#"
+        SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
+               pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
+               contig, gene_start_position, xpos
+        FROM gene_associations
+        WHERE gene_id = ? AND phenotype = ? AND ancestry = ?
+        ORDER BY pvalue ASC
+    "#;
+
+    let rows = state
+        .clickhouse
+        .query(base_query)
+        .bind(&params.gene_id)
+        .bind(&params.analysis_id)
+        .bind(&params.ancestry_group)
+        .fetch_all::<GeneAssociationRow>()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    let api_rows: Vec<crate::models::GeneAssociationApi> =
+        rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(api_rows))
+}
+
 /// Query parameters for gene associations interval endpoint
 #[derive(Debug, Deserialize)]
 pub struct GeneIntervalQuery {

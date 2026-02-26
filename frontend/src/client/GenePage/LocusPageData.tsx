@@ -59,7 +59,14 @@ const annotateVariantWithAnalysisMetadata = (
   const analysisMetadata = analysesMetadata.find((a) => a.analysis_id === analysisId)
 
   if (!analysisMetadata) {
-    throw new Error('Analysis metadata is not available.')
+    // Return variant without metadata annotation if not found
+    return {
+      ...v,
+      analysis_id: analysisId,
+      analysis_description: analysisId,
+      analysisMetadata: undefined,
+      trait_type: 'unknown',
+    }
   }
 
   const { trait_type } = analysisMetadata

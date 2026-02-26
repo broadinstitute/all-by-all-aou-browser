@@ -8,7 +8,8 @@
 
 use crate::api::AppState;
 use crate::clickhouse::models::{
-    LocusVariantFullRow, SignificantVariantRow, VariantAnnotationExtendedRow, VariantAnnotationRow,
+    LocusVariantFullRow, LocusVariantFullRowWithStats, SignificantVariantRow,
+    VariantAnnotationExtendedRow, VariantAnnotationRow,
 };
 use crate::clickhouse::xpos::{compute_xpos, parse_interval_to_xpos, parse_variant_id};
 use crate::error::AppError;
@@ -377,9 +378,16 @@ pub async fn get_associations_by_interval(
     let ancestry = params.ancestry_group.as_deref().unwrap_or("meta");
     let sequencing_type = params.sequencing_type.as_deref().unwrap_or("genome");
 
+    // Normalize sequencing_type (frontend may send "exome" or "exomes")
+    let seq_type_normalized = if sequencing_type.ends_with('s') {
+        &sequencing_type[..sequencing_type.len() - 1]
+    } else {
+        sequencing_type
+    };
+
     let query = r#"
         SELECT phenotype, ancestry, sequencing_type, contig, xpos, position,
-               ref, alt, pvalue, neg_log10_p, is_significant
+               ref, alt, pvalue, neg_log10_p, is_significant, beta, se, af
         FROM loci_variants
         WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
           AND xpos >= ? AND xpos <= ?
@@ -390,10 +398,10 @@ pub async fn get_associations_by_interval(
         .query(query)
         .bind(&params.analysis_id)
         .bind(ancestry)
-        .bind(sequencing_type)
+        .bind(seq_type_normalized)
         .bind(xpos_start)
         .bind(xpos_end)
-        .fetch_all::<LocusVariantFullRow>()
+        .fetch_all::<LocusVariantFullRowWithStats>()
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 

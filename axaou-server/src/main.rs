@@ -242,6 +242,7 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     get(api::get_gene_models_in_interval),
                 )
                 // Analysis assets discovery endpoints
+                .route("/analyses-loaded", get(api::get_analyses_loaded))
                 .route("/assets", get(api::get_assets))
                 .route("/assets/summary", get(api::get_assets_summary))
                 // Gene association query endpoints
@@ -350,6 +351,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/genes/all-symbols",
                     get(genes::routes::get_all_symbols),
+                )
+                .route(
+                    "/genes/associations",
+                    get(genes::routes::get_genes_associations),
                 )
                 .route(
                     "/genes/associations/interval/:interval",

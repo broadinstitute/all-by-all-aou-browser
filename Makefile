@@ -48,7 +48,13 @@ dev:
 # Start only backend with hot reloading
 dev-backend:
 	@echo "Starting Rust backend with hot reloading on http://localhost:3001"
-	cd axaou-server && cargo watch -x 'run -- serve --port 3001'
+	@if [ -f "$(HOME)/data/axaou-local/v8-assets.json" ]; then \
+		echo "Using pre-computed assets: $(HOME)/data/axaou-local/v8-assets.json"; \
+		cd axaou-server && cargo watch -x 'run -- serve --port 3001 --assets-file $(HOME)/data/axaou-local/v8-assets.json'; \
+	else \
+		echo "No assets file found, will discover from GCS on-demand"; \
+		cd axaou-server && cargo watch -x 'run -- serve --port 3001'; \
+	fi
 
 # Start only frontend with HMR
 dev-frontend:

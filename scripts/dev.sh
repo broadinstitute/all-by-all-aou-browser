@@ -18,6 +18,7 @@ NC='\033[0m' # No Color
 BACKEND_PORT="${BACKEND_PORT:-3001}"
 FRONTEND_PORT="${FRONTEND_PORT:-8000}"
 LOG_DIR="/tmp"
+ASSETS_FILE="${ASSETS_FILE:-$HOME/data/axaou-local/v8-assets.json}"
 
 # Cleanup function
 cleanup() {
@@ -72,10 +73,18 @@ start_backend() {
     cd "$PROJECT_DIR/axaou-server"
 
     # Use cargo-watch to rebuild and restart on changes
+    local assets_flag=""
+    if [ -f "$ASSETS_FILE" ]; then
+        assets_flag="--assets-file $ASSETS_FILE"
+        echo -e "${GREEN}[Backend]${NC} Using pre-computed assets: $ASSETS_FILE"
+    else
+        echo -e "${YELLOW}[Backend]${NC} No assets file found, will discover from GCS on-demand"
+    fi
+
     cargo watch \
         -w src \
         -w Cargo.toml \
-        -s "cargo run -- serve --port $BACKEND_PORT" \
+        -s "cargo run -- serve --port $BACKEND_PORT $assets_flag" \
         2>&1 | while IFS= read -r line; do
             echo -e "${BLUE}[Backend]${NC} $line"
         done &

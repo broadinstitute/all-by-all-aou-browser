@@ -4,8 +4,8 @@ use crate::error::AppError;
 use crate::gene_models::GeneModelsQuery;
 use crate::gene_queries::GeneQueryEngine;
 use crate::models::{
-    AnalysisAsset, AnalysisAssets, AnalysisMetadata, AncestryGroup, GeneAssociationResponse,
-    GeneAssociationResult, GeneModel, GeneQueryParams,
+    AnalysisAsset, AnalysisAssets, AnalysisDetail, AnalysisMetadata, AncestryGroup,
+    GeneAssociationResponse, GeneAssociationResult, GeneModel, GeneQueryParams, LoadedAnalysis,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -577,23 +577,82 @@ pub async fn list_gene_associations(
     Ok(Json(api_rows))
 }
 
-/// Ensure assets are loaded (discover if needed)
-async fn ensure_assets_loaded(state: &AppState) -> Result<(), AppError> {
-    let needs_discovery = {
-        let assets = state.assets.read().await;
-        assets.is_none()
-    };
+/// Handler for GET /api/analyses-loaded
+///
+/// Returns a list of analyses that have discovered result assets,
+/// grouped by analysis_id with details on available sequencing and ancestry groups.
+pub async fn get_analyses_loaded(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<LoadedAnalysis>>, AppError> {
+    ensure_assets_loaded(&state).await?;
 
-    if needs_discovery {
-        tracing::info!("Discovering analysis assets from GCS...");
-        let discovery = crate::analysis_assets::AssetDiscovery::new()?;
-        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
-        let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
-        tracing::info!("Discovered {} assets", discovered.assets.len());
+    let assets_lock = state.assets.read().await;
+    let assets_ref = assets_lock.as_ref().unwrap();
 
-        let mut assets_lock = state.assets.write().await;
-        *assets_lock = Some(discovered);
+    let mut grouped: std::collections::HashMap<String, std::collections::HashSet<(String, String)>> =
+        std::collections::HashMap::new();
+
+    for asset in &assets_ref.assets {
+        let seq_type = asset
+            .sequencing_type
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "exomes".to_string());
+        let anc = asset.ancestry_group.to_string();
+        grouped
+            .entry(asset.analysis_id.clone())
+            .or_default()
+            .insert((seq_type, anc));
     }
+
+    let mut loaded: Vec<LoadedAnalysis> = grouped
+        .into_iter()
+        .map(|(analysis_id, details_set)| {
+            let details = details_set
+                .into_iter()
+                .map(|(sequencing_type, ancestry_group)| AnalysisDetail {
+                    sequencing_type,
+                    ancestry_group,
+                })
+                .collect();
+            LoadedAnalysis {
+                analysis_id,
+                details,
+            }
+        })
+        .collect();
+
+    // Sort for deterministic output
+    loaded.sort_by(|a, b| a.analysis_id.cmp(&b.analysis_id));
+
+    Ok(Json(loaded))
+}
+
+/// Ensure assets are loaded (discover if needed)
+/// Uses double-checked locking to avoid redundant GCS discovery.
+async fn ensure_assets_loaded(state: &AppState) -> Result<(), AppError> {
+    // Fast path: check with read lock
+    {
+        let assets = state.assets.read().await;
+        if assets.is_some() {
+            return Ok(());
+        }
+    }
+
+    // Slow path: acquire write lock and check again (double-checked locking)
+    let mut assets_lock = state.assets.write().await;
+    if assets_lock.is_some() {
+        // Another request already populated the cache
+        return Ok(());
+    }
+
+    // We hold the write lock, so we're the only one doing discovery
+    tracing::info!("Discovering analysis assets from GCS...");
+    let discovery = crate::analysis_assets::AssetDiscovery::new()?;
+    let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
+    let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
+    tracing::info!("Discovered {} assets", discovered.assets.len());
+
+    *assets_lock = Some(discovered);
 
     Ok(())
 }
