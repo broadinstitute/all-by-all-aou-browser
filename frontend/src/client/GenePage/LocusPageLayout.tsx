@@ -59,9 +59,11 @@ const GenePageGridStyles = styled.div`
 
   .associations-page-grid {
     width: 100%;
-    max-height: calc(100vh - 10em);
+    height: 100%;
+    min-height: 0;
     overflow-y: auto;
     padding-right: 20px;
+    padding-bottom: 50px;
 
     display: grid;
 

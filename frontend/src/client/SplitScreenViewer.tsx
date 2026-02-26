@@ -198,8 +198,8 @@ const Container = styled.div<{ item1Size: number; item2Size: number }>`
   .resizable-inner-container {
     width: 100%;
     height: 100%;
-    padding: 0 0 150px 10px;
-    overflow-y: scroll;
+    padding: 0 0 20px 10px;
+    overflow-y: auto;
     position: relative;
   }
 `
