@@ -63,7 +63,7 @@ const RootContainerGene = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 2000px;
+  min-height: 1000px;
   max-width: 100%;
 
   .data-container {

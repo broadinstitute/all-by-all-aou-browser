@@ -4,7 +4,7 @@
 import React from 'react'
 import { useQuery } from '@axaou/ui'
 
-import { DocumentTitle, Spinner, StatusMessage, TitleWithScrollButtons } from '../UserInterface'
+import { DocumentTitle, Spinner, StatusMessage } from '../UserInterface'
 import { Titles as TitlesBase, HalfPage } from '../UserInterface'
 import {
   modifyCategoryColor,
@@ -149,17 +149,6 @@ const TopHitPhewasLayout = withSize()(
           onHoverAnalysis={onHoverAnalysis}
           size={size}
           phewasType='topHit'
-        />
-        <TitleWithScrollButtons
-          title={"Top Gene Associations"}
-          buttons={[
-            {
-              targetSelector: '.top-hit-phewas',
-              containerSelector: '.resizable-inner-container',
-              label: 'Gene Burden (PheWAS)',
-            },
-          ]}
-          width={size.width}
         />
       </>
     )

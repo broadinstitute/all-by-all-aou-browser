@@ -106,7 +106,7 @@ const ResizableItems = withSize({
             overflow: 'scroll',
             paddingRight: 100,
             paddingLeft: 100,
-            paddingTop: 40,
+            paddingTop: 10,
           }}
         >
           <ResultIndexComponent size={leftPanelSize} />
@@ -132,9 +132,7 @@ const ResizableItems = withSize({
         >
           <div className="resizable-grid-item1">
             <div className="resizable-inner-container">
-              {resultsLayout !== 'hidden' && <FloatingContent><CloseIcon onClick={closeRightPanel}>&times;</CloseIcon></FloatingContent>}
               {resultsLayout !== 'hidden' ? <ResultIndexComponent size={leftPanelSize} /> : null}
-
             </div>
           </div>
         </Resizable>
@@ -149,25 +147,6 @@ const ResizableItems = withSize({
     )
   }
 )
-
-const FloatingContent = styled.div`
-  position: absolute;
-  top: 2px;
-  right: 7px;
-  z-index: 100;
-`
-
-const CloseIcon = styled.div`
-  max-width: 50px;
-  font-size: 24px;
-  cursor: pointer;
-  color: black;
-  z-index: 10; 
-  &:hover {
-    color: grey;
-  }
-
-`
 
 const Container = styled.div<{ item1Size: number; item2Size: number }>`
   height: 100%;

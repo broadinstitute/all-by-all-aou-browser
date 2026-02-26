@@ -7,7 +7,7 @@ import React from 'react'
 import { getPhenotypeColumns } from '../PhenotypeList/PhenotypeTable'
 import Phewas from '../PhenotypeList/Phewas'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
-import { DocumentTitle, HalfPage, ScrollButton, ScrollButtonContainer, Spinner, StatusMessage, Titles as TitlesBase, TitleWithScrollButtons } from '../UserInterface'
+import { DocumentTitle, HalfPage, ScrollButton, ScrollButtonContainer, Spinner, StatusMessage, Titles as TitlesBase } from '../UserInterface'
 
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
@@ -142,22 +142,6 @@ const GenePhewasLayout = ({
 
   return (
     <>
-      <TitleWithScrollButtons
-        title={`${geneSymbol} (${geneId})`}
-        buttons={[
-          {
-            targetSelector: ".gene-info",
-            containerSelector: ".resizable-inner-container",
-            label: "Gene Info",
-          },
-          {
-            targetSelector: ".gene-burden-phewas",
-            containerSelector: ".resizable-inner-container",
-            label: "Gene Burden (PheWAS)",
-          },
-        ]}
-        width={size.width} // Ensure this is set to the correct width
-      />
       {geneModel && <GeneInfo geneIdentifier={geneSymbol || geneId || "Gene"} geneModel={geneModel} />}
       <DocumentTitle title={`${geneSymbol} | ${burdenSet} | All by All Browser`} />
       <Titles>
@@ -271,9 +255,9 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
   const uniquePhenotypes = filterValidAnalyses(
     annotateGenePhewasWithAnalysisMetadata(
       geneAssociationsForAncestry,
-      analysesMetadata.data
+      analysesMetadata.data || []
     ),
-    getAvailableAnalysisIds(availableAnalysesState!.data!)
+    getAvailableAnalysisIds(availableAnalysesState?.data)
   ).filter(hasGeneAssociationPvalues)
 
 

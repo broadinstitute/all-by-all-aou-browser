@@ -50,7 +50,6 @@ export const HalfPage = styled.div`
   min-width: 100%;
   max-width: 100%;
   align-items: center;
-  height: 100%;
 `
 
 export const Divider = styled.div`
@@ -429,6 +428,108 @@ export const TogglePaneButton: React.FC<TogglePaneButtonProps> = ({
   >
     <ToggleIcon paneIsClosed={paneIsClosed} direction={direction} />
   </ToggleButtonContainer>
+);
+
+// Layout Toggle - a nicer segmented control for switching between layout modes
+const LayoutToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  background: #e8e8e8;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+`;
+
+const LayoutOption = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 4px;
+  background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
+  color: ${({ $active }) => ($active ? 'white' : '#555')};
+  font-size: 12px;
+  font-family: GothamBook, sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${({ $active }) => ($active ? '#262262' : '#d0d0d0')};
+  }
+
+  svg {
+    width: 16px;
+    height: 12px;
+  }
+`;
+
+// SVG icons for the layout options
+const LayoutIconLeft = () => (
+  <svg viewBox="0 0 24 16" fill="currentColor">
+    <rect x="1" y="1" width="22" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="2" y="2" width="20" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+  </svg>
+);
+
+const LayoutIconSplit = () => (
+  <svg viewBox="0 0 24 16" fill="currentColor">
+    <rect x="1" y="1" width="22" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="2" y="2" width="9" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+    <rect x="13" y="2" width="9" height="12" rx="1" fill="currentColor" opacity="0.6"/>
+    <line x1="12" y1="2" x2="12" y2="14" stroke="currentColor" strokeWidth="1"/>
+  </svg>
+);
+
+const LayoutIconRight = () => (
+  <svg viewBox="0 0 24 16" fill="currentColor">
+    <rect x="1" y="1" width="22" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="2" y="2" width="20" height="12" rx="1" fill="currentColor" opacity="0.6"/>
+  </svg>
+);
+
+export type LayoutMode = 'full' | 'half' | 'hidden';
+
+interface LayoutToggleProps {
+  value: LayoutMode;
+  onChange: (mode: LayoutMode) => void;
+  leftLabel?: string;
+  rightLabel?: string;
+}
+
+export const LayoutToggle: React.FC<LayoutToggleProps> = ({
+  value,
+  onChange,
+  leftLabel = 'Results',
+  rightLabel = 'Gene/Locus',
+}) => (
+  <LayoutToggleContainer>
+    <LayoutOption
+      $active={value === 'full'}
+      onClick={() => onChange('full')}
+      title="Show results panel only"
+    >
+      <LayoutIconLeft />
+      {leftLabel}
+    </LayoutOption>
+    <LayoutOption
+      $active={value === 'half'}
+      onClick={() => onChange('half')}
+      title="Show both panels"
+    >
+      <LayoutIconSplit />
+      Split
+    </LayoutOption>
+    <LayoutOption
+      $active={value === 'hidden'}
+      onClick={() => onChange('hidden')}
+      title="Show gene/locus panel only"
+    >
+      <LayoutIconRight />
+      {rightLabel}
+    </LayoutOption>
+  </LayoutToggleContainer>
 );
 
 
