@@ -173,12 +173,13 @@ const PageButton = styled.button`
 interface GeneAssociationResult {
   gene_id: string;
   gene_symbol: string;
-  chrom: string | null;
-  pos: number | null;
+  contig: string;
+  gene_start_position: number;
   pvalue: number | null;
   pvalue_burden: number | null;
   pvalue_skat: number | null;
   beta_burden: number | null;
+  mac: number | null;
 }
 
 type SortKey = 'gene_symbol' | 'pvalue' | 'pvalue_burden' | 'pvalue_skat' | 'beta_burden';
@@ -207,6 +208,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showOnlySignificant, setShowOnlySignificant] = useState(false);
 
+  // Max MAF State
+  const [maxMaf, setMaxMaf] = useState<number>(0.001);
+
   // Label selection state
   const [selectedGeneIds, setSelectedGeneIds] = useState<Set<string>>(new Set());
   const [customLabelMode, setCustomLabelMode] = useState(false);
@@ -215,15 +219,21 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
     geneData: GeneAssociationResult[] | null;
   }
 
+  const MAF_OPTIONS = [
+    { value: 0.01, label: '1%' },
+    { value: 0.001, label: '0.1%' },
+    { value: 0.0001, label: '0.01%' },
+  ];
+
   const { queryStates, anyLoading } = useQuery<Data>({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=${burdenSet}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=${burdenSet}&max_maf=${maxMaf}&limit=50000`,
         name: 'geneData',
       },
     ],
-    deps: [analysisId, ancestryGroup, burdenSet],
+    deps: [analysisId, ancestryGroup, burdenSet, maxMaf],
     cacheEnabled,
   });
 
@@ -362,18 +372,37 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
 
   return (
     <Container>
-      {/* Annotation Toggle */}
-      <ToggleGroup>
-        {ANNOTATIONS.map((ann) => (
-          <ToggleButton
-            key={ann.key}
-            $active={burdenSet === ann.key}
-            onClick={() => handleAnnotationChange(ann.key as typeof burdenSet)}
-          >
-            {ann.label}
-          </ToggleButton>
-        ))}
-      </ToggleGroup>
+      {/* Annotation and MAF Toggles */}
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <ToggleGroup>
+          {ANNOTATIONS.map((ann) => (
+            <ToggleButton
+              key={ann.key}
+              $active={burdenSet === ann.key}
+              onClick={() => handleAnnotationChange(ann.key as typeof burdenSet)}
+            >
+              {ann.label}
+            </ToggleButton>
+          ))}
+        </ToggleGroup>
+
+        <ToggleGroup>
+          {MAF_OPTIONS.map((maf) => (
+            <ToggleButton
+              key={maf.value}
+              $active={maxMaf === maf.value}
+              onClick={() => {
+                setMaxMaf(maf.value);
+                setCurrentPage(1);
+                setSelectedGeneIds(new Set());
+                setCustomLabelMode(false);
+              }}
+            >
+              MAF ≤ {maf.label}
+            </ToggleButton>
+          ))}
+        </ToggleGroup>
+      </div>
 
       {/* Manhattan Plot with Labels */}
       <GeneBurdenManhattan

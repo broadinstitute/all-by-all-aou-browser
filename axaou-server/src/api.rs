@@ -509,27 +509,72 @@ pub async fn get_gene_associations(
 
 /// Handler for GET /api/phenotype/{analysis_id}/genes
 ///
-/// Returns all gene association results for a phenotype (paginated).
+/// Returns all gene association results for a phenotype.
+/// Uses ClickHouse for fast queries (milliseconds vs 30s with Hail Tables).
 /// Useful for building gene-level Manhattan plots or tables.
 pub async fn list_gene_associations(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
     Query(params): Query<GeneListQuery>,
-) -> Result<Json<Vec<GeneAssociationResult>>, AppError> {
-    // Ensure assets are loaded
-    ensure_assets_loaded(&state).await?;
+) -> Result<Json<Vec<crate::models::GeneAssociationApi>>, AppError> {
+    let ancestry = params.ancestry.clone().unwrap_or_else(|| "meta".to_string());
+    // Default to 0.001 if no max_maf provided
+    let max_maf = params.max_maf.unwrap_or(0.001);
 
-    let results = state
-        .gene_queries
-        .query_all_genes(
-            &analysis_id,
-            params.to_params(),
-            params.limit,
-            params.offset,
-        )
-        .await?;
+    // Set a high limit so we get all points for the Manhattan plot instead of capping at 1000
+    let limit = params.limit.unwrap_or(50000) as u64;
 
-    Ok(Json(results))
+    // Build query with optional annotation filter
+    let base_query = if params.annotation.is_some() {
+        r#"
+        SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
+               pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
+               contig, gene_start_position, xpos
+        FROM gene_associations
+        WHERE phenotype = ? AND ancestry = ? AND max_maf = ? AND annotation = ?
+        ORDER BY pvalue ASC
+        LIMIT ?
+        "#
+    } else {
+        r#"
+        SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
+               pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
+               contig, gene_start_position, xpos
+        FROM gene_associations
+        WHERE phenotype = ? AND ancestry = ? AND max_maf = ?
+        ORDER BY pvalue ASC
+        LIMIT ?
+        "#
+    };
+
+    let rows = if let Some(ref annotation) = params.annotation {
+        state
+            .clickhouse
+            .query(base_query)
+            .bind(&analysis_id)
+            .bind(&ancestry)
+            .bind(max_maf)
+            .bind(annotation)
+            .bind(limit)
+            .fetch_all::<crate::clickhouse::models::GeneAssociationRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
+    } else {
+        state
+            .clickhouse
+            .query(base_query)
+            .bind(&analysis_id)
+            .bind(&ancestry)
+            .bind(max_maf)
+            .bind(limit)
+            .fetch_all::<crate::clickhouse::models::GeneAssociationRow>()
+            .await
+            .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?
+    };
+
+    let api_rows: Vec<crate::models::GeneAssociationApi> =
+        rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(api_rows))
 }
 
 /// Ensure assets are loaded (discover if needed)
