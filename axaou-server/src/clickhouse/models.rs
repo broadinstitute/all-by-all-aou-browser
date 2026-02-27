@@ -202,13 +202,17 @@ impl VariantAnnotationRow {
             ref_allele: self.ref_allele.clone(),
             alt: self.alt.clone(),
             gene_symbol: self.gene_symbol.clone(),
+            gene_id: None,
             consequence: self.consequence.clone(),
-            af: self.af_all,
+            allele_frequency: self.af_all,
             hgvsc: None,
             hgvsp: None,
-            ac: None,
-            an: None,
-            hom: None,
+            allele_count: None,
+            allele_number: None,
+            homozygote_count: None,
+            polyphen2: None,
+            amino_acids: None,
+            lof: None,
         }
     }
 }
@@ -222,13 +226,17 @@ impl VariantAnnotationExtendedRow {
             ref_allele: self.ref_allele.clone(),
             alt: self.alt.clone(),
             gene_symbol: self.gene_symbol.clone(),
+            gene_id: self.gene_id.clone(),
             consequence: self.consequence.clone(),
-            af: self.af,
+            allele_frequency: self.af,
             hgvsc: self.hgvsc.clone(),
             hgvsp: self.hgvsp.clone(),
-            ac: self.ac,
-            an: self.an,
-            hom: self.hom,
+            allele_count: self.ac,
+            allele_number: self.an,
+            homozygote_count: self.hom,
+            polyphen2: self.polyphen2.clone(),
+            amino_acids: self.amino_acids.clone(),
+            lof: self.lof.clone(),
         }
     }
 }
@@ -597,7 +605,7 @@ impl AnalysisMetadataRow {
         crate::models::AnalysisMetadata {
             analysis_id: self.analysis_id.clone(),
             ancestry_group: self.ancestry_group.clone(),
-            category: format!("AxAoU > {}", self.category.clone().unwrap_or_else(|| "Unknown".to_string())),
+            category: self.category.clone().unwrap_or_else(|| "Unknown".to_string()),
             description: self.description.clone().unwrap_or_else(|| self.analysis_id.clone()),
             description_more: self.description_more.clone().unwrap_or_else(|| self.analysis_id.clone()),
             trait_type: self.trait_type.clone(),

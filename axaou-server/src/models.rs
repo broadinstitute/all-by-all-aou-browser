@@ -66,13 +66,17 @@ pub struct VariantAnnotationApi {
     pub ref_allele: String,
     pub alt: String,
     pub gene_symbol: Option<String>,
+    pub gene_id: Option<String>,
     pub consequence: Option<String>,
-    pub af: Option<f64>,
+    pub allele_frequency: Option<f64>,
     pub hgvsc: Option<String>,
     pub hgvsp: Option<String>,
-    pub ac: Option<u32>,
-    pub an: Option<u32>,
-    pub hom: Option<u32>,
+    pub allele_count: Option<u32>,
+    pub allele_number: Option<u32>,
+    pub homozygote_count: Option<u32>,
+    pub polyphen2: Option<String>,
+    pub amino_acids: Option<String>,
+    pub lof: Option<String>,
 }
 
 /// Gene association data for API responses.
