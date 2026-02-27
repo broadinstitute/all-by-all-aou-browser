@@ -15,13 +15,13 @@
 assets_json = "/Users/msolomon/data/axaou-local/v8-assets.json"
 
 # Required: Output directory for generated plots
-output_dir = "gs://axaou-central-tmp/manhattans-batch11"
+output_dir = "gs://axaou-central-tmp/manhattans-batch14"
 
 # Filter to specific ancestries (empty = all)
 ancestries = ["meta"]
 
 # Generate locus zoom plots for significant regions
-locus_plots = true
+locus_plots = false
 
 # Specific phenotypes to process (currently in ClickHouse + height)
 analysis_ids = [
@@ -41,14 +41,15 @@ analysis_ids = [
 ]
 
 # For random sampling (disabled when using analysis_ids):
-# sample = 0.1
-# limit = 10
+sample = 0.1
+limit = 100
 
 # Thresholds
-threshold = 5e-8        # Genome-wide significance
-gene_threshold = 2.5e-6 # Gene burden significance
-locus_threshold = 0.01  # Locus plot inclusion threshold
-locus_window = 1000000  # 1MB window around significant hits
+threshold = 5e-8           # Genome-wide significance
+gene_threshold = 2.5e-6    # Gene burden significance
+locus_threshold = 0.01     # Locus plot inclusion threshold
+locus_window = 1000000     # 1MB window around significant hits
+min_variants_per_locus = 2 # Minimum variants to form a locus (filters noise)
 
 # Image dimensions
 width = 3000
@@ -74,6 +75,7 @@ clickhouse_url = "http://10.128.15.247:8123"
 database = "default"
 
 # Table initialization: "create", "replace", or "append"
+# Use "append" for additive runs that preserve existing data
 init_strategy = "replace"
 
 # =============================================================================
