@@ -180,18 +180,30 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Simple health check endpoint for Cloud Run
+async fn health_check() -> &'static str {
+    "ok"
+}
+
 /// Run the HTTP server
 async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<()> {
     info!("Starting AxAoU Server...");
 
-    // Load analysis metadata from GCS at startup
-    info!("Loading analysis metadata from GCS...");
-    let metadata = data::load_all_metadata().await?;
-    info!("Successfully loaded {} metadata records.", metadata.len());
+    // Initialize ClickHouse client first (needed for metadata loading)
+    let clickhouse_client = clickhouse::client::connect();
+    match clickhouse::client::health_check(&clickhouse_client).await {
+        Ok(_) => info!("Connected to ClickHouse"),
+        Err(e) => tracing::warn!("ClickHouse connection warning: {}", e),
+    }
 
-    // Open gene models table (on-demand queries, no pre-loading)
-    info!("Opening gene models table...");
-    let gene_models = tokio::task::spawn_blocking(gene_models::GeneModelsQuery::open).await??;
+    // Load analysis metadata from ClickHouse (explicit column list to avoid extra columns)
+    info!("Loading analysis metadata from ClickHouse...");
+    let metadata_rows = clickhouse_client
+        .query("SELECT analysis_id, ancestry_group, category, description, description_more, trait_type, pheno_sex, n_cases, n_controls, lambda_gc_exome, lambda_gc_acaf, lambda_gc_gene_burden_001, keep_pheno_burden, keep_pheno_skat, keep_pheno_skato FROM analysis_metadata")
+        .fetch_all::<clickhouse::models::AnalysisMetadataRow>()
+        .await?;
+    let metadata: Vec<models::AnalysisMetadata> = metadata_rows.iter().map(|r| r.to_api()).collect();
+    info!("Successfully loaded {} metadata records.", metadata.len());
 
     // Load pre-computed assets if provided
     let assets = if let Some(path) = assets_file {
@@ -211,20 +223,16 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     // Create gene query engine with access to assets
     let gene_queries = gene_queries::GeneQueryEngine::new(Arc::clone(&assets));
 
-    // Initialize ClickHouse client
-    let clickhouse_client = clickhouse::client::connect();
-    match clickhouse::client::health_check(&clickhouse_client).await {
-        Ok(_) => info!("Connected to ClickHouse"),
-        Err(e) => tracing::warn!("ClickHouse connection warning: {}", e),
-    }
+    // Create Hail client for slow-path queries (caches up to 50 open tables)
+    let hail_client = hail_decoder::genomic::HailClient::new(50);
 
     // Create shared application state
     let state = Arc::new(AppState {
         metadata,
-        gene_models: Arc::new(gene_models),
         assets,
         gene_queries,
         clickhouse: clickhouse_client,
+        hail_client,
     });
 
     // Build the router with /api prefix to match proxy behavior
@@ -232,6 +240,7 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         .nest(
             "/api",
             Router::new()
+                .route("/health", get(health_check))
                 .route("/config", get(api::get_config))
                 .route("/analyses", get(api::get_analyses))
                 .route("/analyses/:analysis_id", get(api::get_analysis_by_id))

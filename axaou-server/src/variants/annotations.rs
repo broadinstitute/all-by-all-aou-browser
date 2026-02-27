@@ -237,11 +237,9 @@ pub async fn get_annotations_by_gene(
 ) -> Result<Json<LookupResult<VariantAnnotationApi>>, AppError> {
     let timer = QueryTimer::start();
 
-    // Step 1: Get gene model from Hail Table
-    let gene_models = Arc::clone(&state.gene_models);
-    let gene_id_clone = gene_id.clone();
-    let gene = tokio::task::spawn_blocking(move || gene_models.get_by_gene_id(&gene_id_clone))
-        .await??;
+    // Step 1: Get gene model from ClickHouse
+    let gene_models = crate::gene_models::GeneModelsClickHouse::new(state.clickhouse.clone());
+    let gene = gene_models.get_by_gene_id(&gene_id).await?;
 
     let Some(gene) = gene else {
         return Ok(Json(LookupResult::new(vec![], timer.elapsed())));
@@ -366,14 +364,16 @@ pub async fn get_association_by_variant(
 /// GET /api/variants/associations/interval/:interval
 ///
 /// Returns association stats for all variants in an interval for a specific phenotype.
-/// Uses loci_variants table which contains all variants (not just significant ones).
+///
+/// Query modes:
+/// - `fast` (default): Uses ClickHouse loci_variants table (pre-filtered data)
+/// - `slow`: Queries Hail Tables directly from GCS (complete per-phenotype data)
 pub async fn get_associations_by_interval(
     State(state): State<Arc<AppState>>,
     Path(interval): Path<String>,
     Query(params): Query<AssociationQuery>,
 ) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
     let timer = QueryTimer::start();
-    let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
 
     let ancestry = params.ancestry_group.as_deref().unwrap_or("meta");
     let sequencing_type = params.sequencing_type.as_deref().unwrap_or("genome");
@@ -384,6 +384,22 @@ pub async fn get_associations_by_interval(
     } else {
         sequencing_type
     };
+
+    // Check for slow-path query mode (direct GCS Hail Table access)
+    if params.query_mode.as_deref() == Some("slow") {
+        return get_associations_from_hail(
+            &state,
+            &interval,
+            &params.analysis_id,
+            ancestry,
+            seq_type_normalized,
+            timer,
+        )
+        .await;
+    }
+
+    // Fast path: ClickHouse query
+    let (xpos_start, xpos_end) = parse_interval_to_xpos(&interval)?;
 
     let query = r#"
         SELECT phenotype, ancestry, sequencing_type, contig, xpos, position,
@@ -407,4 +423,89 @@ pub async fn get_associations_by_interval(
 
     let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
+}
+
+/// Slow-path: Query Hail Table directly from GCS
+async fn get_associations_from_hail(
+    state: &AppState,
+    interval: &str,
+    analysis_id: &str,
+    ancestry: &str,
+    sequencing_type: &str,
+    timer: QueryTimer,
+) -> Result<Json<LookupResult<VariantAssociationApi>>, AppError> {
+    use crate::models::Locus;
+
+    // Parse interval (e.g., "chr1:12345-67890" or "1:12345-67890")
+    let (contig, start, end) = parse_interval(interval)?;
+
+    // Build GCS path to the Hail Table
+    // Format: gs://aou_results/414k/ht_results/{ANCESTRY}/phenotype_{analysis_id}/{seq_type}_variant_results.ht
+    // Note: ancestry codes in GCS are uppercase (META, EUR, AFR, etc.)
+    let ht_path = format!(
+        "gs://aou_results/414k/ht_results/{}/phenotype_{}/{}_variant_results.ht",
+        ancestry.to_uppercase(), analysis_id, sequencing_type
+    );
+
+    // Query the Hail Table
+    let associations = state
+        .hail_client
+        .query_interval_typed(&ht_path, &contig, start, end)
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("Hail query error: {}", e)))?;
+
+    // Convert to API format
+    let api_rows: Vec<VariantAssociationApi> = associations
+        .into_iter()
+        .map(|a| VariantAssociationApi {
+            variant_id: a.variant_id(),
+            locus: Locus {
+                contig: a.contig.clone(),
+                position: a.position as u32,
+            },
+            ref_allele: a.ref_allele,
+            alt: a.alt_allele,
+            pvalue: a.pvalue,
+            beta: a.beta,
+            se: a.se,
+            af: a.af.unwrap_or(0.0),
+            phenotype: analysis_id.to_string(),
+            ancestry: ancestry.to_string(),
+            sequencing_type: sequencing_type.to_string(),
+        })
+        .collect();
+
+    Ok(Json(LookupResult::with_source(api_rows, timer.elapsed(), "hail_gcs")))
+}
+
+/// Parse interval string like "chr1:12345-67890" into (contig, start, end)
+/// For GRCh38 Hail Tables, contig format is "chr1", "chr2", etc.
+fn parse_interval(interval: &str) -> Result<(String, i32, i32), AppError> {
+    let parts: Vec<&str> = interval.split(':').collect();
+    if parts.len() != 2 {
+        return Err(AppError::InvalidInterval(format!(
+            "Invalid interval format: {}",
+            interval
+        )));
+    }
+
+    // Normalize to GRCh38 format: "chr1", "chr2", etc.
+    let raw_contig = parts[0].trim_start_matches("chr");
+    let contig = format!("chr{}", raw_contig);
+    let range_parts: Vec<&str> = parts[1].split('-').collect();
+    if range_parts.len() != 2 {
+        return Err(AppError::InvalidInterval(format!(
+            "Invalid interval range: {}",
+            interval
+        )));
+    }
+
+    let start: i32 = range_parts[0]
+        .parse()
+        .map_err(|_| AppError::InvalidInterval(format!("Invalid start position: {}", range_parts[0])))?;
+    let end: i32 = range_parts[1]
+        .parse()
+        .map_err(|_| AppError::InvalidInterval(format!("Invalid end position: {}", range_parts[1])))?;
+
+    Ok((contig, start, end))
 }

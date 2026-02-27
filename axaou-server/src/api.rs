@@ -20,14 +20,14 @@ use tokio::sync::RwLock;
 pub struct AppState {
     /// Cached analysis metadata loaded at startup
     pub metadata: Vec<AnalysisMetadata>,
-    /// On-demand gene models query engine (wrapped in Arc for sharing across tasks)
-    pub gene_models: Arc<GeneModelsQuery>,
     /// Discovered analysis assets (lazily loaded)
     pub assets: Arc<RwLock<Option<AnalysisAssets>>>,
     /// On-demand gene association query engine
     pub gene_queries: GeneQueryEngine,
     /// ClickHouse client for variant queries
     pub clickhouse: clickhouse::Client,
+    /// Hail Table client for slow-path queries (directly from GCS)
+    pub hail_client: hail_decoder::genomic::HailClient,
 }
 
 /// Query parameters for the /api/analyses endpoint

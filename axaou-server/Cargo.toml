@@ -5,8 +5,8 @@ edition = "2021"
 description = "Rust server for AxAoU analysis metadata"
 
 [dependencies]
-# ClickHouse client
-clickhouse = { version = "0.13", features = ["rustls-tls"] }
+# ClickHouse client (native-tls avoids ring crate QEMU issues during cross-compilation)
+clickhouse = { version = "0.13", features = ["native-tls"] }
 
 # Web server
 axum = "0.7"
@@ -35,7 +35,7 @@ clap = { version = "4.4", features = ["derive"] }
 rand = "0.9"
 
 # Hail Data Access
-hail-decoder = { path = "../../../idk/hail-decoder" }
+hail-decoder = { path = "../../../idk/hail-decoder", features = ["genomic"] }
 
 # Unix resource limits
 rlimit = "0.10"

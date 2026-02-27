@@ -48,6 +48,16 @@ impl<T> LookupResult<T> {
         let data: Vec<T> = iter.into_iter().collect();
         Self::new(data, time)
     }
+
+    /// Create a LookupResult with a specific storage source
+    pub fn with_source(data: Vec<T>, time: f64, source: &str) -> Self {
+        Self {
+            count: data.len(),
+            data,
+            storage_source: source.to_string(),
+            time,
+        }
+    }
 }
 
 /// Helper trait for measuring query execution time

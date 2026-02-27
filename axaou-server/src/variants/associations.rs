@@ -176,8 +176,26 @@ pub async fn get_variants_by_gene(
 
     // Step 2: Compute xpos range from gene coordinates
     let buffer = 1000; // 1kb buffer
-    let xstart = compute_xpos(&gene.chrom, (gene.start - buffer).max(0) as u32);
-    let xstop = compute_xpos(&gene.chrom, (gene.stop + buffer) as u32);
+    let start_pos = (gene.start - buffer).max(0);
+    let stop_pos = gene.stop + buffer;
+    let xstart = compute_xpos(&gene.chrom, start_pos as u32);
+    let xstop = compute_xpos(&gene.chrom, stop_pos as u32);
+
+    // Check for slow-path query mode (direct GCS Hail Table access)
+    if params.query_mode.as_deref() == Some("slow") {
+        return get_gene_variants_from_hail(
+            &state,
+            &gene.chrom,
+            start_pos,
+            stop_pos,
+            &params.analysis_id,
+            &ancestry,
+            &sequencing_type,
+            limit,
+            timer,
+        )
+        .await;
+    }
 
     // Step 3: Query loci_variants joined with annotations
     // Use exome_annotations or genome_annotations based on sequencing type
@@ -295,4 +313,80 @@ pub async fn get_manhattan_top(
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
     Ok(Json(LookupResult::new(rows, timer.elapsed())))
+}
+
+/// Slow-path: Query Hail Table directly from GCS for gene variants
+async fn get_gene_variants_from_hail(
+    state: &AppState,
+    chrom: &str,
+    start: i32,
+    stop: i32,
+    analysis_id: &str,
+    ancestry: &str,
+    sequencing_type: &str,
+    limit: u64,
+    timer: QueryTimer,
+) -> Result<Json<LookupResult<VariantAssociationExtendedApi>>, AppError> {
+    // Normalize sequencing_type (frontend may send "exomes" or "exome")
+    let seq_type_normalized = if sequencing_type.ends_with('s') {
+        &sequencing_type[..sequencing_type.len() - 1]
+    } else {
+        sequencing_type
+    };
+
+    // Build GCS path to the Hail Table
+    // Format: gs://aou_results/414k/ht_results/{ANCESTRY}/phenotype_{analysis_id}/{seq_type}_variant_results.ht
+    let ht_path = format!(
+        "gs://aou_results/414k/ht_results/{}/phenotype_{}/{}_variant_results.ht",
+        ancestry.to_uppercase(),
+        analysis_id,
+        seq_type_normalized
+    );
+
+    // Normalize contig to GRCh38 format (chr1, chr2, etc.)
+    let contig = if chrom.starts_with("chr") {
+        chrom.to_string()
+    } else {
+        format!("chr{}", chrom)
+    };
+
+    // Query the Hail Table
+    let associations = state
+        .hail_client
+        .query_interval_typed(&ht_path, &contig, start, stop)
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("Hail query error: {}", e)))?;
+
+    // Convert to API format (take up to limit)
+    let api_rows: Vec<VariantAssociationExtendedApi> = associations
+        .into_iter()
+        .take(limit as usize)
+        .map(|a| VariantAssociationExtendedApi {
+            variant_id: a.variant_id(),
+            locus: Locus::new(a.contig.clone(), a.position as u32),
+            ref_allele: a.ref_allele,
+            alt: a.alt_allele,
+            pvalue: a.pvalue,
+            beta: a.beta,
+            se: a.se,
+            af: a.af.unwrap_or(0.0),
+            phenotype: analysis_id.to_string(),
+            ancestry: ancestry.to_string(),
+            sequencing_type: seq_type_normalized.to_string(),
+            // Annotation fields not available from Hail Table
+            gene_symbol: None,
+            consequence: None,
+            hgvsc: None,
+            hgvsp: None,
+            allele_count: a.ac.map(|v| v as u32),
+            allele_number: None,
+            homozygote_count: None,
+        })
+        .collect();
+
+    Ok(Json(LookupResult::with_source(
+        api_rows,
+        timer.elapsed(),
+        "hail_gcs",
+    )))
 }
