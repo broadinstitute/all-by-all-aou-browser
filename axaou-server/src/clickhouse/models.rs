@@ -567,3 +567,49 @@ impl GeneModelRow {
         })
     }
 }
+
+/// Analysis metadata from the `analysis_metadata` table
+///
+/// Contains phenotype/analysis information loaded from ClickHouse
+/// instead of GCS Hail Tables.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct AnalysisMetadataRow {
+    pub analysis_id: String,
+    pub ancestry_group: String,
+    pub category: Option<String>,
+    pub description: Option<String>,
+    pub description_more: Option<String>,
+    pub trait_type: String,
+    pub pheno_sex: String,
+    pub n_cases: Option<i32>,
+    pub n_controls: Option<i32>,
+    pub lambda_gc_exome: Option<f64>,
+    pub lambda_gc_acaf: Option<f64>,
+    pub lambda_gc_gene_burden_001: Option<f64>,
+    pub keep_pheno_burden: u8,
+    pub keep_pheno_skat: u8,
+    pub keep_pheno_skato: u8,
+}
+
+impl AnalysisMetadataRow {
+    /// Convert to the API model
+    pub fn to_api(&self) -> crate::models::AnalysisMetadata {
+        crate::models::AnalysisMetadata {
+            analysis_id: self.analysis_id.clone(),
+            ancestry_group: self.ancestry_group.clone(),
+            category: format!("AxAoU > {}", self.category.clone().unwrap_or_else(|| "Unknown".to_string())),
+            description: self.description.clone().unwrap_or_else(|| self.analysis_id.clone()),
+            description_more: self.description_more.clone().unwrap_or_else(|| self.analysis_id.clone()),
+            trait_type: self.trait_type.clone(),
+            pheno_sex: self.pheno_sex.clone(),
+            n_cases: self.n_cases.map(|n| n as i64).unwrap_or(0),
+            n_controls: self.n_controls.map(|n| n as i64),
+            lambda_gc_exome: self.lambda_gc_exome,
+            lambda_gc_acaf: self.lambda_gc_acaf,
+            lambda_gc_gene_burden_001: self.lambda_gc_gene_burden_001,
+            keep_pheno_burden: self.keep_pheno_burden != 0,
+            keep_pheno_skat: self.keep_pheno_skat != 0,
+            keep_pheno_skato: self.keep_pheno_skato != 0,
+        }
+    }
+}
