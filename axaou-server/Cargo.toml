@@ -34,8 +34,8 @@ clap = { version = "4.4", features = ["derive"] }
 # Random sampling
 rand = "0.9"
 
-# Hail Data Access
-hail-decoder = { path = "../../../idk/hail-decoder", features = ["genomic"] }
+# Hail Data Access (fetched from git during build)
+hail-decoder = { git = "https://github.com/broadinstitute/hail-rust-decoder.git", rev = "9d883bb", features = ["genomic"] }
 
 # Unix resource limits
 rlimit = "0.10"
