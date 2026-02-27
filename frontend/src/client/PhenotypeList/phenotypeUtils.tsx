@@ -159,11 +159,9 @@ interface ShowcaseGroup {
   phenoCount: number
   analysisCount: number
   color: string
-  classification_group: string
 }
 
 export interface CategoriesResponse {
-  classification_group: string
   category: string
   phenocodes: string[]
   analyses: string[]
@@ -190,7 +188,6 @@ export function createShowcaseGroups(categories: AnalysisMetadata[]): Categories
         phenoCount: 0,
         analysisCount: 0,
         color: '',
-        classification_group: 'axaou_category',
       }
       groupsMap.set(categoryName, group)
     }
@@ -206,7 +203,6 @@ export function createShowcaseGroups(categories: AnalysisMetadata[]): Categories
   })
 
   return Array.from(groupsMap.values()).map((group) => ({
-    classification_group: group.classification_group,
     category: group.category,
     phenocodes: Array.from(group.phenocodes),
     analyses: Array.from(group.analyses),

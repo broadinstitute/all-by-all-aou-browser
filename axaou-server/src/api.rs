@@ -125,7 +125,6 @@ pub async fn get_config() -> Json<AxaouConfig> {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AnalysisCategory {
     pub category: String,
-    pub classification_group: String,
     pub color: String,
     pub analyses: Vec<String>,
     #[serde(rename = "analysisCount")]
@@ -199,7 +198,6 @@ pub async fn get_categories(
             let count = analyses.len();
             AnalysisCategory {
                 color: category_color(&category),
-                classification_group: "axaou_category".to_string(),
                 phenocodes: analyses.clone(),
                 pheno_count: count,
                 analyses,

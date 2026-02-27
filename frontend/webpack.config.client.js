@@ -98,7 +98,6 @@ const getWebpackConfig = async () => {
       alias: {
         '@axaou/ui': path.resolve(__dirname, 'ui/axaou-ui/src'),
         '@axaou/types': path.resolve(__dirname, 'ui/types/src'),
-        '@gnomad/classification-selector': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/classification-selector/src'),
         '@gnomad/identifiers': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/identifiers/src'),
         '@gnomad/manhattan-plot': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/manhattan-plot/src'),
         '@gnomad/markdown-loader': path.resolve(__dirname, 'gnomad-browser-toolkit/packages/markdown-loader/src'),

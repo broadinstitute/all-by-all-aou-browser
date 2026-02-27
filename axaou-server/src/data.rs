@@ -119,8 +119,8 @@ fn transform_encoded_value(value: EncodedValue) -> Result<AnalysisMetadata, AppE
     // Use phenoname as fallback for description if missing
     let desc = description.unwrap_or_else(|| analysis_id.clone());
 
-    // Format category with "AxAoU > " prefix (replicates Python logic)
-    let category_formatted = format!("AxAoU > {}", category.unwrap_or_else(|| "Unknown".to_string()));
+    // Use raw category name (no prefix needed for new flat selector)
+    let category_formatted = category.unwrap_or_else(|| "Unknown".to_string());
 
     Ok(AnalysisMetadata {
         analysis_id,
