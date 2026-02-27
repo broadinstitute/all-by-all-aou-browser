@@ -262,14 +262,14 @@ export const GenePageVariantTable = ({
 
   if (windowSize.height) {
     if (variantDatasets.length === 1 && !variantId) {
-      numRowsRendered = (windowSize.height - 620) / 30
+      numRowsRendered = Math.floor((windowSize.height - 450) / 30)
       if (tableFormat === 'wide') {
+        numRowsRendered = Math.floor((windowSize.height - 420) / 30)
       }
-      numRowsRendered = (windowSize.height - 590) / 30
     } else if (tableFormat === 'wide') {
-      numRowsRendered = (windowSize.height - 620) / 30
+      numRowsRendered = Math.floor((windowSize.height - 450) / 30)
     } else {
-      numRowsRendered = (windowSize.height - 550) / 30
+      numRowsRendered = Math.floor((windowSize.height - 400) / 30)
     }
   }
 

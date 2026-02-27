@@ -330,6 +330,17 @@ const Phewas = ({
 
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom)
 
+  // MAF filter state for gene burden results
+  const [selectedMaf, setSelectedMaf] = useState<number>(0.001)
+
+  // Filter phenotypes by MAF (for gene phewas)
+  const mafFilteredPhenotypes = useMemo(() => {
+    if (!isGenePhewas) {
+      return uniquePhenotypes
+    }
+    return uniquePhenotypes.filter((p: any) => p.max_maf === selectedMaf)
+  }, [uniquePhenotypes, selectedMaf, isGenePhewas])
+
   const windowSize = useRecoilValue(windowSizeAtom)
 
   const analysesColors = useRecoilValue(selectedAnalysesColorsSelector)
@@ -456,9 +467,9 @@ const Phewas = ({
   } = useClassificationSelectorState({
     // @ts-expect-error ts-migrate(2322) FIXME: Type '{ name: string; type: ClassificationType; ca... Remove this comment to see the full error message
     classifications,
-    items: uniquePhenotypes,
+    items: mafFilteredPhenotypes,
     shouldAutoExpandFirstClassification: true,
-    expanded: ['']
+    expanded: ['', 'AxAoU']
   })
 
   // const filteredPhenotypesWithColorAndGroupingDedup = uniqBy(
@@ -620,25 +631,18 @@ const Phewas = ({
       <div>
         <AnalysisControls burdenSet={burdenSet} setBurdenSet={setBurdenSet} />
       </div>
-      {/* <div style={{ marginTop: 3 }}> */}
-      {/*   <TooltipAnchor */}
-      {/*     tooltip={ */}
-      {/*       'Caution is warranted when checked, as list will include filtered phenotypes with lambda GC outside 0.75-1.5 (indicated by dotted circles)' */}
-      {/*     } */}
-      {/*   > */}
-      {/*     <TooltipHint> */}
-      {/*       <Checkbox */}
-      {/*         label='Include filtered' */}
-      {/*         checked={showFilteredAnalyses} */}
-      {/*         id='show-filtered-phenotypes' */}
-      {/*         disabled={false} */}
-      {/*         onChange={() => { */}
-      {/*           setShowFilteredAnalyses(!showFilteredAnalyses) */}
-      {/*         }} */}
-      {/*       /> */}
-      {/*     </TooltipHint> */}
-      {/*   </TooltipAnchor> */}
-      {/* </div> */}
+      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <strong>Max MAF:</strong>
+        <select
+          value={selectedMaf}
+          onChange={(e) => setSelectedMaf(Number(e.target.value))}
+          style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
+        >
+          <option value={0.01}>1%</option>
+          <option value={0.001}>0.1%</option>
+          <option value={0.0001}>0.01%</option>
+        </select>
+      </div>
     </div>
   ) : null
   const controlElements = (

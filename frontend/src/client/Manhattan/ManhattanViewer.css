@@ -18,6 +18,8 @@
   height: auto;
   /* Dark blue filter to match AoU brand - applied to all Manhattan plots */
   filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(0.5);
+  /* Clip 1px from top to remove red dotted line artifact from Manhattan pipeline */
+  clip-path: inset(1px 0px 0px 0px);
 }
 
 .manhattan-overlay {
@@ -278,7 +280,7 @@
 }
 
 .manhattan-peak-dot {
-  fill: #d32f2f;
+  fill: #262262;
   stroke: #fff;
   stroke-width: 1;
   transition: fill 0.15s ease, r 0.15s ease;

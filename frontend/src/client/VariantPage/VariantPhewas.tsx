@@ -36,8 +36,6 @@ import {
   ColorMarker,
   DocumentTitle,
   HalfPage,
-  ScrollButton,
-  ScrollButtonContainer,
   Spinner,
   StatusMessage
 } from '../UserInterface'
@@ -324,20 +322,7 @@ const ConnectedVariantPhewas = ({ size }: any) => {
   return (
     <Container>
       <DocumentTitle title={variantId} />
-      <ScrollButtonContainer>
-        <h3>Variant: {variantId}</h3>
-        <ScrollButton
-          targetSelector=".variant-info"
-          containerSelector=".resizable-inner-container"
-          label="Variant Info"
-        />
-        <ScrollButton
-          targetSelector=".variant-phewas"
-          containerSelector=".resizable-inner-container"
-          label="Single Variant Associations (PheWAS)"
-        />
-      </ScrollButtonContainer>
-
+      <h3>Variant: {variantId}</h3>
       <VariantInfo variantData={variantData} />
 
       <h3 className='app-section-title .variant-phewas'>
