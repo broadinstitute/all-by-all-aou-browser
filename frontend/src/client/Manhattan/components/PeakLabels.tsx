@@ -88,6 +88,11 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
         const peakId = `${node.peak.contig}-${node.peak.position}`;
         const isHovered = hoveredPeakId === peakId || hoveredFromHit === peakId;
 
+        // Burden-only peaks get special styling
+        const isBurdenOnly = node.isBurdenOnly;
+        const dotSize = isBurdenOnly ? (isHovered ? 7 : 5) : (isHovered ? 5 : 3);
+        const burdenOnlyColor = '#7b1fa2'; // Purple for burden-only
+
         return (
           <g
             key={peakId}
@@ -118,14 +123,26 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               x2={node.targetX}
               y2={peakY}
               className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
+              style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2' } : undefined}
             />
-            {/* Dot at the peak position */}
-            <circle
-              cx={node.targetX}
-              cy={peakY}
-              r={isHovered ? 5 : 3}
-              className={`manhattan-peak-dot ${isHovered ? 'manhattan-peak-dot-hovered' : ''}`}
-            />
+            {/* Dot/shape at the peak position */}
+            {isBurdenOnly ? (
+              // Diamond shape for burden-only peaks
+              <polygon
+                points={`${node.targetX},${peakY - dotSize} ${node.targetX + dotSize},${peakY} ${node.targetX},${peakY + dotSize} ${node.targetX - dotSize},${peakY}`}
+                fill={burdenOnlyColor}
+                stroke={isHovered ? '#4a0072' : undefined}
+                strokeWidth={isHovered ? 2 : undefined}
+              />
+            ) : (
+              // Circle for regular GWAS peaks
+              <circle
+                cx={node.targetX}
+                cy={peakY}
+                r={dotSize}
+                className={`manhattan-peak-dot ${isHovered ? 'manhattan-peak-dot-hovered' : ''}`}
+              />
+            )}
             {/* Gene label - angled with burden dots, coding indicator, multi-gene count */}
             <text
               x={node.x}
@@ -134,6 +151,10 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               transform={`rotate(${LABEL_ANGLE}, ${node.x}, ${node.y})`}
               textAnchor="start"
             >
+              {/* Burden-only indicator */}
+              {isBurdenOnly && (
+                <tspan fill={burdenOnlyColor} fontWeight="bold">◆ </tspan>
+              )}
               {/* Burden type dots - pLoF in red, missense in yellow */}
               {node.burdenTypes.includes('pLoF') && (
                 <tspan fill="#d32f2f">●</tspan>
@@ -144,9 +165,9 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               {node.burdenTypes.length > 0 && ' '}
               {/* Gene symbol */}
               <tspan>{node.label}</tspan>
-              {/* Coding indicator */}
+              {/* Coding indicator: red if pLoF exists, else yellow/orange for missense */}
               {node.hasCoding && (
-                <tspan fill="#1565c0" fontWeight="bold"> (C)</tspan>
+                <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold"> (C)</tspan>
               )}
               {/* Multi-gene indicator */}
               {node.implicatedCount > 1 && (

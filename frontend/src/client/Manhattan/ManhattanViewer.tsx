@@ -194,6 +194,12 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     dimensions.height
   );
 
+  // Clear loaded state when image URL changes to prevent stale overlays
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [imageUrl]);
+
   // Observe image size changes for responsive scaling
   useEffect(() => {
     const image = imageRef.current;
@@ -347,6 +353,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
             onLoad={handleImageLoad}
             onError={handleImageError}
             draggable={false}
+            style={{ opacity: imageLoaded ? 1 : 0.3, transition: 'opacity 0.2s' }}
           />
 
           {imageLoaded && dimensions.width > 0 && (
@@ -520,6 +527,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   </span>
                   <span style={{ fontSize: 10, color: '#666' }}>
                     <span style={{ color: '#f9a825' }}>●</span> Missense
+                  </span>
+                  <span style={{ fontSize: 10, color: '#666' }}>
+                    <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
                   </span>
                   {customLabelMode && (
                     <>

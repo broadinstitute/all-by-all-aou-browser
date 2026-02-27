@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PeakLabelNode } from '../hooks/usePeakLabelLayout';
-import type { BurdenResult } from '../types';
+import type { BurdenResult, GeneInLocus } from '../types';
 
 interface PeakTooltipProps {
   node: PeakLabelNode;
@@ -9,18 +9,34 @@ interface PeakTooltipProps {
   containerWidth: number;
 }
 
-// P-value thresholds for coloring
-const GREEN_THRESHOLD = 3.5e-7;  // Most significant
-const ORANGE_THRESHOLD = 1e-6;   // Significant
+// Burden significance threshold (consistent with the rest of the app)
+const SIG_THRESHOLD = 2.5e-6;
 
 /**
- * Get color for p-value based on significance thresholds
+ * Get color for p-value based on burden significance
  */
-const getPvalueColor = (p: number | undefined): 'green' | 'orange' | 'none' => {
+const getPvalueColor = (p: number | undefined): 'red' | 'yellow' | 'none' => {
   if (p === undefined || p === null) return 'none';
-  if (p < GREEN_THRESHOLD) return 'green';
-  if (p < ORANGE_THRESHOLD) return 'orange';
+  if (p < SIG_THRESHOLD) return 'red';
   return 'none';
+};
+
+/**
+ * Check if a burden result has any significant p-value
+ */
+const isBurdenSignificant = (r: BurdenResult): boolean => {
+  return (r.pvalue !== undefined && r.pvalue < SIG_THRESHOLD) ||
+         (r.pvalue_burden !== undefined && r.pvalue_burden < SIG_THRESHOLD) ||
+         (r.pvalue_skat !== undefined && r.pvalue_skat < SIG_THRESHOLD);
+};
+
+/**
+ * Check if a gene has any evidence (significant burden or coding variants)
+ */
+const geneHasEvidence = (gene: GeneInLocus): boolean => {
+  const hasSigBurden = gene.burden_results?.some(isBurdenSignificant) ?? false;
+  const hasCoding = (gene.lof_count || 0) > 0 || (gene.missense_count || 0) > 0;
+  return hasSigBurden || hasCoding;
 };
 
 /**
@@ -46,15 +62,18 @@ const formatPvalue = (p: number | undefined): string => {
 };
 
 /**
- * P-value cell with color-coded indicator
+ * P-value cell with color-coded indicator (red for pLoF sig, yellow for missense sig)
  */
-const PvalueCell: React.FC<{ value: number | undefined }> = ({ value }) => {
-  const color = getPvalueColor(value);
+const PvalueCell: React.FC<{ value: number | undefined; annotation?: string }> = ({ value, annotation }) => {
+  const isSignificant = value !== undefined && value < SIG_THRESHOLD;
   const formatted = formatPvalue(value);
 
-  const dotColor = color === 'green' ? '#4caf50' : color === 'orange' ? '#ff9800' : undefined;
-  const textColor = color === 'green' ? '#2e7d32' : color === 'orange' ? '#e65100' : '#666';
-  const fontWeight = color !== 'none' ? 600 : 400;
+  // Color based on annotation type when significant
+  const dotColor = isSignificant
+    ? (annotation === 'pLoF' ? '#c62828' : annotation === 'missenseLC' ? '#f9a825' : '#666')
+    : undefined;
+  const textColor = isSignificant ? '#333' : '#666';
+  const fontWeight = isSignificant ? 600 : 400;
 
   return (
     <td style={{
@@ -71,10 +90,14 @@ const PvalueCell: React.FC<{ value: number | undefined }> = ({ value }) => {
 };
 
 /**
- * Tooltip showing all genes in a GWAS locus with burden test results.
+ * Tooltip showing implicated genes in a GWAS locus (those with significant burden or coding variants).
  */
 export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerWidth }) => {
   const { peak } = node;
+
+  // Filter to only show genes with evidence (significant burden or coding variants)
+  const implicatedGenes = peak.genes.filter(geneHasEvidence);
+  const otherGenesCount = peak.genes.length - implicatedGenes.length;
 
   // Flip tooltip to the left if near right edge
   const shouldFlip = x > containerWidth * 0.5;
@@ -92,8 +115,8 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     lineHeight: '1.4',
     pointerEvents: 'none',
     zIndex: 1001,
-    minWidth: '400px',
-    maxWidth: '600px',
+    minWidth: '380px',
+    maxWidth: '550px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
   };
 
@@ -125,11 +148,6 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     textAlign: 'left',
   };
 
-  // Check if any gene has significant burden results
-  const hasAnySignificant = peak.genes.some(gene =>
-    gene.burden_results?.some(r => getPvalueColor(r.pvalue) !== 'none')
-  );
-
   return (
     <div style={style} className="manhattan-peak-tooltip">
       {/* Header */}
@@ -142,98 +160,137 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
         </div>
       </div>
 
-      {/* Genes table */}
-      {peak.genes.slice(0, 8).map((gene, geneIndex) => {
-        const hasBurdenData = gene.burden_results && gene.burden_results.length > 0;
-        const geneHasSignificant = gene.burden_results?.some(r => getPvalueColor(r.pvalue) !== 'none');
+      {/* Show message if no implicated genes */}
+      {implicatedGenes.length === 0 && (
+        <div style={{ color: '#666', fontStyle: 'italic', fontSize: '11px' }}>
+          No genes with significant burden tests or coding variants in this locus.
+          <br />
+          <span style={{ fontSize: '10px' }}>({peak.genes.length} nearby genes without evidence)</span>
+        </div>
+      )}
+
+      {/* Implicated genes */}
+      {implicatedGenes.slice(0, 6).map((gene, geneIndex) => {
+        const lof = gene.lof_count || 0;
+        const mis = gene.missense_count || 0;
+        const hasCoding = lof > 0 || mis > 0;
+
+        // Only show significant burden results
+        const sigBurdenResults = gene.burden_results?.filter(isBurdenSignificant) || [];
 
         return (
           <div
             key={gene.gene_id || geneIndex}
             style={{
-              marginBottom: geneIndex < Math.min(peak.genes.length, 8) - 1 ? '12px' : 0,
+              marginBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? '12px' : 0,
             }}
           >
-            {/* Gene header */}
+            {/* Gene header with coding variant counts */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '6px',
               padding: '4px 0',
-              borderBottom: hasBurdenData ? '1px solid #eee' : undefined,
+              borderBottom: sigBurdenResults.length > 0 ? '1px solid #eee' : undefined,
             }}>
-              <div style={{
-                fontWeight: geneHasSignificant ? 700 : 600,
-                color: geneHasSignificant ? '#1565c0' : '#333',
-                fontSize: '12px',
-              }}>
-                {gene.gene_symbol}
-              </div>
-              <div style={{ color: '#888', fontSize: '10px' }}>
-                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb away
-                {gene.coding_variant_count > 0 && (
-                  <span style={{ marginLeft: '8px', color: '#666' }}>
-                    {gene.coding_variant_count} coding variant{gene.coding_variant_count > 1 ? 's' : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontWeight: 700,
+                  color: '#1565c0',
+                  fontSize: '12px',
+                }}>
+                  {gene.gene_symbol}
+                </span>
+                {/* Coding variant badges */}
+                {hasCoding && (
+                  <span style={{ display: 'flex', gap: '4px' }}>
+                    {lof > 0 && (
+                      <span style={{
+                        background: '#ffebee',
+                        color: '#c62828',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        fontSize: '9px',
+                        fontWeight: 600,
+                      }}>
+                        {lof} LoF
+                      </span>
+                    )}
+                    {mis > 0 && (
+                      <span style={{
+                        background: '#fff8e1',
+                        color: '#f57f17',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        fontSize: '9px',
+                        fontWeight: 600,
+                      }}>
+                        {mis} Mis
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
+              <div style={{ color: '#888', fontSize: '10px' }}>
+                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb
+              </div>
             </div>
 
-            {/* Burden results table */}
-            {hasBurdenData && (
+            {/* Significant burden results table */}
+            {sigBurdenResults.length > 0 && (
               <table style={tableStyle}>
                 <thead>
                   <tr>
-                    <th style={thLeftStyle}>Category</th>
+                    <th style={thLeftStyle}>Burden Test</th>
                     <th style={thStyle}>SKAT-O</th>
                     <th style={thStyle}>Burden</th>
                     <th style={thStyle}>SKAT</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gene.burden_results!.map((result) => {
-                    const rowColor = getPvalueColor(result.pvalue);
-                    const rowBg = rowColor === 'green'
-                      ? 'rgba(76, 175, 80, 0.08)'
-                      : rowColor === 'orange'
-                        ? 'rgba(255, 152, 0, 0.08)'
+                  {sigBurdenResults.map((result) => {
+                    const bgColor = result.annotation === 'pLoF'
+                      ? 'rgba(198, 40, 40, 0.06)'
+                      : result.annotation === 'missenseLC'
+                        ? 'rgba(249, 168, 37, 0.08)'
                         : undefined;
 
                     return (
                       <tr
                         key={result.annotation}
-                        style={{ backgroundColor: rowBg }}
+                        style={{ backgroundColor: bgColor }}
                       >
                         <td style={{
                           padding: '3px 6px',
-                          fontWeight: 500,
-                          color: '#444',
+                          fontWeight: 600,
+                          color: result.annotation === 'pLoF' ? '#c62828' : result.annotation === 'missenseLC' ? '#f57f17' : '#444',
                         }}>
                           {formatAnnotation(result.annotation)}
                         </td>
-                        <PvalueCell value={result.pvalue} />
-                        <PvalueCell value={result.pvalue_burden} />
-                        <PvalueCell value={result.pvalue_skat} />
+                        <PvalueCell value={result.pvalue} annotation={result.annotation} />
+                        <PvalueCell value={result.pvalue_burden} annotation={result.annotation} />
+                        <PvalueCell value={result.pvalue_skat} annotation={result.annotation} />
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             )}
-
-            {!hasBurdenData && (
-              <div style={{ color: '#999', fontSize: '10px', fontStyle: 'italic' }}>
-                No burden test results
-              </div>
-            )}
           </div>
         );
       })}
 
-      {peak.genes.length > 8 && (
+      {/* Additional counts */}
+      {(implicatedGenes.length > 6 || otherGenesCount > 0) && (
         <div style={{ color: '#888', fontStyle: 'italic', marginTop: '8px', fontSize: '10px' }}>
-          +{peak.genes.length - 8} more genes in locus
+          {implicatedGenes.length > 6 && (
+            <span>+{implicatedGenes.length - 6} more implicated genes</span>
+          )}
+          {implicatedGenes.length > 6 && otherGenesCount > 0 && ' • '}
+          {otherGenesCount > 0 && (
+            <span>{otherGenesCount} other gene{otherGenesCount > 1 ? 's' : ''} nearby</span>
+          )}
         </div>
       )}
 
@@ -247,8 +304,8 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
         display: 'flex',
         gap: '12px',
       }}>
-        <span><span style={{ color: '#4caf50' }}>●</span> P &lt; 3.5e-7</span>
-        <span><span style={{ color: '#ff9800' }}>●</span> P &lt; 1e-6</span>
+        <span><span style={{ color: '#c62828' }}>●</span> pLoF burden P &lt; 2.5e-6</span>
+        <span><span style={{ color: '#f9a825' }}>●</span> Missense burden P &lt; 2.5e-6</span>
       </div>
     </div>
   );

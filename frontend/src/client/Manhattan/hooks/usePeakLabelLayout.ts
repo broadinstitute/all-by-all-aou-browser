@@ -27,8 +27,14 @@ export interface PeakLabelNode {
   burdenTypes: string[];
   /** Whether the top gene has significant coding variants */
   hasCoding: boolean;
+  /** Count of LoF variants in the top gene */
+  lofCount: number;
+  /** Count of missense variants in the top gene */
+  missenseCount: number;
   /** Total number of implicated genes in this peak */
   implicatedCount: number;
+  /** Whether this is a burden-only peak (no GWAS single-variant signal) */
+  isBurdenOnly: boolean;
 }
 
 export interface PeakLabelLayout {
@@ -43,9 +49,12 @@ function estimateLabelWidth(
   label: string,
   burdenTypes: string[],
   hasCoding: boolean,
-  implicatedCount: number
+  implicatedCount: number,
+  isBurdenOnly: boolean = false
 ): number {
   let text = label;
+  // Add space for burden-only indicator
+  if (isBurdenOnly) text = '◆ ' + text;
   // Add space for burden dots (2 chars each: dot + space)
   if (burdenTypes.length > 0) text = '●'.repeat(burdenTypes.length) + ' ' + text;
   // Add space for coding indicator
@@ -86,11 +95,31 @@ export function usePeakLabelLayout(
           return peakContig === contig;
         });
 
-    // Sort by p-value (most significant first) and limit to maxLabels
-    // to prevent SVG collision chaos with too many labels
-    const topPeaks = [...filteredPeaks]
+    // Separate GWAS peaks from burden-only peaks
+    const gwasPeaks = filteredPeaks.filter((p) => !p.isBurdenOnly);
+    const burdenOnlyPeaks = filteredPeaks.filter((p) => p.isBurdenOnly);
+
+    // Take top N GWAS peaks
+    const topGwasPeaks = [...gwasPeaks]
       .sort((a, b) => a.pvalue - b.pvalue)
       .slice(0, maxLabels);
+
+    // Include ALL burden-only peaks with significant pLoF or missense burden
+    const SIG_BURDEN_THRESHOLD = 2.5e-6;
+    const significantBurdenOnlyPeaks = burdenOnlyPeaks.filter((p) =>
+      p.genes.some((g) =>
+        g.burden_results?.some((b) =>
+          (b.annotation === 'pLoF' || b.annotation === 'missenseLC') &&
+          ((b.pvalue !== undefined && b.pvalue < SIG_BURDEN_THRESHOLD) ||
+           (b.pvalue_burden !== undefined && b.pvalue_burden < SIG_BURDEN_THRESHOLD) ||
+           (b.pvalue_skat !== undefined && b.pvalue_skat < SIG_BURDEN_THRESHOLD))
+        )
+      )
+    );
+
+    // Combine: top GWAS peaks + all significant burden-only peaks
+    const topPeaks = [...topGwasPeaks, ...significantBurdenOnlyPeaks]
+      .sort((a, b) => a.pvalue - b.pvalue);
 
     const nodes: PeakLabelNode[] = [];
 
@@ -133,11 +162,14 @@ export function usePeakLabelLayout(
       const burdenTypes = Array.from(burdenTypesSet);
       const hasBurden = burdenTypes.length > 0;
 
-      // Check if top gene has coding variants
+      // Extract specific coding variant counts
+      const lofCount = topGene.lof_count || 0;
+      const missenseCount = topGene.missense_count || 0;
       const codingCount = topGene.coding_variant_count || 0;
       const hasCoding = codingCount > 0;
 
-      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount);
+      const isBurdenOnly = peak.isBurdenOnly ?? false;
+      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount, isBurdenOnly);
 
       // For angled labels, calculate collision radius
       const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
@@ -161,7 +193,10 @@ export function usePeakLabelLayout(
         collisionRadius,
         burdenTypes,
         hasCoding,
+        lofCount,
+        missenseCount,
         implicatedCount,
+        isBurdenOnly,
       });
     }
 
@@ -218,10 +253,12 @@ export function usePeakLabelLayout(
     const shift = TOP_PADDING - minY;
     for (const node of nodes) {
       node.y += shift;
-      // Clamp X within bounds (account for angled label extending left)
-      const leftExtent = node.labelWidth * Math.cos(angleRad);
-      const xMargin = Math.max(10, leftExtent);
-      node.x = Math.max(xMargin, Math.min(width - 10, node.x));
+      // Clamp X within bounds (account for angled label extending both directions)
+      // With -45° rotation and textAnchor="start", text extends up-right from anchor
+      const rightExtent = node.labelWidth * Math.cos(angleRad);
+      const leftMargin = 10;
+      const rightMargin = Math.max(10, rightExtent);
+      node.x = Math.max(leftMargin, Math.min(width - rightMargin, node.x));
     }
 
     return { nodes, labelAreaHeight };

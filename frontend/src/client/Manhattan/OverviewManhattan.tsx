@@ -33,17 +33,41 @@ export interface OverviewManhattanProps {
   onResetContig?: () => void;
 }
 
+// Significance threshold for GWAS
+const GWAS_SIG_THRESHOLD = 5e-8;
+
 /**
  * Convert unified loci to Peak format for usePeakLabelLayout hook.
- * Uses the best p-value (min of genome and exome) for each locus.
+ * Uses the best p-value (min of genome, exome, and burden tests) for each locus.
  */
 function unifiedLociToPeaks(loci: UnifiedLocus[]): Peak[] {
   return loci.map((locus) => {
-    // Use best (lowest) p-value between genome and exome
-    const pvalue = Math.min(
+    // Check if there's a significant GWAS single-variant signal
+    const hasGwasSig = (locus.pvalue_genome !== undefined && locus.pvalue_genome < GWAS_SIG_THRESHOLD) ||
+                       (locus.pvalue_exome !== undefined && locus.pvalue_exome < GWAS_SIG_THRESHOLD);
+
+    // Start with genome/exome p-values
+    let bestPvalue = Math.min(
       locus.pvalue_genome ?? Infinity,
       locus.pvalue_exome ?? Infinity
     );
+
+    // Also check burden test p-values from all genes
+    for (const g of locus.genes) {
+      if (g.burden_results) {
+        for (const b of g.burden_results) {
+          if (b.pvalue !== undefined && b.pvalue < bestPvalue) {
+            bestPvalue = b.pvalue;
+          }
+          if (b.pvalue_burden !== undefined && b.pvalue_burden < bestPvalue) {
+            bestPvalue = b.pvalue_burden;
+          }
+          if (b.pvalue_skat !== undefined && b.pvalue_skat < bestPvalue) {
+            bestPvalue = b.pvalue_skat;
+          }
+        }
+      }
+    }
 
     // Convert unified genes to GeneInLocus format
     const genes = locus.genes.map((g) => ({
@@ -65,8 +89,9 @@ function unifiedLociToPeaks(loci: UnifiedLocus[]): Peak[] {
     return {
       contig: locus.contig,
       position: locus.position,
-      pvalue: pvalue === Infinity ? 1 : pvalue,
+      pvalue: bestPvalue === Infinity ? 1 : bestPvalue,
       genes,
+      isBurdenOnly: !hasGwasSig,
     };
   });
 }
@@ -159,6 +184,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     setImageError(true);
   }, []);
 
+  // Clear loaded state when image URLs change to prevent stale overlays
+  useEffect(() => {
+    setGenomeLoaded(false);
+    setExomeLoaded(false);
+    setImageError(false);
+  }, [genomeImageUrl, exomeImageUrl]);
+
   if (imageError) {
     return (
       <div className="manhattan-container">
@@ -205,6 +237,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
               onLoad={handleGenomeLoad}
               onError={handleImageError}
               draggable={false}
+              style={{ opacity: genomeLoaded ? 1 : 0.3, transition: 'opacity 0.2s' }}
             />
 
             {/* Overlay image: Exome Manhattan with CSS filter */}
@@ -215,18 +248,8 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
               onLoad={handleExomeLoad}
               onError={handleImageError}
               draggable={false}
+              style={{ opacity: exomeLoaded ? 0.85 : 0, transition: 'opacity 0.2s' }}
             />
-
-            {/* Back to All button for per-chromosome view */}
-            {contig !== 'all' && onResetContig && imagesLoaded && (
-              <button
-                className="overview-back-button"
-                onClick={onResetContig}
-                title="Return to genome-wide view"
-              >
-                ← Back to All
-              </button>
-            )}
           </div>
 
           {/* Peak labels SVG - spans label area and plot */}
@@ -283,6 +306,23 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
       {/* Stats bar */}
       {imagesLoaded && (
         <div className="overview-stats" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
+          {contig !== 'all' && onResetContig && (
+            <div className="overview-stats-item">
+              <button
+                onClick={onResetContig}
+                style={{
+                  cursor: 'pointer',
+                  padding: '4px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  background: '#fff',
+                  fontSize: '12px',
+                }}
+              >
+                &larr; Back to All
+              </button>
+            </div>
+          )}
           <div className="overview-stats-item">
             <span className="overview-stats-label">Chromosome:</span>
             <ChromosomeSelector />
@@ -294,6 +334,18 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
           <div className="overview-stats-item">
             <span className="overview-stats-label">Threshold:</span>
             <span className="overview-stats-value">P &lt; 5e-8</span>
+          </div>
+          {/* Legend */}
+          <div className="overview-stats-item" style={{ marginLeft: 'auto', gap: 12, display: 'flex' }}>
+            <span style={{ fontSize: 10, color: '#666' }}>
+              <span style={{ color: '#d32f2f' }}>●</span> pLoF
+            </span>
+            <span style={{ fontSize: 10, color: '#666' }}>
+              <span style={{ color: '#f9a825' }}>●</span> Missense
+            </span>
+            <span style={{ fontSize: 10, color: '#666' }}>
+              <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
+            </span>
           </div>
         </div>
       )}

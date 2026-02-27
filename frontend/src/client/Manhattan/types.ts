@@ -92,6 +92,8 @@ export interface Peak {
   pvalue: number;
   /** Genes within ±200kb of peak, sorted by distance */
   genes: GeneInLocus[];
+  /** Whether this peak is burden-only (no GWAS single-variant signal) */
+  isBurdenOnly?: boolean;
 }
 
 /**

@@ -10,7 +10,12 @@ import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState'
 
 const Container = styled.div`
   width: 100%;
-  max-width: 1400px; /* Prevent over-stretching on wide screens */
+`;
+
+const ScrollWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 16px;
 `;
 
 const ControlBar = styled.div`
@@ -95,6 +100,7 @@ const TestToggleButton = styled.button<{ $active: boolean }>`
 const PlotContainer = styled.div`
   display: flex;
   width: 100%;
+  min-width: 900px; /* Prevent squishing and force scrollbar if container is too small */
 `;
 
 const CanvasWrapper = styled.div`
@@ -242,7 +248,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     return result;
   }, [queryStates, testType]);
 
-  // Track container width (fixed height like GeneBurdenManhattan)
+  // Track container width and maintain aspect ratio
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -250,13 +256,17 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     // Immediate measurement
     const rect = container.getBoundingClientRect();
     if (rect.width > 0) {
-      setDimensions({ width: rect.width, height: PLOT_HEIGHT });
+      const h = Math.min(500, Math.max(350, rect.width / 2.75));
+      setDimensions({ width: rect.width, height: h });
     }
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry && entry.contentRect.width > 0) {
-        setDimensions({ width: entry.contentRect.width, height: PLOT_HEIGHT });
+        const w = entry.contentRect.width;
+        // Maintain aspect ratio ~2.75, capped at 500px height
+        const h = Math.min(500, Math.max(350, w / 2.75));
+        setDimensions({ width: w, height: h });
       }
     });
 
@@ -445,9 +455,9 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
 
       setMousePos({ x: e.clientX, y: e.clientY });
 
-      // Find nearest point within 8px
+      // Find nearest point within 12px (increased radius for easier clicking)
       let nearest: PlottedPoint | null = null;
-      let minDist = 8;
+      let minDist = 12;
 
       for (const p of plottedPoints) {
         if (!visibleAnnotations.has(p.annotation)) continue;
@@ -533,26 +543,28 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
         </div>
       </ControlBar>
 
-      <PlotContainer>
-        <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative', height: PLOT_HEIGHT }}>
-          <YAxis height={PLOT_HEIGHT} width={Y_AXIS_WIDTH} />
-        </div>
+      <ScrollWrapper>
+        <PlotContainer>
+          <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative', height: dimensions.height }}>
+            <YAxis height={dimensions.height} width={Y_AXIS_WIDTH} />
+          </div>
 
-        <CanvasWrapper ref={containerRef}>
-          <canvas
-            ref={canvasRef}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: PLOT_HEIGHT,
-              cursor: hoveredPoint ? 'pointer' : 'default',
-            }}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          />
-        </CanvasWrapper>
-      </PlotContainer>
+          <CanvasWrapper ref={containerRef}>
+            <canvas
+              ref={canvasRef}
+              style={{
+                display: 'block',
+                width: dimensions.width,
+                height: dimensions.height,
+                cursor: hoveredPoint ? 'pointer' : 'default',
+              }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onClick={handleClick}
+            />
+          </CanvasWrapper>
+        </PlotContainer>
+      </ScrollWrapper>
 
       {dimensions.width > 0 && (
         <div style={{ marginLeft: Y_AXIS_WIDTH }}>
