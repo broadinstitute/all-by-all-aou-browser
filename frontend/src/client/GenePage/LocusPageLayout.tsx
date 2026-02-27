@@ -10,6 +10,7 @@ import {
   AncestryGroupCodes,
   regionIdAtom,
   variantIdAtom,
+  locusMafAtom,
 } from '../sharedState'
 import { TinySpinner } from '../UserInterface'
 import {
@@ -262,6 +263,43 @@ const parseRegionId = (regionId: string) => {
   return { contig, start: parseInt(start, 10), stop: parseInt(stop, 10) }
 }
 
+// Tab components for table switching
+const TabContainer = styled.div`
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 16px;
+  margin-top: 10px;
+`
+
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: ${({ $active }) => ($active ? '600' : '400')};
+  color: ${({ $active }) => ($active ? '#1976d2' : '#666')};
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: ${({ $active }) => ($active ? '#1976d2' : 'transparent')};
+    transition: background 0.15s ease;
+  }
+
+  &:hover {
+    color: ${({ $active }) => ($active ? '#1976d2' : '#333')};
+  }
+`
+
+type TableTab = 'geneBurden' | 'variants'
+
 // Main Component Props
 type LocusPageLayoutProps = {
   geneModels: GeneModels[]
@@ -298,7 +336,8 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
   const gwasCatalogOption = useRecoilValue(gwasCatalogOptionsAtom)
   const [regionId, setRegionId] = useRecoilState(regionIdAtom)
-  const [showVariantTable, setShowVariantTable] = useState(false)
+  const [activeTab, setActiveTab] = useState<TableTab>('geneBurden')
+  const locusMaf = useRecoilValue(locusMafAtom)
 
   const regionViewerWidth = width
   const geneModel = !regionId ? geneModels[0] : undefined
@@ -419,16 +458,11 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     )
   }
 
-  // New state for toggling tables
-
-  const toggleTable = () => setShowVariantTable(!showVariantTable)
-
   const geneResultsColKeys = [
     'gene_name_phenotype_page',
     // 'chrom',
     // 'position',
     'annotation',
-    'max_maf',
     // 'ancestry_group',
     'pvalue',
     'pvalue_skat',
@@ -512,11 +546,6 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           <div className="grid-area grid-area-plot-controls">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <ZoomRegion />
-              {regionId && (
-                <Button onClick={toggleTable}>
-                  {showVariantTable ? 'Show Gene Results' : 'Show Variant Table'}
-                </Button>
-              )}
             </div>
             <LoadingSpinners queryStates={queryStates} />
           </div>
@@ -558,41 +587,49 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
 
         <div className="grid-area grid-area-variant-table">
           {regionId ? (
-            showVariantTable ? (
-              tableFormat === 'wide' && variantId && datasets?.[0]?.length === 1 ? (
-                <>
-                  <IndividualVariantResultsTable
+            <>
+              <TabContainer>
+                <Tab $active={activeTab === 'geneBurden'} onClick={() => setActiveTab('geneBurden')}>
+                  Gene Burden
+                </Tab>
+                <Tab $active={activeTab === 'variants'} onClick={() => setActiveTab('variants')}>
+                  Variants
+                </Tab>
+              </TabContainer>
+
+              {activeTab === 'variants' ? (
+                tableFormat === 'wide' && variantId && datasets?.[0]?.length === 1 ? (
+                  <>
+                    <IndividualVariantResultsTable
+                      variantDatasets={datasets}
+                      sortVariants={sortAndFilterVariants}
+                    />
+                    {datasets[0][0].gwas_catalog && (
+                      <GwasCatalogDetails gwasCatalog={datasets[0][0].gwas_catalog} />
+                    )}
+                  </>
+                ) : (
+                  <GenePageVariantTable
                     variantDatasets={datasets}
+                    onSort={handleSort}
+                    sortState={sortState}
                     sortVariants={sortAndFilterVariants}
                   />
-                  {datasets[0][0].gwas_catalog && (
-                    <GwasCatalogDetails gwasCatalog={datasets[0][0].gwas_catalog} />
-                  )}
-                </>
+                )
               ) : (
-                <GenePageVariantTable
-                  variantDatasets={datasets}
-                  onSort={handleSort}
-                  sortState={sortState}
-                  sortVariants={sortAndFilterVariants}
-                />
-              )
-            ) : (
-              <>
-
-                <h3 className="app-section-title">
-                  Gene burden associations in locus {regionId} with {analysisMetadata && analysisMetadata.description}
-                </h3>
                 <GeneResultsTable
                   columns={geneResultsColumns}
                   results={(() => {
-                    // Filter gene associations by region bounds and ancestry
+                    // Filter gene associations by region bounds, ancestry, and MAF
                     const { contig, start, stop } = parseRegionId(regionId)
                     const contigWithoutChr = contig.replace(/^chr/, '')
 
                     const filtered = geneAssociations.filter((gene) => {
                       // Filter by ancestry
                       if (gene.ancestry_group !== ancestryGroup) return false
+
+                      // Filter by MAF
+                      if (gene.max_maf !== locusMaf) return false
 
                       // Filter by region - check if gene overlaps with region
                       const geneContig = gene.contig || ''
@@ -607,7 +644,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
                       return geneStart >= start && geneStart <= stop
                     })
 
-                    // Sort by pvalue (most significant first), showing all MAF thresholds
+                    // Sort by pvalue (most significant first)
                     return filtered.sort((a, b) =>
                       (a.pvalue ?? 1) - (b.pvalue ?? 1)
                     )
@@ -616,10 +653,10 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
                   analysisId={analysisMetadata?.analysis_id || ""}
                   burdenSet='pLoF'
                   highlightText=''
-                  numRowsRendered={8}
+                  numRowsRendered={16}
                 />
-              </>
-            )
+              )}
+            </>
           ) : (
             tableFormat === 'wide' && variantId && datasets?.[0]?.length === 1 ? (
               <>

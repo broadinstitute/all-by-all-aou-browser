@@ -7,7 +7,7 @@ import {
   useResetRecoilState,
   useSetRecoilState,
 } from 'recoil'
-import { string, nullable, stringLiterals, bool } from '@recoiljs/refine'
+import { string, nullable, stringLiterals, bool, number } from '@recoiljs/refine'
 import { urlSyncEffect } from 'recoil-sync'
 
 import randomColor from 'randomcolor'
@@ -15,7 +15,7 @@ import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Ut
 
 export const geneIdAtom = atom<string | null | undefined>({
   key: 'geneId',
-  default: 'ENSG00000130164',
+  default: 'ENSG00000162551',
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
@@ -51,7 +51,7 @@ export const selectedContigAtom = atom<string>({
 
 export const analysisIdAtom = atom<string | null | undefined>({
   key: 'analysisId',
-  default: '3027114',
+  default: '3035995',
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
@@ -88,6 +88,19 @@ export const burdenSetAtom = atom<BurdenSetOptions>({
   effects: [
     urlSyncEffect({
       refine: burdenSetChecker,
+      history: 'push',
+      syncDefault: true,
+    }),
+  ],
+})
+
+export type MafOption = 0.01 | 0.001 | 0.0001
+export const locusMafAtom = atom<MafOption>({
+  key: 'locusMaf',
+  default: 0.001,
+  effects: [
+    urlSyncEffect({
+      refine: number(),
       history: 'push',
       syncDefault: true,
     }),

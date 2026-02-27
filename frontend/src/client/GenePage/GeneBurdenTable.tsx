@@ -1,8 +1,10 @@
 import React from 'react'
 import styled from 'styled-components'
+import { useRecoilValue } from 'recoil'
 import { BaseTable, Checkbox, TooltipAnchor } from '@gnomad/ui'
 import { Badge } from '@gnomad/ui'
 
+import { locusMafAtom } from '../sharedState'
 import {
   geneYellowThreshold,
   yellowThresholdColor,
@@ -104,13 +106,6 @@ export const prepareTableData = (geneAssociations: GeneAssociations[]) => {
   }, {})
 }
 
-// Format MAF for display (e.g., 0.01 -> "1%", 0.001 -> "0.1%", 0.0001 -> "0.01%")
-const formatMaf = (maf: number): string => {
-  if (maf >= 0.01) return `${(maf * 100).toFixed(0)}%`
-  if (maf >= 0.001) return `${(maf * 100).toFixed(1)}%`
-  return `${(maf * 100).toFixed(2)}%`
-}
-
 // Sort order for annotations
 const annotationOrder: Record<string, number> = {
   'pLoF': 1,
@@ -206,7 +201,7 @@ export const GeneBurdenTable = ({
   membershipFilters,
   setMembershipFilters,
 }: Props) => {
-  const [selectedMaf, setSelectedMaf] = React.useState<number>(0.001)
+  const selectedMaf = useRecoilValue(locusMafAtom)
 
   // Prepare all rows sorted by annotation then MAF, keeping only one row per annotation
   // (deduplicate by annotation, keeping the first/most significant one)
@@ -238,23 +233,10 @@ export const GeneBurdenTable = ({
 
   return (
     <div>
-      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <strong>Max MAF:</strong>
-        <select
-          value={selectedMaf}
-          onChange={(e) => setSelectedMaf(Number(e.target.value))}
-          style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
-        >
-          <option value={0.01}>1%</option>
-          <option value={0.001}>0.1%</option>
-          <option value={0.0001}>0.01%</option>
-        </select>
-      </div>
       <Table>
         <thead>
           <tr>
             <th scope='col'>Category</th>
-            <th scope='col'>MAF</th>
             <th scope='col'>P-value SKATO</th>
             <th scope='col'>P-value burden</th>
             <th scope='col'>P-value SKAT</th>
@@ -265,7 +247,6 @@ export const GeneBurdenTable = ({
           {allRows.map((row, idx) => (
             <tr key={`${row.annotation}-${row.max_maf}`}>
               <th>{annotationLabel[row.annotation] || row.annotation}</th>
-              <td>{formatMaf(row.max_maf)}</td>
               <td>{renderPvalueCell(row.pvalue)}</td>
               <td>{renderPvalueCell(row.pvalue_burden)}</td>
               <td>{renderPvalueCell(row.pvalue_skat)}</td>
@@ -286,13 +267,13 @@ export const GeneBurdenTable = ({
           ))}
           {allRows.length === 0 && (
             <tr>
-              <td colSpan={membershipFilters ? 6 : 5} style={{ textAlign: 'center', color: '#666' }}>
+              <td colSpan={membershipFilters ? 5 : 4} style={{ textAlign: 'center', color: '#666' }}>
                 No burden test results available
               </td>
             </tr>
           )}
           <tr style={{ borderTop: '1px double black' }}>
-            <th className='tooltip' colSpan={2}>
+            <th className='tooltip'>
               <TooltipAnchor
                 tooltip={
                   'The lambda GC (genomic control) across all phenotypes for synonymous variants in this gene.'
@@ -306,7 +287,7 @@ export const GeneBurdenTable = ({
             <td>{renderCell('synonymous', 'synonymous_lambda_gc_skat')}</td>
           </tr>
           <tr>
-            <th className='tooltip' colSpan={2}>
+            <th className='tooltip'>
               <TooltipAnchor
                 tooltip={
                   'The lambda GC (genomic control) for this phenotype across all variants in this gene.'

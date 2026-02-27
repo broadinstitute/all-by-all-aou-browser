@@ -43,7 +43,7 @@ import {
   yellowThresholdColor,
 } from '../PhenotypeList/Utils'
 import { getAlleleFrequencyScale, consequenceCategoryColors } from './LocusPagePlots'
-import { ancestryGroupAtom, regionIdAtom, variantIdAtom } from '../sharedState'
+import { ancestryGroupAtom, regionIdAtom, variantIdAtom, locusMafAtom, MafOption } from '../sharedState'
 
 const TooltipHint = styled(TooltipHintBase)`
   background-image: none;
@@ -65,6 +65,7 @@ const GenePageControlsGeneFocus = styled.div`
   grid-template-columns: 1fr;
   grid-template-areas:
     'search'
+    'maf-selector'
     'burden-set'
     'zoom-controls'
     'gwas-catalog-options'
@@ -78,6 +79,10 @@ const GenePageControlsGeneFocus = styled.div`
     'field-group-controls'
     'individual-field-checkboxes'
     'app-data-stats';
+
+  .maf-selector {
+    grid-area: maf-selector;
+  }
 
   grid-row-gap: 1.2em;
   align-items: flex-start;
@@ -213,6 +218,27 @@ const GenePageControlStylesVariantFocus = styled(GenePageControlsGeneFocus)`
     'individual-field-checkboxes'
     'app-data-stats';
 `
+
+const MafSelector: React.FC = () => {
+  const [locusMaf, setLocusMaf] = useRecoilState(locusMafAtom)
+  return (
+    <div className='maf-selector'>
+      <span>
+        <strong>Max MAF</strong>
+      </span>
+      <SegmentedControl
+        id='locus-maf-selector'
+        options={[
+          { value: 0.01, label: '1%' },
+          { value: 0.001, label: '0.1%' },
+          { value: 0.0001, label: '0.01%' },
+        ]}
+        value={locusMaf}
+        onChange={(value: MafOption) => setLocusMaf(value)}
+      />
+    </div>
+  )
+}
 
 const InBurdenAnalysisControls: React.FC = () => {
   const [membershipFilters, setMembershipFilters] = useRecoilState(membershipFiltersAtom)
@@ -628,6 +654,7 @@ export const GenePageControls = () => {
   const GenePageControlsItems: React.FC = () => {
     return (
       <>
+        <MafSelector />
         <InBurdenAnalysisControls />
         {/* <GwasCatalogOptions /> */}
         {/* <ShowCaseControlTracks /> */}

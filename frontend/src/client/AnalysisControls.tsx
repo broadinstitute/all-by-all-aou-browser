@@ -10,7 +10,7 @@ const ControlsWrapper = styled.div`
 `
 
 const AnalysisControls = ({ burdenSet, setBurdenSet }: any) => {
-  const options = [{ value: 'pLoF' }, { value: 'missenseLC' }]
+  const options = [{ value: 'pLoF' }, { value: 'missenseLC' }, { value: 'synonymous' }]
 
   return (
     <ControlsWrapper>
