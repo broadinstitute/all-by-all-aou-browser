@@ -103,12 +103,6 @@ const VariantInfo: React.FC<VariantInfoProps> = ({ variantData }) => {
           <AttributeListItem label="PolyPhen">
             {variantData.polyphen2}
           </AttributeListItem>
-          <AttributeListItem label="Ancestry Group">
-            {variantData.ancestry_group}
-          </AttributeListItem>
-          <AttributeListItem label="Sequencing Type">
-            {variantData.sequencing_type}
-          </AttributeListItem>
           <AttributeListItem label="Position">
             {variantData.locus.position}
           </AttributeListItem>
