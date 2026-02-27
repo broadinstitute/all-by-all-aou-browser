@@ -18,8 +18,33 @@ provider "google" {
 
 locals {
   registry_prefix = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.axaou.repository_id}"
-  frontend_image  = "${local.registry_prefix}/${var.frontend_image}:latest"
-  backend_image   = "${local.registry_prefix}/${var.backend_image}:latest"
+}
+
+# Fetch current digest of :latest tags via gcloud - triggers redeploy when images change
+data "external" "frontend_digest" {
+  program = ["bash", "-c", <<-EOF
+    DIGEST=$(gcloud artifacts docker images describe \
+      ${local.registry_prefix}/${var.frontend_image}:latest \
+      --format='value(image_summary.digest)' 2>/dev/null)
+    echo "{\"digest\": \"$DIGEST\"}"
+  EOF
+  ]
+}
+
+data "external" "backend_digest" {
+  program = ["bash", "-c", <<-EOF
+    DIGEST=$(gcloud artifacts docker images describe \
+      ${local.registry_prefix}/${var.backend_image}:latest \
+      --format='value(image_summary.digest)' 2>/dev/null)
+    echo "{\"digest\": \"$DIGEST\"}"
+  EOF
+  ]
+}
+
+locals {
+  # Reference images by digest so Terraform detects changes
+  frontend_image = "${local.registry_prefix}/${var.frontend_image}@${data.external.frontend_digest.result.digest}"
+  backend_image  = "${local.registry_prefix}/${var.backend_image}@${data.external.backend_digest.result.digest}"
 }
 
 # Reference the existing VPC network (shared with clickhouse-vm)

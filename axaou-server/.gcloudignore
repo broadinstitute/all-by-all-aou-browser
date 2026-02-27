@@ -1,0 +1,14 @@
+# Rust build artifacts
+target/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Local dev files
+*.log

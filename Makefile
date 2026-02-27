@@ -1,7 +1,7 @@
 # Development Makefile for axaou-rust
 # Provides unified commands for running frontend + backend with hot reloading
 
-.PHONY: dev dev-backend dev-frontend install stop clean help deploy deploy-dev deploy-prod
+.PHONY: dev dev-backend dev-frontend install stop clean help deploy deploy-dev deploy-frontend deploy-prod
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "Deploy:"
 	@echo "  deploy        - Deploy to Cloud Run (default: dev)"
 	@echo "  deploy-dev    - Deploy to Cloud Run dev environment"
+	@echo "  deploy-frontend - Deploy frontend only (faster)"
 	@echo "  deploy-prod   - Deploy to Cloud Run prod environment"
 	@echo ""
 	@echo "Build:"
@@ -115,6 +116,10 @@ deploy: deploy-dev
 deploy-dev:
 	@echo "Deploying to Cloud Run (dev environment)..."
 	./deploy.sh dev
+
+deploy-frontend:
+	@echo "Deploying frontend only to Cloud Run (dev)..."
+	./deploy.sh dev --frontend-only
 
 deploy-prod:
 	@echo "Deploying to Cloud Run (prod environment)..."

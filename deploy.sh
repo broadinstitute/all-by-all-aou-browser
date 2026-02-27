@@ -2,7 +2,7 @@
 #
 # deploy.sh - One-command deployment for axaou-rust to Cloud Run
 #
-# Usage: ./deploy.sh [dev|prod]
+# Usage: ./deploy.sh [dev|prod] [--frontend-only]
 #
 # This script:
 # 1. Ensures Artifact Registry exists (terraform apply -target)
@@ -10,26 +10,42 @@
 # 3. Builds and pushes Docker images to Artifact Registry
 # 4. Deploys to Cloud Run via Terraform
 #
+# Options:
+#   --frontend-only   Skip backend build (much faster)
+#
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Configuration
-ENV="${1:-dev}"
+# Parse arguments
+FRONTEND_ONLY=false
+ENV="dev"
+
+for arg in "$@"; do
+    case $arg in
+        --frontend-only)
+            FRONTEND_ONLY=true
+            ;;
+        dev|prod)
+            ENV="$arg"
+            ;;
+    esac
+done
 PROJECT_ID="aou-neale-gwas-browser"
 REGION="us-central1"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/axaou"
-# Use git SHA for unique image tags (forces Cloud Run to redeploy)
-GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
-FRONTEND_IMAGE="${REGISTRY}/axaou-frontend:${GIT_SHA}"
-BACKEND_IMAGE="${REGISTRY}/axaou-backend:${GIT_SHA}"
+GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+# Push to :latest - Terraform uses docker provider to detect digest changes
+FRONTEND_IMAGE="${REGISTRY}/axaou-frontend:latest"
+BACKEND_IMAGE="${REGISTRY}/axaou-backend:latest"
 DEPLOY_SA="axaou-deploy-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "==================================="
 echo "Deploying axaou-rust to Cloud Run"
 echo "Environment: ${ENV}"
+echo "Frontend only: ${FRONTEND_ONLY}"
 echo "Registry: ${REGISTRY}"
 echo "==================================="
 
@@ -91,17 +107,53 @@ docker build --platform linux/amd64 \
 echo ">>> Pushing frontend Docker image..."
 docker push "${FRONTEND_IMAGE}"
 
-# Step 3: Build and push backend Docker image
-echo ""
-echo ">>> Building backend Docker image with Cloud Build..."
+# Step 3: Build and push backend Docker image (skip if --frontend-only)
+if [ "$FRONTEND_ONLY" = false ]; then
+    echo ""
+    echo ">>> Building backend Docker image with Cloud Build..."
 
-# Cloud Build fetches hail-decoder from git during cargo build
-gcloud builds submit axaou-server \
-    --tag "${BACKEND_IMAGE}" \
-    --project "${PROJECT_ID}" \
-    --timeout=20m \
-    --machine-type=e2-highcpu-8 \
-    --impersonate-service-account="${DEPLOY_SA}"
+    # Cloud Build fetches hail-decoder from git during cargo build
+    # Use --async to avoid VPC-SC log streaming issues, then poll for completion
+    BUILD_OUTPUT=$(gcloud builds submit axaou-server \
+        --tag "${BACKEND_IMAGE}" \
+        --project "${PROJECT_ID}" \
+        --timeout=20m \
+        --machine-type=e2-highcpu-8 \
+        --impersonate-service-account="${DEPLOY_SA}" \
+        --async \
+        --format='value(id)')
+
+    BUILD_ID="${BUILD_OUTPUT}"
+    echo ">>> Cloud Build started: ${BUILD_ID}"
+    echo ">>> Logs: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
+
+    # Poll for build completion
+    echo ">>> Waiting for build to complete..."
+    while true; do
+        STATUS=$(gcloud builds describe "${BUILD_ID}" \
+            --project="${PROJECT_ID}" \
+            --impersonate-service-account="${DEPLOY_SA}" \
+            --format='value(status)' 2>/dev/null)
+
+        case "${STATUS}" in
+            SUCCESS)
+                echo ">>> Build completed successfully!"
+                break
+                ;;
+            FAILURE|TIMEOUT|CANCELLED|EXPIRED)
+                echo ">>> Build failed with status: ${STATUS}"
+                exit 1
+                ;;
+            *)
+                echo -n "."
+                sleep 10
+                ;;
+        esac
+    done
+else
+    echo ""
+    echo ">>> Skipping backend build (--frontend-only)"
+fi
 
 # Step 4: Deploy with Terraform
 echo ""
@@ -117,30 +169,15 @@ terraform apply plan.tfplan
 # Clean up plan file
 rm -f plan.tfplan
 
-cd "$SCRIPT_DIR"
-
-# Step 5: Force Cloud Run to use the new images
-echo ""
-echo ">>> Updating Cloud Run services with new images..."
-gcloud run services update "axaou-backend-${ENV}" \
-    --image="${BACKEND_IMAGE}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}" \
-    --quiet
-
-gcloud run services update "axaou-app-${ENV}" \
-    --image="${FRONTEND_IMAGE}" \
-    --region="${REGION}" \
-    --project="${PROJECT_ID}" \
-    --quiet
-
 # Show outputs
 echo ""
 echo "==================================="
 echo "Deployment complete!"
 echo "==================================="
-echo "Images deployed: ${GIT_SHA}"
+echo "Git SHA: ${GIT_SHA}"
 terraform output
 
 echo ""
 echo "Frontend URL: $(terraform output -raw frontend_url)"
+
+cd "$SCRIPT_DIR"

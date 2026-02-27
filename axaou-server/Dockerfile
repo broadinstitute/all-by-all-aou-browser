@@ -1,7 +1,7 @@
 # Multi-stage build for axaou-server
 # hail-decoder is fetched from git during cargo build
 
-FROM rust:1.83-slim-bookworm AS builder
+FROM rust:1.85-slim-bookworm AS builder
 
 # Install build dependencies (git needed for cargo to fetch git dependencies)
 RUN apt-get update && apt-get install -y \

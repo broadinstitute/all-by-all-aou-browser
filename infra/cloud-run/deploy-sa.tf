@@ -13,12 +13,12 @@ resource "google_project_iam_member" "deploy_cloudbuild_editor" {
   member  = "serviceAccount:${google_service_account.deploy_sa.email}"
 }
 
-# Artifact Registry Writer - push images
-resource "google_artifact_registry_repository_iam_member" "deploy_ar_writer" {
+# Artifact Registry Repo Admin - push images and manage tags (including overwriting :latest)
+resource "google_artifact_registry_repository_iam_member" "deploy_ar_admin" {
   project    = var.project_id
   location   = var.region
   repository = google_artifact_registry_repository.axaou.repository_id
-  role       = "roles/artifactregistry.writer"
+  role       = "roles/artifactregistry.repoAdmin"
   member     = "serviceAccount:${google_service_account.deploy_sa.email}"
 }
 
