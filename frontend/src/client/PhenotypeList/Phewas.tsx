@@ -478,14 +478,14 @@ const Phewas = ({
 
   const activeAnalyses = showSelectAnalysesOnly ? undefined : selected
 
-  let numRowsRendered = 12
+  let numRowsRendered = 20
 
   if (windowSize.height) {
     numRowsRendered = (windowSize.height - 500) / 30
   }
 
-  if (numRowsRendered < 15) {
-    numRowsRendered = 15
+  if (numRowsRendered < 24) {
+    numRowsRendered = 24
   }
 
   const RootContainer = isGenePhewas ? RootContainerGene : RootContainerVariant

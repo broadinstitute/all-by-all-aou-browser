@@ -1,47 +1,161 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import {
-  AttributeList,
-  AttributeListItem,
-} from '../UserInterface';
 import { GeneConstraintTable } from './GeneConstraint';
 import { GeneModels } from '../types';
-import { ExternalLink } from '@gnomad/ui';
 
 const GeneInfoStyles = styled.div`
   margin-top: 10px;
   width: 100%;
 `;
 
-const TabContainer = styled.div`
+const CompactHeader = styled.div`
   display: flex;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  margin-bottom: 8px;
+  font-size: 14px;
 `;
 
-const Tab = styled.button<{ $active: boolean }>`
-  padding: 8px 16px;
-  border: none;
-  background: ${({ $active }) => ($active ? '#fff' : '#f5f5f5')};
-  border-bottom: ${({ $active }) => ($active ? '2px solid #262262' : '2px solid transparent')};
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: ${({ $active }) => ($active ? 'bold' : 'normal')};
-  color: ${({ $active }) => ($active ? '#262262' : '#666')};
+const GeneTitle = styled.h3`
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+`;
 
-  &:hover {
-    background: #fff;
+const InfoItem = styled.span`
+  color: #666;
+
+  strong {
+    color: #333;
+    font-weight: 500;
   }
 `;
 
-const TabContent = styled.div`
-  padding: 10px 0;
+const RegionText = styled.span`
+  color: #666;
+  font-family: monospace;
+  font-size: 13px;
+
+  .chrom {
+    color: #333;
+    font-weight: 500;
+  }
+
+  .strand {
+    color: #888;
+    margin-left: 4px;
+  }
 `;
 
-const LinksList = styled.div`
+const DetailsToggle = styled.button`
+  background: none;
+  border: none;
+  color: #1976d2;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const DetailsPanel = styled.div`
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+`;
+
+const DetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 24px;
+`;
+
+const DetailItem = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+
+  .label {
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .value {
+    color: #222;
+    font-weight: 500;
+  }
+`;
+
+const TranscriptValue = styled.span`
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  align-items: center;
+  gap: 6px;
+
+  .id {
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  .badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .separator {
+    color: #ccc;
+  }
+`;
+
+const LinksRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+`;
+
+const LinkChip = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 16px;
+  color: #1976d2;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e3f2fd;
+    border-color: #1976d2;
+    text-decoration: none;
+  }
+
+  &::after {
+    content: '↗';
+    font-size: 10px;
+    opacity: 0.7;
+  }
 `;
 
 interface GeneInfoProps {
@@ -49,127 +163,117 @@ interface GeneInfoProps {
   geneModel: GeneModels;
 }
 
-type TabType = 'identifiers' | 'constraint' | 'links';
-
 export const GeneInfo: React.FC<GeneInfoProps> = ({ geneIdentifier, geneModel }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('identifiers');
+  const [showDetails, setShowDetails] = useState(false);
+
+  const hasRegion = geneModel.chrom && geneModel.start && geneModel.stop;
+
+  const transcript = geneModel.mane_select_transcript
+    ? `${geneModel.mane_select_transcript.ensembl_id}.${geneModel.mane_select_transcript.ensembl_version}`
+    : geneModel.canonical_transcript_id;
 
   return (
     <GeneInfoStyles className="gene-info">
-      <h3 className="app-section-title" style={{ marginBottom: 10 }}>
-        Gene: <strong>{geneIdentifier}</strong>
-      </h3>
-      <TabContainer>
-        <Tab $active={activeTab === 'identifiers'} onClick={() => setActiveTab('identifiers')}>
-          Identifiers
-        </Tab>
-        {geneModel.gnomad_constraint && (
-          <Tab $active={activeTab === 'constraint'} onClick={() => setActiveTab('constraint')}>
-            Constraint
-          </Tab>
+      <CompactHeader>
+        <GeneTitle>{geneModel.gencode_symbol || geneIdentifier}</GeneTitle>
+        {geneModel.gene_id && (
+          <InfoItem><strong>{geneModel.gene_id}</strong></InfoItem>
         )}
-        <Tab $active={activeTab === 'links'} onClick={() => setActiveTab('links')}>
-          Links
-        </Tab>
-      </TabContainer>
+        {hasRegion && (
+          <RegionText>
+            <span className="chrom">{geneModel.chrom}</span>
+            :{geneModel.start}-{geneModel.stop}
+            <span className="strand">{geneModel.strand}</span>
+          </RegionText>
+        )}
+        <DetailsToggle onClick={() => setShowDetails(!showDetails)}>
+          {showDetails ? 'Hide details' : 'More details'}
+        </DetailsToggle>
+      </CompactHeader>
 
-      <TabContent>
-        {activeTab === 'identifiers' && (
-          <AttributeList labelWidth={120}>
-            {geneModel.reference_genome && (
-              <AttributeListItem label="Reference">
-                {geneModel.reference_genome}
-              </AttributeListItem>
-            )}
-            {geneModel.gene_id && (
-              <AttributeListItem label="Gene ID">
-                {geneModel.gene_id}
-              </AttributeListItem>
-            )}
-            {(() => {
-              const transcript =
-                geneModel.mane_select_transcript ||
-                geneModel.preferred_transcript_id ||
-                geneModel.canonical_transcript_id;
-
-              return transcript ? (
-                <AttributeListItem label="Transcript ID">
+      {showDetails && (
+        <DetailsPanel>
+          <DetailsGrid>
+            {transcript && (
+              <DetailItem>
+                <span className="label">Transcript</span>
+                <TranscriptValue>
                   {geneModel.mane_select_transcript ? (
                     <>
-                      {geneModel.mane_select_transcript.ensembl_id}.
-                      {geneModel.mane_select_transcript.ensembl_version} /
-                      {geneModel.mane_select_transcript.refseq_id}.
-                      {geneModel.mane_select_transcript.refseq_version} (MANE)
+                      <span className="id">
+                        {geneModel.mane_select_transcript.ensembl_id}.{geneModel.mane_select_transcript.ensembl_version}
+                      </span>
+                      <span className="separator">|</span>
+                      <span className="id">
+                        {geneModel.mane_select_transcript.refseq_id}.{geneModel.mane_select_transcript.refseq_version}
+                      </span>
+                      <span className="badge">MANE</span>
                     </>
                   ) : (
-                    <>{transcript} (canonical)</>
+                    <span className="id">{transcript}</span>
                   )}
-                </AttributeListItem>
-              ) : null;
-            })()}
-            {geneModel.gencode_symbol && (
-              <AttributeListItem label="Symbol">
-                {geneModel.gencode_symbol}
-              </AttributeListItem>
-            )}
-            {geneModel.chrom && geneModel?.start && geneModel?.stop && geneModel?.strand && (
-              <AttributeListItem label="Region">
-                {`${geneModel.chrom}:${geneModel.start}-${geneModel.stop} (${geneModel.strand})`}
-              </AttributeListItem>
+                </TranscriptValue>
+              </DetailItem>
             )}
             {geneModel.hgnc_id && (
-              <AttributeListItem label="HGNC ID">
-                {geneModel.hgnc_id}
-              </AttributeListItem>
+              <DetailItem>
+                <span className="label">HGNC</span>
+                <span className="value">{geneModel.hgnc_id}</span>
+              </DetailItem>
             )}
             {geneModel.omim_id && (
-              <AttributeListItem label="OMIM ID">
-                {geneModel.omim_id}
-              </AttributeListItem>
+              <DetailItem>
+                <span className="label">OMIM</span>
+                <span className="value">{geneModel.omim_id}</span>
+              </DetailItem>
             )}
-          </AttributeList>
-        )}
+            {geneModel.reference_genome && (
+              <DetailItem>
+                <span className="label">Reference</span>
+                <span className="value">{geneModel.reference_genome}</span>
+              </DetailItem>
+            )}
+          </DetailsGrid>
 
-        {activeTab === 'constraint' && geneModel.gnomad_constraint && (
-          <GeneConstraintTable gnomadConstraint={geneModel.gnomad_constraint} />
-        )}
+          {geneModel.gnomad_constraint && (
+            <div style={{ marginTop: 12 }}>
+              <strong style={{ fontSize: 13, color: '#333' }}>Constraint</strong>
+              <GeneConstraintTable gnomadConstraint={geneModel.gnomad_constraint} />
+            </div>
+          )}
 
-        {activeTab === 'links' && (
-          <LinksList>
-            <ExternalLink
+          <LinksRow>
+            <LinkChip
               href={`https://databrowser.researchallofus.org/snvindel-variants/${geneModel.symbol}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               AoU Data Browser
-            </ExternalLink>
-            <ExternalLink
+            </LinkChip>
+            <LinkChip
               href={`https://gnomad.broadinstitute.org/gene/${geneModel.gene_id}?dataset=gnomad_r4`}
               target="_blank"
               rel="noopener noreferrer"
             >
               gnomAD
-            </ExternalLink>
-            <ExternalLink
+            </LinkChip>
+            <LinkChip
               href={`https://app.genebass.org/gene/${geneModel.gene_id}/`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Genebass/UKBB
-            </ExternalLink>
-            <ExternalLink
+              Genebass
+            </LinkChip>
+            <LinkChip
               href={`https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&position=${geneModel.chrom}%3A${geneModel?.start}-${geneModel?.stop}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               UCSC
-            </ExternalLink>
-          </LinksList>
-        )}
-      </TabContent>
+            </LinkChip>
+          </LinksRow>
+        </DetailsPanel>
+      )}
     </GeneInfoStyles>
   );
 };
-
-
-
