@@ -34,7 +34,7 @@ const baseRowStyle = css`
   flex-direction: row;
   align-items: stretch;
   box-sizing: border-box;
-  border-top: 1px solid #424242;
+  border-top: 1px solid var(--theme-border, #424242);
 `;
 const baseCellStyle = css`
   display: flex;
@@ -65,7 +65,7 @@ const GridWrapper = styled.div`
     flex-direction: column;
 
     &.grid-row-stripe {
-      background: #fff;
+      background: var(--theme-stripe, #fff);
     }
 
     &.grid-row-highlight {
@@ -76,7 +76,7 @@ const GridWrapper = styled.div`
     ${baseRowStyle};
 
     &.grid-row-stripe {
-      background: #fff;
+      background: var(--theme-stripe, #fff);
     }
 
     &.grid-row-highlight {

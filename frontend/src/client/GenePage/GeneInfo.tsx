@@ -24,26 +24,26 @@ const GeneTitle = styled.h3`
 `;
 
 const InfoItem = styled.span`
-  color: #666;
+  color: ${(props) => props.theme.textMuted};
 
   strong {
-    color: #333;
+    color: ${(props) => props.theme.text};
     font-weight: 500;
   }
 `;
 
 const RegionText = styled.span`
-  color: #666;
+  color: ${(props) => props.theme.textMuted};
   font-family: monospace;
   font-size: 13px;
 
   .chrom {
-    color: #333;
+    color: ${(props) => props.theme.text};
     font-weight: 500;
   }
 
   .strand {
-    color: #888;
+    color: ${(props) => props.theme.textMuted};
     margin-left: 4px;
   }
 `;
@@ -62,8 +62,8 @@ const DetailsToggle = styled.button`
 `;
 
 const DetailsPanel = styled.div`
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
+  background: ${(props) => props.theme.surfaceAlt};
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 4px;
   padding: 12px 16px;
   margin-top: 8px;
@@ -82,7 +82,7 @@ const DetailItem = styled.div`
   gap: 12px;
 
   .label {
-    color: #888;
+    color: ${(props) => props.theme.textMuted};
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -91,7 +91,7 @@ const DetailItem = styled.div`
   }
 
   .value {
-    color: #222;
+    color: ${(props) => props.theme.text};
     font-weight: 500;
   }
 `;
@@ -128,7 +128,7 @@ const LinksRow = styled.div`
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid ${(props) => props.theme.border};
 `;
 
 const LinkChip = styled.a`
@@ -136,8 +136,8 @@ const LinkChip = styled.a`
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: ${(props) => props.theme.surface};
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 16px;
   color: #1976d2;
   font-size: 12px;

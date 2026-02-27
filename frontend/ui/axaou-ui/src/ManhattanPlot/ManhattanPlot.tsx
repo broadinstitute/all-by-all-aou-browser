@@ -32,6 +32,8 @@ interface ManhattanPlotProps {
   finemappingSummary?: FinemappingSummary[] | [];
   xLabel?: string;
   yLabel?: string;
+  textColor?: string;
+  borderColor?: string;
 }
 
 export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
@@ -46,6 +48,8 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
   // finemappingSummary = [],
   xLabel = "Chromosome",
   yLabel = "-log10(p)",
+  textColor = "#000",
+  borderColor = "#333",
 }) => {
   type positionExtents = {
     [chr: string]: { min: number; max: number };
@@ -171,11 +175,11 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
       ctx.beginPath();
       ctx.moveTo(-5, y);
       ctx.lineTo(0, y);
-      ctx.strokeStyle = "#333";
+      ctx.strokeStyle = borderColor;
       ctx.stroke();
 
       ctx.font = "10px sans-serif";
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = textColor;
       const { width: tickLabelWidth } = ctx.measureText(`${t}`);
       ctx.fillText(`${t}`, -(9 + tickLabelWidth), y + 3);
 
@@ -189,7 +193,7 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, h);
-    ctx.strokeStyle = "#333";
+    ctx.strokeStyle = borderColor;
     ctx.stroke();
 
     ctx.font = "14px sans-serif";
@@ -218,11 +222,11 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, 3);
-      ctx.strokeStyle = "#333";
+      ctx.strokeStyle = borderColor;
       ctx.stroke();
 
       ctx.font = "12px sans-serif";
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = textColor;
       const { width: tickLabelWidth } = ctx.measureText(chr);
       ctx.fillText(chr, x - tickLabelWidth / 2, 13);
     }
@@ -230,7 +234,7 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(w, 0);
-    ctx.strokeStyle = "#333";
+    ctx.strokeStyle = borderColor;
     ctx.stroke();
 
     ctx.font = "14px sans-serif";
@@ -332,6 +336,8 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
 
     return canvas;
   }, [
+    textColor,
+    borderColor,
     chromosomes,
     variants,
     height,

@@ -33,7 +33,7 @@ const baseRowStyle = css`
   flex-direction: row;
   align-items: stretch;
   box-sizing: border-box;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--theme-border, #e0e0e0);
 `;
 const baseCellStyle = css`
   display: flex;
@@ -56,7 +56,7 @@ const GridWrapper = styled.div`
     ${baseRowStyle};
 
     &.grid-row-stripe {
-      background: #fff;
+      background: var(--theme-stripe, #fff);
     }
 
     &.grid-row-highlight {

@@ -314,8 +314,8 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                   cursor: 'pointer',
                   padding: '4px 12px',
                   borderRadius: '4px',
-                  border: '1px solid #ccc',
-                  background: '#fff',
+                  border: '1px solid var(--theme-border)',
+                  background: 'var(--theme-surface)',
                   fontSize: '12px',
                 }}
               >
@@ -337,13 +337,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
           </div>
           {/* Legend */}
           <div className="overview-stats-item" style={{ marginLeft: 'auto', gap: 12, display: 'flex' }}>
-            <span style={{ fontSize: 10, color: '#666' }}>
+            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
               <span style={{ color: '#d32f2f' }}>●</span> pLoF
             </span>
-            <span style={{ fontSize: 10, color: '#666' }}>
+            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
               <span style={{ color: '#f9a825' }}>●</span> Missense
             </span>
-            <span style={{ fontSize: 10, color: '#666' }}>
+            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
               <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
             </span>
           </div>

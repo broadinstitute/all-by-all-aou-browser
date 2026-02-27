@@ -315,18 +315,18 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 cursor: 'pointer',
                 padding: '4px 12px',
                 borderRadius: '4px',
-                border: '1px solid #ccc',
-                background: '#fff',
+                border: '1px solid var(--theme-border)',
+                background: 'var(--theme-surface)',
                 fontSize: '12px',
               }}
             >
               &larr; Back to All
             </button>
           )}
-          <span style={{ fontSize: '12px', color: '#666' }}>Chromosome:</span>
+          <span style={{ fontSize: '12px', color: 'var(--theme-text-muted)' }}>Chromosome:</span>
           <ChromosomeSelector />
           {!isZoomedIn && (
-            <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+            <span style={{ fontSize: '11px', color: 'var(--theme-text-muted)', fontStyle: 'italic' }}>
               (or click on plot to zoom)
             </span>
           )}
@@ -477,12 +477,12 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 alignItems: 'center',
                 marginBottom: 8,
                 padding: '8px 12px',
-                background: '#f5f5f5',
+                background: 'var(--theme-surface-alt)',
                 borderRadius: 4,
                 fontSize: 12,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <span style={{ color: '#333' }}>
+                  <span style={{ color: 'var(--theme-text)' }}>
                     <strong>{filteredPeaks.length}</strong>{showOnlyImplicated ? ` / ${sortedPeaks.length}` : ''} loci
                   </span>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
@@ -499,7 +499,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                       <strong>{selectedPeakIds.size}</strong> labeled
                     </span>
                   ) : (
-                    <span style={{ color: '#666', fontSize: 11 }}>
+                    <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>
                       Top 25 labeled
                     </span>
                   )}
@@ -510,8 +510,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                         fontSize: 11,
                         padding: '4px 10px',
                         cursor: 'pointer',
-                        background: '#fff',
-                        border: '1px solid #ccc',
+                        background: 'var(--theme-surface)',
+                        border: '1px solid var(--theme-border)',
                         borderRadius: 3,
                       }}
                       title="Select all filtered loci for labeling"
@@ -522,13 +522,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {/* Legend for annotation colors */}
-                  <span style={{ fontSize: 10, color: '#666' }}>
+                  <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
                     <span style={{ color: '#d32f2f' }}>●</span> pLoF
                   </span>
-                  <span style={{ fontSize: 10, color: '#666' }}>
+                  <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
                     <span style={{ color: '#f9a825' }}>●</span> Missense
                   </span>
-                  <span style={{ fontSize: 10, color: '#666' }}>
+                  <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
                     <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
                   </span>
                   {customLabelMode && (
@@ -725,8 +725,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     marginTop: 4,
                     cursor: 'pointer',
                     fontSize: 12,
-                    background: '#f5f5f5',
-                    border: '1px solid #ddd',
+                    background: 'var(--theme-surface-alt)',
+                    border: '1px solid var(--theme-border)',
                     borderRadius: 4,
                   }}
                 >

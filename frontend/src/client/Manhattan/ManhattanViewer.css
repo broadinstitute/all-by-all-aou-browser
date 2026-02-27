@@ -17,7 +17,8 @@
   width: 100%;
   height: auto;
   /* Dark blue filter to match AoU brand - applied to all Manhattan plots */
-  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(0.5);
+  /* Brightness is adjusted via CSS variable for dark mode */
+  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(var(--manhattan-brightness, 0.5));
   /* Clip 1px from top to remove red dotted line artifact from Manhattan pipeline */
   clip-path: inset(1px 0px 0px 0px);
 }
@@ -92,7 +93,7 @@
   gap: 16px;
   padding: 8px 0;
   font-size: 12px;
-  color: #666;
+  color: var(--theme-text-muted, #666);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -102,12 +103,12 @@
 }
 
 .manhattan-stats-label {
-  color: #999;
+  color: var(--theme-text-muted, #999);
 }
 
 .manhattan-stats-value {
   font-weight: 500;
-  color: #333;
+  color: var(--theme-text, #333);
 }
 
 /* Hit markers on overlay */
@@ -129,7 +130,7 @@
   margin-bottom: 250px;
   max-height: 400px;
   overflow: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--theme-border, #e0e0e0);
   border-radius: 4px;
 }
 
@@ -145,16 +146,17 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #f5f5f5;
+  background: var(--theme-surface-alt, #f5f5f5);
+  color: var(--theme-text, #333);
   padding: 8px 12px;
   text-align: left;
   font-weight: 600;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--theme-border, #e0e0e0);
 }
 
 .manhattan-table td {
   padding: 6px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--theme-border, #f0f0f0);
 }
 
 .manhattan-table tbody tr {
@@ -162,7 +164,7 @@
 }
 
 .manhattan-table tbody tr:hover {
-  background: #f8f8f8;
+  background: var(--theme-surface-alt, #f8f8f8);
 }
 
 /* Locus Navigator table styles */
@@ -188,7 +190,7 @@
 .manhattan-table th:first-child {
   position: sticky;
   left: 0;
-  background: #f9f9f9;
+  background: var(--theme-surface-alt, #f9f9f9);
   font-family: 'SF Mono', Monaco, monospace;
   font-size: 12px;
   max-width: 160px;
@@ -198,7 +200,7 @@
 }
 
 .manhattan-table th:first-child {
-  background: #f5f5f5;
+  background: var(--theme-surface-alt, #f5f5f5);
   z-index: 3;
 }
 
@@ -245,12 +247,7 @@
   font-size: 10px;
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  fill: #333;
-  text-shadow:
-    -1px -1px 0 #fff,
-    1px -1px 0 #fff,
-    -1px 1px 0 #fff,
-    1px 1px 0 #fff;
+  fill: var(--theme-text, #333);
   transition: fill 0.15s ease, font-weight 0.15s ease;
 }
 

@@ -542,7 +542,7 @@ export const ScrollButtonContainer = styled.div`
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background-color: #fafafa;
+  background-color: ${(props) => props.theme.surface};
   border-radius: 8px;
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -557,8 +557,8 @@ export const ScrollButtonContainer = styled.div`
 
   button {
     font-family: GothamBook;
-    color: #1e1e5a;
-    background-color: #smokewhite;
+    color: ${(props) => props.theme.text};
+    background-color: ${(props) => props.theme.surfaceAlt};
     border: none;
     padding: 10px;
     border-radius: 5px;
@@ -620,7 +620,7 @@ const DropdownButton = styled.div`
 const DropdownContent = styled.div`
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: ${(props) => props.theme.surfaceAlt};
   min-width: 160px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   z-index: 99;
@@ -628,7 +628,7 @@ const DropdownContent = styled.div`
 
   button {
     display: block;
-    color: #1e1e5a;
+    color: ${(props) => props.theme.text};
     padding: 12px 16px;
     text-decoration: none;
     background: none;
@@ -639,7 +639,7 @@ const DropdownContent = styled.div`
   }
 
   button:hover {
-    background-color: #ddd;
+    background-color: ${(props) => props.theme.border};
   }
 `;
 
@@ -716,7 +716,7 @@ export const AttributeList = styled.dl<{ labelWidth: number }>`
   margin-right: 40px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: ${(props) => props.theme.surfaceAlt};
 
   dt,
   dd {
@@ -730,7 +730,7 @@ export const AttributeList = styled.dl<{ labelWidth: number }>`
     width: ${(props) => props.labelWidth}px;
     font-weight: bold;
     text-align: right;
-    color: #555;
+    color: ${(props) => props.theme.textMuted};
   }
 
   dd {

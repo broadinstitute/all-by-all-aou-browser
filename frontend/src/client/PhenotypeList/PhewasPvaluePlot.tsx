@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { scaleLog, scaleLinear, scalePoint, ScaleLinear, ScaleLogarithmic } from 'd3-scale'
 import { withSize } from 'react-sizeme'
 
@@ -63,6 +63,7 @@ const PhewasPvaluePlot = ({
   xLabel = '',
   yLabel = '-log10(p)',
 }: Props) => {
+  const theme = useTheme() as any;
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
 
   const width = size.width || 1100
@@ -197,11 +198,11 @@ const PhewasPvaluePlot = ({
       ctx.beginPath()
       ctx.moveTo(-5, y)
       ctx.lineTo(0, y)
-      ctx.strokeStyle = 'yellow:'
+      ctx.strokeStyle = theme.border || '#333'
       ctx.stroke()
 
       ctx.font = '10px sans-serif'
-      ctx.fillStyle = '#000'
+      ctx.fillStyle = theme.text || '#000'
       const { width: tickLabelWidth } = ctx.measureText(`${t}`)
       ctx.fillText(`${t}`, -(9 + tickLabelWidth), y + 3)
     }
@@ -209,7 +210,7 @@ const PhewasPvaluePlot = ({
     ctx.beginPath()
     ctx.moveTo(0, 0)
     ctx.lineTo(0, h)
-    ctx.strokeStyle = '#333'
+    ctx.strokeStyle = theme.border || '#333'
     ctx.stroke()
 
     ctx.font = '12px sans-serif'
@@ -330,7 +331,7 @@ const PhewasPvaluePlot = ({
     // ====================================================
 
     return canvas
-  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds])
+  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme])
 
   const mainCanvas: {
     current: HTMLCanvasElement | null
@@ -386,10 +387,13 @@ const PhewasPvaluePlot = ({
 
         ctx.beginPath()
         ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = '#000'
+        ctx.fillStyle = theme.surface || '#000'
         ctx.fill()
 
-        ctx.fillStyle = '#fff'
+        ctx.strokeStyle = theme.border || '#333'
+        ctx.strokeRect(labelX, labelY, textWidth + 12, 24)
+
+        ctx.fillStyle = theme.text || '#fff'
         ctx.fillText(label, labelX + 6, labelY + 16)
 
         ctx.restore()

@@ -117,6 +117,18 @@ export const phewasOptsAtom = atom<boolean>({
     }),
   ],
 })
+export const themeModeAtom = atom<'light' | 'dark'>({
+  key: 'themeMode',
+  default: 'light',
+  effects: [
+    urlSyncEffect({
+      refine: stringLiterals({ light: 'light', dark: 'dark' }),
+      history: 'push',
+      syncDefault: true,
+    }),
+  ],
+})
+
 export const hideGeneOptsAtom = atom<boolean>({
   key: 'hideGeneOpts',
   default: false,

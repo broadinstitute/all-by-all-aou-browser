@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useTheme } from 'styled-components';
 import { YAxis } from './components/YAxis';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { getChromosomeLayout, getYScale } from './layout';
@@ -52,6 +53,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useTheme() as any;
 
   const [dimensions, setDimensions] = useState({ width: 0, height: PLOT_HEIGHT });
   const [hoveredGene, setHoveredGene] = useState<GeneAssociationResult | null>(null);
@@ -199,15 +201,15 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
       const isSignificant = p.gene.pvalue != null && p.gene.pvalue < SIG_THRESHOLD;
 
       // Semi-transparent background
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.85)';
       ctx.fillRect(bestPos.x - 1, bestPos.y - 6, textWidth + 2, 12);
 
       // Text
-      ctx.fillStyle = isSignificant ? '#c62828' : '#333';
+      ctx.fillStyle = isSignificant ? '#c62828' : (theme.text || '#333');
       ctx.textAlign = 'left';
       ctx.fillText(label, bestPos.x, bestPos.y);
     });
-  }, [geneData, dimensions, genesToLabel]);
+  }, [geneData, dimensions, genesToLabel, theme]);
 
   // Handle mouse move for hover detection
   const handleMouseMove = useCallback(
@@ -302,16 +304,16 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
               }}
             >
               <div style={{ fontWeight: 600 }}>{hoveredGene.gene_symbol}</div>
-              <div style={{ color: '#666', fontSize: 11 }}>{hoveredGene.gene_id}</div>
+              <div style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>{hoveredGene.gene_id}</div>
               <div style={{ marginTop: 4 }}>
-                <span style={{ color: '#666' }}>P-value: </span>
+                <span style={{ color: 'var(--theme-text-muted)' }}>P-value: </span>
                 <span style={{ fontFamily: 'monospace' }}>
                   {hoveredGene.pvalue?.toExponential(2) ?? '—'}
                 </span>
               </div>
               {hoveredGene.pvalue_burden != null && (
                 <div>
-                  <span style={{ color: '#666' }}>Burden: </span>
+                  <span style={{ color: 'var(--theme-text-muted)' }}>Burden: </span>
                   <span style={{ fontFamily: 'monospace' }}>
                     {hoveredGene.pvalue_burden.toExponential(2)}
                   </span>
@@ -319,7 +321,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
               )}
               {hoveredGene.pvalue_skat != null && (
                 <div>
-                  <span style={{ color: '#666' }}>SKAT: </span>
+                  <span style={{ color: 'var(--theme-text-muted)' }}>SKAT: </span>
                   <span style={{ fontFamily: 'monospace' }}>
                     {hoveredGene.pvalue_skat.toExponential(2)}
                   </span>

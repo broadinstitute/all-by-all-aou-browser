@@ -266,7 +266,7 @@ const parseRegionId = (regionId: string) => {
 // Tab components for table switching
 const TabContainer = styled.div`
   display: flex;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid ${(props) => props.theme.border};
   margin-bottom: 16px;
   margin-top: 10px;
 `
@@ -277,7 +277,7 @@ const Tab = styled.button<{ $active: boolean }>`
   background: transparent;
   font-size: 14px;
   font-weight: ${({ $active }) => ($active ? '600' : '400')};
-  color: ${({ $active }) => ($active ? '#1976d2' : '#666')};
+  color: ${({ $active, theme }) => ($active ? '#1976d2' : theme.textMuted)};
   cursor: pointer;
   position: relative;
   transition: color 0.15s ease;
@@ -294,7 +294,7 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 
   &:hover {
-    color: ${({ $active }) => ($active ? '#1976d2' : '#333')};
+    color: ${({ $active, theme }) => ($active ? '#1976d2' : theme.text)};
   }
 `
 

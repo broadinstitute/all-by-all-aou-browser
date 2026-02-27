@@ -36,6 +36,7 @@ analysis_ids = [
   "3007238",
   "3013429",
   "3015183",
+  "3035995", # Alkaline Phosphatase
   # Adding height
   "height",
 ]

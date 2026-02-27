@@ -19,10 +19,10 @@ const Container = styled.div`
   align-items: center;
   min-height: 2.5em;
   width: 100%;
-  background-color: whitesmoke;
-  border-bottom: 1px dashed black;
+  background-color: ${(props) => props.theme.surfaceAlt};
+  border-bottom: 1px dashed ${(props) => props.theme.border};
   padding-left: 20px;
-  font: black;
+  color: ${(props) => props.theme.text};
   font-size: 16px;
 
   .status-bar-item {

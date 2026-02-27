@@ -5,19 +5,20 @@ import { selectedContigAtom } from '../sharedState';
 
 const Select = styled.select`
   padding: 4px 8px;
-  border: 1px solid #ccc;
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 4px;
-  background: #fff;
+  background: ${(props) => props.theme.surface};
+  color: ${(props) => props.theme.text};
   font-size: 12px;
   cursor: pointer;
 
   &:hover {
-    border-color: #999;
+    border-color: ${(props) => props.theme.textMuted};
   }
 
   &:focus {
     outline: none;
-    border-color: #666;
+    border-color: ${(props) => props.theme.text};
   }
 `;
 

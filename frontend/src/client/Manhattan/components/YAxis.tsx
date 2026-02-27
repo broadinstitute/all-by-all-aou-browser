@@ -137,7 +137,7 @@ export const YAxis: React.FC<YAxisProps> = ({ height, width = 50 }) => {
           transform: 'rotate(-90deg) translateX(-50%)',
           transformOrigin: '0 0',
           fontSize: '11px',
-          color: '#666',
+          color: 'var(--theme-text-muted, #666)',
           whiteSpace: 'nowrap',
         }}
       >
@@ -161,7 +161,7 @@ export const YAxis: React.FC<YAxisProps> = ({ height, width = 50 }) => {
               display: 'flex',
               alignItems: 'center',
               fontSize: '10px',
-              color: '#666',
+              color: 'var(--theme-text-muted, #666)',
             }}
           >
             <span style={{ marginRight: '4px' }}>{formatTick(val)}</span>
@@ -169,7 +169,7 @@ export const YAxis: React.FC<YAxisProps> = ({ height, width = 50 }) => {
               style={{
                 width: '4px',
                 height: '1px',
-                backgroundColor: '#ccc',
+                backgroundColor: 'var(--theme-border, #ccc)',
               }}
             />
           </div>

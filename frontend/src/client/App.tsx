@@ -1,6 +1,9 @@
 import React from 'react'
 import { Route, Switch } from 'react-router-dom'
-import styled from 'styled-components'
+import styled, { ThemeProvider, createGlobalStyle } from 'styled-components'
+import { useRecoilValue } from 'recoil'
+import { lightTheme, darkTheme } from './theme'
+import { themeModeAtom } from './sharedState'
 
 import { isBrowser } from 'react-device-detect'
 
@@ -21,6 +24,82 @@ import Link from './Link'
 
 import './App.css'
 import LogoutButton from './Logout'
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    background-color: ${(props) => props.theme.background};
+    color: ${(props) => props.theme.text};
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  :root {
+    --theme-background: ${(props) => props.theme.background};
+    --theme-surface: ${(props) => props.theme.surface};
+    --theme-surface-alt: ${(props) => props.theme.surfaceAlt};
+    --theme-text: ${(props) => props.theme.text};
+    --theme-text-muted: ${(props) => props.theme.textMuted};
+    --theme-border: ${(props) => props.theme.border};
+    --theme-primary: ${(props) => props.theme.primary};
+    --theme-stripe: ${(props) => props.theme.stripe};
+    --manhattan-brightness: ${(props) => props.theme.background === '#fafafa' ? '0.5' : '1.2'};
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: ${(props) => props.theme.surfaceAlt};
+  }
+  ::-webkit-scrollbar-thumb {
+    background: ${(props) => props.theme.border};
+    border-radius: 5px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: ${(props) => props.theme.textMuted};
+  }
+
+  /* Button overrides */
+  button {
+    background-color: ${(props) => props.theme.surface};
+    color: ${(props) => props.theme.text};
+    border-color: ${(props) => props.theme.border};
+  }
+
+  /* Input and select styling */
+  input, select, textarea {
+    background-color: ${(props) => props.theme.surface};
+    color: ${(props) => props.theme.text};
+    border-color: ${(props) => props.theme.border};
+  }
+
+  /* Section titles */
+  h1, h2, h3, h4, h5, h6 {
+    color: ${(props) => props.theme.text};
+  }
+
+  /* Links */
+  a {
+    color: ${(props) => props.theme.primary};
+  }
+
+  /* Table styling */
+  table {
+    background-color: ${(props) => props.theme.surface};
+  }
+  th {
+    background-color: ${(props) => props.theme.surfaceAlt} !important;
+    color: ${(props) => props.theme.text} !important;
+  }
+  td {
+    background-color: ${(props) => props.theme.surface};
+    color: ${(props) => props.theme.text};
+  }
+  tr:nth-child(even) td {
+    background-color: ${(props) => props.theme.stripe};
+  }
+`
 
 const AppStyles = styled.div`
   display: grid;
@@ -55,8 +134,8 @@ const AppStyles = styled.div`
 
   footer {
     grid-area: footer;
-    background-color: #262262;
-    color: white;
+    background-color: ${(props) => props.theme.headerBg};
+    color: ${(props) => props.theme.headerText};
     padding: 10px;
     text-align: center;
     z-index: 1;
@@ -78,8 +157,8 @@ const AppStyles = styled.div`
     margin-top: 0;
     margin-right: 5px;
 
-    background-color: whitesmoke;
-    border: 1px solid lightgrey;
+    background-color: ${(props) => props.theme.surfaceAlt};
+    border: 1px solid ${(props) => props.theme.border};
     padding: 3px 5px 3px 5px;
 
     strong {
@@ -104,9 +183,13 @@ const MobileView = styled.div`
 const App = ({ showLogout }: { showLogout: boolean }) => {
   useResetStateOnLocationChange()
   useMonitorWindowSize()
+  const themeMode = useRecoilValue(themeModeAtom)
+  const theme = themeMode === 'light' ? lightTheme : darkTheme
 
   return (
-    <React.Fragment>
+    <ThemeProvider theme={theme}>
+      <GlobalStyle />
+      <React.Fragment>
       <AppStyles>
         <header>
           <PageHeading />
@@ -166,6 +249,7 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
         </footer>
       </AppStyles>
     </React.Fragment>
+    </ThemeProvider>
   )
 }
 export default App

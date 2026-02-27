@@ -123,13 +123,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           alignItems: 'center',
           marginBottom: 8,
           padding: '8px 12px',
-          background: '#f5f5f5',
+          background: 'var(--theme-surface-alt)',
           borderRadius: 4,
           fontSize: 12,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ color: '#333' }}>
+          <span style={{ color: 'var(--theme-text)' }}>
             <strong>{filteredLoci.length}</strong>
             {showOnlyImplicated ? ` / ${sortedLoci.length}` : ''} loci
           </span>
@@ -147,7 +147,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
               <strong>{selectedPeakIds.size}</strong> labeled
             </span>
           ) : (
-            <span style={{ color: '#666', fontSize: 11 }}>Top 25 labeled</span>
+            <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>Top 25 labeled</span>
           )}
           {!customLabelMode && (
             <button
@@ -156,8 +156,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 fontSize: 11,
                 padding: '4px 10px',
                 cursor: 'pointer',
-                background: '#fff',
-                border: '1px solid #ccc',
+                background: 'var(--theme-surface)',
+                border: '1px solid var(--theme-border)',
                 borderRadius: 3,
               }}
               title="Select all filtered loci for labeling"
@@ -168,7 +168,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Legend */}
-          <span style={{ fontSize: 10, color: '#666' }}>
+          <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
             Burden: <span style={{ color: '#d32f2f' }}>●</span>pLoF{' '}
             <span style={{ color: '#f9a825' }}>●</span>Mis{' '}
             <span style={{ color: '#388e3c' }}>●</span>Syn
@@ -391,8 +391,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             marginTop: 4,
             cursor: 'pointer',
             fontSize: 12,
-            background: '#f5f5f5',
-            border: '1px solid #ddd',
+            background: 'var(--theme-surface-alt)',
+            border: '1px solid var(--theme-border)',
             borderRadius: 4,
           }}
         >

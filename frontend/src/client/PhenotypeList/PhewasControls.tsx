@@ -23,8 +23,8 @@ const ControlsContainer = styled.div`
   padding: 16px;
   padding-top: 0;
   padding-bottom: 20px;
-  border-right: 1px solid #e0e0e0;
-  background: #fafafa;
+  border-right: 1px solid ${(props) => props.theme.border};
+  background: ${(props) => props.theme.background};
 
   display: flex;
   flex-direction: column;
@@ -36,7 +36,7 @@ const ControlsHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid ${(props) => props.theme.border};
   margin-bottom: 4px;
 `
 
@@ -115,17 +115,17 @@ const SelectionButtons = styled.div`
 const CategoryList = styled.div`
   max-height: 280px;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 4px;
-  background: white;
+  background: ${(props) => props.theme.surface};
 `
 
 const CategoryHeader = styled.div`
   display: flex;
   justify-content: space-between;
   padding: 6px 8px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  background: ${(props) => props.theme.surfaceAlt};
+  border-bottom: 1px solid ${(props) => props.theme.border};
   font-size: 12px;
 
   button {
@@ -149,11 +149,11 @@ const CategoryItem = styled.label<{ $selected: boolean }>`
   padding: 6px 8px;
   font-size: 13px;
   cursor: pointer;
-  background: ${(props) => (props.$selected ? '#e3f2fd' : 'white')};
-  border-bottom: 1px solid #f0f0f0;
+  background: ${(props) => (props.$selected ? '#e3f2fd' : props.theme.surface)};
+  border-bottom: 1px solid ${(props) => props.theme.border};
 
   &:hover {
-    background: ${(props) => (props.$selected ? '#bbdefb' : '#f5f5f5')};
+    background: ${(props) => (props.$selected ? '#bbdefb' : props.theme.surfaceAlt)};
   }
 
   &:last-child {
@@ -180,8 +180,9 @@ const CategoryCount = styled.span`
 const MafSelect = styled.select`
   padding: 6px 8px;
   border-radius: 4px;
-  border: 1px solid #ccc;
-  background: white;
+  border: 1px solid ${(props) => props.theme.border};
+  background: ${(props) => props.theme.surface};
+  color: ${(props) => props.theme.text};
   font-size: 13px;
   width: 100%;
 `

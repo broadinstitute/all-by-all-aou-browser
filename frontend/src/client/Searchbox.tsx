@@ -17,7 +17,7 @@ import { AnalysisMetadata, GeneSymbol } from './types';
 export const SearchBarContainer = styled.div`
   display: flex;
   align-items: center;
-  background-color: #e0ebf5;
+  background-color: ${(props) => props.theme.surfaceAlt};
   border-radius: 10px;
   padding: 8px 16px;
   width: 280px;
@@ -29,19 +29,19 @@ const Input = styled.input`
   flex-grow: 1;
   background: transparent;
   font-size: 16px;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
 `;
 
 const Icon = styled.span`
   margin-right: 8px;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
   cursor: pointer;
 `;
 
 const CloseIcon = styled.span`
   margin-left: auto;
   cursor: pointer;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
 `;
 
 export const ModalContainer = styled.div`
@@ -49,16 +49,16 @@ export const ModalContainer = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: #e0ebf5;
+  background-color: ${(props) => props.theme.surfaceAlt};
   z-index: 1000;
   width: 60vw;
   max-height: 40vh;
   overflow-y: auto;
-  border: 1px solid #ddd;
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   padding: 16px;
-  color: black;
+  color: ${(props) => props.theme.text};
   font-size: 16px;
 `;
 
@@ -70,28 +70,28 @@ export const CloseModalButton = styled.button`
   border: none;
   cursor: pointer;
   font-size: 16px;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
 `;
 
 const SectionTitle = styled.h3`
   margin-top: 16px;
   margin-bottom: 8px;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
 `;
 
 const QueryBox = styled.div`
   display: flex;
   align-items: center;
-  border: 1px solid #1a1a1a;
+  border: 1px solid ${(props) => props.theme.border};
   border-radius: 5px;
   padding: 8px;
   margin-bottom: 16px;
-  background-color: white;
+  background-color: ${(props) => props.theme.surface};
 `;
 
 const Magnifier = styled.span`
   margin-right: 8px;
-  color: #1a1a1a;
+  color: ${(props) => props.theme.text};
 `;
 
 interface SearchChoice {
@@ -342,7 +342,7 @@ export const NewSearchBar: React.FC = () => {
                       padding: '10px',
                       cursor: 'pointer',
                       backgroundColor:
-                        highlightedIndex === globalIndex ? '#d3d3d3' : 'transparent',
+                        highlightedIndex === globalIndex ? 'var(--theme-border)' : 'transparent',
                     }}
                     onClick={() => onSelect(result.value)}
                     onMouseEnter={() => setHighlightedIndex(globalIndex)}
@@ -367,7 +367,7 @@ export const NewSearchBar: React.FC = () => {
                       padding: '10px',
                       cursor: 'pointer',
                       backgroundColor:
-                        highlightedIndex === globalIndex ? '#d3d3d3' : 'transparent',
+                        highlightedIndex === globalIndex ? 'var(--theme-border)' : 'transparent',
                     }}
                     onClick={() => onSelect(result.value)}
                     onMouseEnter={() => setHighlightedIndex(globalIndex)}

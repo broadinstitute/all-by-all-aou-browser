@@ -22,7 +22,8 @@
   height: 100%;
   pointer-events: none;
   /* Same dark blue filter as base, just with opacity for layering */
-  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(0.5);
+  /* Brightness is adjusted via CSS variable for dark mode */
+  filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2) brightness(var(--manhattan-brightness, 0.5));
   opacity: 0.85;
   /* Clip 1px from top to remove red dotted line artifact from Manhattan pipeline */
   clip-path: inset(1px 0px 0px 0px);
@@ -33,8 +34,8 @@
   gap: 24px;
   padding: 8px 0;
   font-size: 12px;
-  color: #666;
-  border-bottom: 1px solid #eee;
+  color: var(--theme-text-muted, #666);
+  border-bottom: 1px solid var(--theme-border, #eee);
   margin-bottom: 8px;
 }
 
@@ -49,5 +50,5 @@
 }
 
 .overview-stats-value {
-  color: #333;
+  color: var(--theme-text, #333);
 }

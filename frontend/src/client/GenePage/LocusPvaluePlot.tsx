@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 
 import type { VariantJoined } from '../types'
 
@@ -51,6 +51,7 @@ export const LocusPvaluePlot = ({
   gwasCatalogOption = 'hide',
   // sort
 }: VariantPlotProps) => {
+  const theme = useTheme() as any;
   const margin = {
     bottom: marginBottom,
     left: leftPanelWidth,
@@ -205,10 +206,13 @@ export const LocusPvaluePlot = ({
 
         ctx.beginPath()
         ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = '#000'
+        ctx.fillStyle = theme.surface || '#000'
         ctx.fill()
 
-        ctx.fillStyle = '#fff'
+        ctx.strokeStyle = theme.border || '#333'
+        ctx.strokeRect(labelX, labelY, textWidth + 12, 24)
+
+        ctx.fillStyle = theme.text || '#fff'
         ctx.fillText(label, labelX + 6, labelY + 16)
 
         ctx.restore()
