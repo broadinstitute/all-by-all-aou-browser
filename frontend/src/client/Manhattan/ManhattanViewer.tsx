@@ -626,7 +626,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           style={{ cursor: 'pointer' }}
                           title="Click to view locus, right-click for options"
                         >
-                          {peak.contig}:{peak.position.toLocaleString()}
+                          <span style={{ color: '#1565c0', textDecoration: 'underline' }}>
+                            {peak.contig}:{peak.position.toLocaleString()}
+                          </span>
                         </td>
                         <td>
                           {/* Implicated genes shown first - ALL of them */}

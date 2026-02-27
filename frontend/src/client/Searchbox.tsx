@@ -152,12 +152,12 @@ export const NewSearchBar: React.FC = () => {
   ): SearchResult[] => {
     return geneSymbols
       .filter((symbol) =>
-        symbol.gene_symbol.toLowerCase().includes(query.toLowerCase())
+        symbol?.gene_symbol?.toLowerCase()?.includes(query.toLowerCase())
       )
       .sort((a, b) => {
         const queryLower = query.toLowerCase();
-        const aSymbol = a.gene_symbol.toLowerCase();
-        const bSymbol = b.gene_symbol.toLowerCase();
+        const aSymbol = (a.gene_symbol || '').toLowerCase();
+        const bSymbol = (b.gene_symbol || '').toLowerCase();
 
         if (aSymbol.startsWith(queryLower) && !bSymbol.startsWith(queryLower)) {
           return -1;
@@ -186,9 +186,9 @@ export const NewSearchBar: React.FC = () => {
     return analysisMetadata
       .filter(
         (metadata) =>
-          metadata.analysis_id.toLowerCase().includes(query.toLowerCase()) ||
-          metadata.category.toLowerCase().includes(query.toLowerCase()) ||
-          metadata.description.toLowerCase().includes(query.toLowerCase())
+          (metadata.analysis_id || '').toLowerCase().includes(query.toLowerCase()) ||
+          (metadata.category || '').toLowerCase().includes(query.toLowerCase()) ||
+          (metadata.description || '').toLowerCase().includes(query.toLowerCase())
       )
       .map((metadata) => ({
         label: `${metadata.analysis_id} - ${metadata.description}`,

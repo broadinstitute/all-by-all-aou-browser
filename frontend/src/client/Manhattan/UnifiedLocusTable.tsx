@@ -278,7 +278,9 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
                   title="Click to view locus, right-click for options"
                 >
-                  {locus.contig}:{locus.position.toLocaleString()}
+                  <span style={{ color: '#1565c0', textDecoration: 'underline' }}>
+                    {locus.contig}:{locus.position.toLocaleString()}
+                  </span>
                   {isBurdenOnly && (
                     <span
                       style={{

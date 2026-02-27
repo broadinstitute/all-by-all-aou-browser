@@ -213,7 +213,8 @@ export const getAnalysisDisplayTitle = (analysis: AnalysisMetadata): string => {
 
 
 
-export function getAvailableAnalysisIds(data: LoadedAnalysis[]): string[] {
+export function getAvailableAnalysisIds(data: LoadedAnalysis[] | undefined): string[] {
+  if (!data) return [];
   return data
     .filter((analysis) => {
       const hasMetaExomes = analysis.details.some(
