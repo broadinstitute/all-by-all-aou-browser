@@ -4,6 +4,8 @@ import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 
 import { GeneBurdenManhattan } from '../Manhattan/GeneBurdenManhattan';
+import { GeneBurdenComposite } from './GeneBurdenComposite';
+import { GeneBurdenOverlay } from './GeneBurdenOverlay';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
 
@@ -197,12 +199,15 @@ interface Props {
   analysisId: string;
 }
 
+type ViewMode = 'standard' | 'overlay' | 'heatmap';
+
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const [, setGeneId] = useRecoilState(geneIdAtom);
   const [, setResultLayout] = useRecoilState(resultLayoutAtom);
 
+  const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [sortKey, setSortKey] = useState<SortKey>('pvalue');
   const [sortDesc, setSortDesc] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -372,37 +377,87 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
 
   return (
     <Container>
-      {/* Annotation and MAF Toggles */}
-      <div style={{ display: 'flex', gap: '16px' }}>
+      {/* View Mode Toggle */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <ToggleGroup>
-          {ANNOTATIONS.map((ann) => (
-            <ToggleButton
-              key={ann.key}
-              $active={burdenSet === ann.key}
-              onClick={() => handleAnnotationChange(ann.key as typeof burdenSet)}
-            >
-              {ann.label}
-            </ToggleButton>
-          ))}
-        </ToggleGroup>
-
-        <ToggleGroup>
-          {MAF_OPTIONS.map((maf) => (
-            <ToggleButton
-              key={maf.value}
-              $active={maxMaf === maf.value}
-              onClick={() => {
-                setMaxMaf(maf.value);
-                setCurrentPage(1);
-                setSelectedGeneIds(new Set());
-                setCustomLabelMode(false);
-              }}
-            >
-              MAF ≤ {maf.label}
-            </ToggleButton>
-          ))}
+          <ToggleButton
+            $active={viewMode === 'standard'}
+            onClick={() => setViewMode('standard')}
+          >
+            Single Annotation
+          </ToggleButton>
+          <ToggleButton
+            $active={viewMode === 'overlay'}
+            onClick={() => setViewMode('overlay')}
+          >
+            Overlay Plot
+          </ToggleButton>
+          <ToggleButton
+            $active={viewMode === 'heatmap'}
+            onClick={() => setViewMode('heatmap')}
+          >
+            Heatmap
+          </ToggleButton>
         </ToggleGroup>
       </div>
+
+      {/* Overlay View - all annotations on one plot */}
+      {viewMode === 'overlay' && (
+        <>
+          <ToggleGroup style={{ marginBottom: 8 }}>
+            {MAF_OPTIONS.map((maf) => (
+              <ToggleButton
+                key={maf.value}
+                $active={maxMaf === maf.value}
+                onClick={() => setMaxMaf(maf.value)}
+              >
+                MAF ≤ {maf.label}
+              </ToggleButton>
+            ))}
+          </ToggleGroup>
+          <GeneBurdenOverlay analysisId={analysisId} maxMaf={maxMaf} />
+        </>
+      )}
+
+      {/* Heatmap View */}
+      {viewMode === 'heatmap' && (
+        <GeneBurdenComposite analysisId={analysisId} maxMaf={maxMaf} />
+      )}
+
+      {/* Standard View */}
+      {viewMode === 'standard' && (
+        <>
+          {/* Annotation and MAF Toggles */}
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <ToggleGroup>
+              {ANNOTATIONS.map((ann) => (
+                <ToggleButton
+                  key={ann.key}
+                  $active={burdenSet === ann.key}
+                  onClick={() => handleAnnotationChange(ann.key as typeof burdenSet)}
+                >
+                  {ann.label}
+                </ToggleButton>
+              ))}
+            </ToggleGroup>
+
+            <ToggleGroup>
+              {MAF_OPTIONS.map((maf) => (
+                <ToggleButton
+                  key={maf.value}
+                  $active={maxMaf === maf.value}
+                  onClick={() => {
+                    setMaxMaf(maf.value);
+                    setCurrentPage(1);
+                    setSelectedGeneIds(new Set());
+                    setCustomLabelMode(false);
+                  }}
+                >
+                  MAF ≤ {maf.label}
+                </ToggleButton>
+              ))}
+            </ToggleGroup>
+          </div>
 
       {/* Manhattan Plot with Labels */}
       <GeneBurdenManhattan
@@ -574,6 +629,8 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
           </Pagination>
         )}
       </TableContainer>
+        </>
+      )}
     </Container>
   );
 };
