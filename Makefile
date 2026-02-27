@@ -1,7 +1,7 @@
 # Development Makefile for axaou-rust
 # Provides unified commands for running frontend + backend with hot reloading
 
-.PHONY: dev dev-backend dev-frontend install stop clean help
+.PHONY: dev dev-backend dev-frontend install stop clean help deploy deploy-dev deploy-prod
 
 # Default target
 help:
@@ -15,6 +15,11 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  install       - Install dependencies (cargo-watch, pnpm)"
+	@echo ""
+	@echo "Deploy:"
+	@echo "  deploy        - Deploy to Cloud Run (default: dev)"
+	@echo "  deploy-dev    - Deploy to Cloud Run dev environment"
+	@echo "  deploy-prod   - Deploy to Cloud Run prod environment"
 	@echo ""
 	@echo "Build:"
 	@echo "  build         - Build both frontend and backend for production"
@@ -103,3 +108,14 @@ clean:
 logs:
 	@echo "Tailing dev logs... (Ctrl+C to exit)"
 	tail -f /tmp/axaou-*.log 2>/dev/null || echo "No log files found. Start dev servers first."
+
+# Deploy to Cloud Run
+deploy: deploy-dev
+
+deploy-dev:
+	@echo "Deploying to Cloud Run (dev environment)..."
+	./deploy.sh dev
+
+deploy-prod:
+	@echo "Deploying to Cloud Run (prod environment)..."
+	./deploy.sh prod

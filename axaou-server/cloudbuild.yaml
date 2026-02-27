@@ -1,0 +1,20 @@
+# Cloud Build configuration with Kaniko caching
+# This caches Docker layers in Artifact Registry for faster subsequent builds
+
+steps:
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--dockerfile=Dockerfile'
+      - '--context=.'
+      - '--destination=${_IMAGE}'
+      - '--cache=true'
+      - '--cache-ttl=168h'  # 7 days
+      - '--cache-repo=${_CACHE_REPO}'
+
+substitutions:
+  _IMAGE: 'us-central1-docker.pkg.dev/aou-neale-gwas-browser/axaou/axaou-backend:latest'
+  _CACHE_REPO: 'us-central1-docker.pkg.dev/aou-neale-gwas-browser/axaou/axaou-backend-cache'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
