@@ -264,3 +264,9 @@ export const variantBetaScaleAtom = atom<{ betaScale: BetaScaleType }>({
   key: 'variantBetaScale',
   default: { betaScale: (_: number) => 'white' },
 })
+
+// Custom labels for variants (variant_id -> label)
+export const variantLabelsAtom = atom<Record<string, string>>({
+  key: 'variantLabels',
+  default: {},
+})

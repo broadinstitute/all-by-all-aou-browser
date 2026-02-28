@@ -19,6 +19,7 @@ import {
   hoveredVariantAtom,
   multiAnalysisColorByAtom,
   multiAnalysisTransparencyAtom,
+  variantLabelsAtom,
 } from '../variantState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
@@ -224,6 +225,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
   const analysesColors = useRecoilValue(selectedAnalysesColorsSelector)
   const transparency = useRecoilValue(multiAnalysisTransparencyAtom)
   const gwasCatalogOption = useRecoilValue(gwasCatalogOptionsAtom)
+  const variantLabels = useRecoilValue(variantLabelsAtom)
 
   const setVariantId = useSetRecoilState(variantIdAtom)
   const setResultsIndex = useSetRecoilState(resultIndexAtom)
@@ -345,6 +347,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
                 showAnalysisDescription: variantDatasets.length === 1 ? false : true,
               })}
               gwasCatalogOption={gwasCatalogOption}
+              variantLabels={variantLabels}
             />
           </>
         )}

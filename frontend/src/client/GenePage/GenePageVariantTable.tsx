@@ -131,6 +131,7 @@ export const GenePageVariantTable = ({
     ? []
     : [
       'variant_id',
+      'label',
       // 'sequencing_type',
       // 'ancestry_group',
       // 'consequence',

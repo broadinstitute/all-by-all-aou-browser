@@ -6,13 +6,13 @@ import RightArrow from '@fortawesome/fontawesome-free/svgs/solid/arrow-alt-circl
 // @ts-expect-error 
 import UpArrow from '@fortawesome/fontawesome-free/svgs/solid/arrow-alt-circle-up.svg'
 import { TooltipAnchor, TooltipHint as TooltipHintBase, Link } from '@gnomad/ui'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useRecoilState, useSetRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import { renderBetaCell, renderCount, renderPvalueCell } from '../PhenotypeList/Utils'
 import { AncestryGroupCodes, regionIdAtom, resultIndexAtom, resultLayoutAtom, variantIdAtom } from '../sharedState'
 import { VariantAssociationManhattan, VariantJoined } from '../types'
 import { ColorMarker } from '../UserInterface'
-import { VariantFieldGroup } from '../variantState'
+import { VariantFieldGroup, variantLabelsAtom } from '../variantState'
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from '../vepConsequences'
 import SampleSourceIcon from './SampleSourceIcon'
 import VariantFlag from './VariantFlag'
@@ -139,6 +139,54 @@ const GwasCatalogTooltip = ({ rowData }: any) => {
 
 const borderBottom = '1px solid var(--theme-border, black)'
 const background = 'var(--theme-surface-alt, whitesmoke)'
+
+// Styled input for label editing
+const LabelInput = styled.input`
+  width: 60px;
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid var(--theme-border, #ccc);
+  border-radius: 3px;
+  background: var(--theme-surface, white);
+  color: var(--theme-text, black);
+
+  &:focus {
+    outline: none;
+    border-color: #1976d2;
+  }
+
+  &::placeholder {
+    color: #999;
+    font-style: italic;
+  }
+`
+
+// Component for editable label cell
+const LabelCell = ({ variantId }: { variantId: string }) => {
+  const [labels, setLabels] = useRecoilState(variantLabelsAtom)
+  const currentLabel = labels[variantId] || ''
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLabel = e.target.value
+    setLabels(prev => {
+      if (newLabel === '') {
+        const { [variantId]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [variantId]: newLabel }
+    })
+  }
+
+  return (
+    <LabelInput
+      type="text"
+      value={currentLabel}
+      onChange={handleChange}
+      placeholder="label"
+      onClick={(e) => e.stopPropagation()}
+    />
+  )
+}
 
 export const countColumns = (ancestryGroup: AncestryGroupCodes, betaScale?: any) => [
   {
@@ -395,6 +443,16 @@ export const getVariantColumns = ({
           </Link>
         )
       },
+    },
+    {
+      key: 'label',
+      displayId: 'label',
+      heading: 'Label',
+      tooltip: 'Custom label for this variant (shown in lollipop plot)',
+      grow: 0,
+      isSortable: false,
+      minWidth: 70,
+      render: (row: any) => <LabelCell variantId={row.variant_id} />,
     },
     ...(showPhenotypeInfo ? phenotypeInfo : []),
     {

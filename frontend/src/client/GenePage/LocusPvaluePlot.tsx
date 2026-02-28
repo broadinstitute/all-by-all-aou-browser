@@ -326,8 +326,9 @@ export const LocusPvaluePlot = ({
   gwasCatalogOption = 'hide',
   showLollipopLabels = true,
   lollipopPvalueThreshold = 1e-4,
+  variantLabels = {},
   // sort
-}: VariantPlotProps & { showLollipopLabels?: boolean; lollipopPvalueThreshold?: number }) => {
+}: VariantPlotProps & { showLollipopLabels?: boolean; lollipopPvalueThreshold?: number; variantLabels?: Record<string, string> }) => {
   const theme = useTheme() as any;
 
   // Add extra height for lollipop labels if enabled
@@ -443,11 +444,19 @@ export const LocusPvaluePlot = ({
       ctx.setLineDash([])  // Reset line dash
 
       // Get significant variants with HGVS labels, grouped by tier
+      // Also include any variant with a custom label, regardless of p-value
       const allLabels: LollipopLabel[] = points
-        .filter(p => p.data.pvalue && p.data.pvalue < lollipopPvalueThreshold)
-        .filter(p => p.data.hgvsp || p.data.hgvsc)  // Only variants with HGVS annotation
+        .filter(p => {
+          const hasCustomLabel = variantLabels[p.data.variant_id];
+          const isSignificant = p.data.pvalue && p.data.pvalue < lollipopPvalueThreshold;
+          const hasHgvs = p.data.hgvsp || p.data.hgvsc;
+          return hasCustomLabel || (isSignificant && hasHgvs);
+        })
         .map(p => {
-          const label = parseHgvspLabel(p.data.hgvsp) || (p.data.hgvsc ? p.data.hgvsc.split(':').pop() || '' : '');
+          // Use custom label if available, otherwise fall back to HGVS
+          const customLabel = variantLabels[p.data.variant_id];
+          const hgvsLabel = parseHgvspLabel(p.data.hgvsp) || (p.data.hgvsc ? p.data.hgvsc.split(':').pop() || '' : '');
+          const label = customLabel || hgvsLabel;
           const priority = getConsequencePriority(p.data.consequence || '');
           const tier = getTierFromPriority(priority);
           const color = TIER_COLORS[tier];
@@ -459,7 +468,7 @@ export const LocusPvaluePlot = ({
             pointY: p.y + margin.top,  // Absolute Y position of the point
             labelY: TIER_Y[tier],  // Y position based on tier
             color,
-            priority,
+            priority: customLabel ? priority + 10000 : priority,  // Boost priority for custom-labeled variants
             tier,
             labelWidth: 0,  // Will be calculated during layout
             showLabel: true,
