@@ -3,7 +3,7 @@ import styled from 'styled-components'
 
 import { GenesTrack, RegionViewerContext } from '@axaou/ui'
 
-import { GeneModels } from '../types'
+import { GeneAssociations, GeneModels } from '../types'
 import { useSetRecoilState } from 'recoil'
 import { geneIdAtom, regionIdAtom, resultIndexAtom } from '../sharedState'
 
@@ -11,9 +11,10 @@ const Container = styled.div``
 
 interface Props {
   geneModelsInRegion: GeneModels[]
+  geneAssociations?: GeneAssociations[]
 }
 
-const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion }) => {
+const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociations = [] }) => {
   const setGeneId = useSetRecoilState(geneIdAtom)
   const setRegionId = useSetRecoilState(regionIdAtom)
   const setResultsIndex = useSetRecoilState(resultIndexAtom)
@@ -32,6 +33,26 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion }) => {
     setResultsIndex("gene-phewas")
   }
 
+  // Build gene burden map to highlight significant burden associations
+  const SIG_THRESHOLD = 2.5e-6
+  const geneBurdenMap: Record<string, string[]> = {}
+
+  geneAssociations.forEach((assoc) => {
+    const hasSig =
+      (assoc.pvalue && assoc.pvalue < SIG_THRESHOLD) ||
+      (assoc.pvalue_burden && assoc.pvalue_burden < SIG_THRESHOLD) ||
+      (assoc.pvalue_skat && assoc.pvalue_skat < SIG_THRESHOLD)
+
+    if (hasSig && assoc.gene_id) {
+      if (!geneBurdenMap[assoc.gene_id]) {
+        geneBurdenMap[assoc.gene_id] = []
+      }
+      if (!geneBurdenMap[assoc.gene_id].includes(assoc.annotation)) {
+        geneBurdenMap[assoc.gene_id].push(assoc.annotation)
+      }
+    }
+  })
+
   return (
     <Container>
       <GenesTrack
@@ -42,6 +63,7 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion }) => {
         genes={geneModels}
         title={'Genes'}
         onGeneClick={onClickGene}
+        geneBurdenMap={geneBurdenMap}
       />
     </Container>
   )

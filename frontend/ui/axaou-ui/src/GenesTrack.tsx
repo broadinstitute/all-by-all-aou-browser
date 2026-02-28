@@ -65,6 +65,7 @@ type GeneTrackProps = {
   rightPanelWidth: number;
   width: number;
   title: string;
+  geneBurdenMap?: Record<string, string[]>;
 };
 
 export const GenesTrack = ({
@@ -74,6 +75,7 @@ export const GenesTrack = ({
   leftPanelWidth,
   rightPanelWidth,
   width,
+  geneBurdenMap,
 }: GeneTrackProps) => {
   if (!scalePosition) {
     return <p>Need scalePosition</p>;
@@ -103,13 +105,25 @@ export const GenesTrack = ({
             const geneStop = scalePosition(gene.stop);
             return (
               <g key={gene.gene_id}>
-                <GeneName
-                  x={(geneStop + geneStart) / 2 - 5}
-                  y={textYPosition + 3}
-                  onClick={() => onGeneClick(gene)}
-                >
-                  {gene.symbol}
-                </GeneName>
+                <g>
+                  <GeneName
+                    x={(geneStop + geneStart) / 2 - 5}
+                    y={textYPosition + 3}
+                    onClick={() => onGeneClick(gene)}
+                  >
+                    {gene.symbol}
+                  </GeneName>
+                  {geneBurdenMap && geneBurdenMap[gene.gene_id] && (
+                    <g transform={`translate(${(geneStop + geneStart) / 2 + gene.symbol.length * 6 + 5}, ${textYPosition - 1})`}>
+                      {geneBurdenMap[gene.gene_id].includes('pLoF') && (
+                        <circle cx={0} cy={0} r={4} fill="#c62828" />
+                      )}
+                      {geneBurdenMap[gene.gene_id].includes('missenseLC') && (
+                        <circle cx={geneBurdenMap[gene.gene_id].includes('pLoF') ? 10 : 0} cy={0} r={4} fill="#f57c00" />
+                      )}
+                    </g>
+                  )}
+                </g>
                 <line
                   x1={geneStart}
                   x2={geneStop}

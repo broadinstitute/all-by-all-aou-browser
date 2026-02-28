@@ -21,48 +21,35 @@ export const createLogLogScaleY = ({ variants, height, margin, logLogEnabled = t
 
   const plotHeight = height - margin.top - margin.bottom
 
-  const topBinValue = 50
-
   const yScaleNormal = scaleLinear().domain(dataYExtent).range([plotHeight, 0]).nice()
 
-  const yExtent = [0, topBinValue]
-  const yScaleLogThreshold = 10
-  const linearPlotFraction = 1 / 3
+  // Hybrid linear-log scale constants (matching Manhattan/layout.ts)
+  const LOG_THRESHOLD = 10
+  const LINEAR_FRACTION = 0.6
+  const MAX_NEG_LOG_P = 300
 
-  const yScaleExtent = [yExtent[0], yScaleLogThreshold]
-  const yScaleLogExtent = [yScaleLogThreshold, yExtent[1]]
-
-  const yScale = scaleLinear()
-    .domain(yScaleExtent)
-    .range([plotHeight, plotHeight * linearPlotFraction])
-    .nice()
-
-  const yScaleLog = scaleLog()
-    .domain(yScaleLogExtent)
-    .range([plotHeight * linearPlotFraction, 0])
-    .nice()
-
-  const yWithLogLogScale =
-    (yScale: ScaleLinear<number, number>, yScaleLog: ScaleLogarithmic<number, number>) =>
-    (log10PValue: number) => {
-      let yScaled
-      if (log10PValue < yScaleLogThreshold) {
-        yScaled = yScale(log10PValue)
-      } else {
-        yScaled = yScaleLog(log10PValue)
-      }
-      return yScaled
+  const yScaleLogLog = (log10PValue: number) => {
+    let positionFromBottom: number
+    if (log10PValue <= LOG_THRESHOLD) {
+      positionFromBottom = (log10PValue / LOG_THRESHOLD) * LINEAR_FRACTION
+    } else {
+      const logVal = Math.log(log10PValue / LOG_THRESHOLD)
+      const logMax = Math.log(MAX_NEG_LOG_P / LOG_THRESHOLD)
+      const logPosition = Math.min(logVal / logMax, 1.0)
+      positionFromBottom = LINEAR_FRACTION + logPosition * (1 - LINEAR_FRACTION)
     }
-
-  const yScaleLogLog = yWithLogLogScale(yScale, yScaleLog)
+    return plotHeight * (1 - positionFromBottom)
+  }
 
   return (value: number) => {
     let y = 0
     if (logLogEnabled) {
-      if (value < topBinValue) {
+      if (value <= MAX_NEG_LOG_P) {
         y = yScaleLogLog(value) || 0
       } else {
-        y = -(margin.top / 2 + 5)
+        // Place extremely significant variants just above the plot area (at y = -10)
+        // This keeps them visible at the top without bleeding into the label zone
+        y = -10
       }
     } else {
       y = yScaleNormal(value) || 0

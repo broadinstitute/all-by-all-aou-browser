@@ -165,7 +165,8 @@ export const geneInTestConfig = (analysis: GeneAssociations, config?: AxaouConfi
 export const sortVariantsByConsequence = (a: VariantJoined, b: VariantJoined) => {
   const aIndex = Array.from(consequenceCategoryColorsMap.keys()).indexOf(getCategoryFromConsequence(a.consequence || 'unknown'));
   const bIndex = Array.from(consequenceCategoryColorsMap.keys()).indexOf(getCategoryFromConsequence(b.consequence || 'unknown'));
-  return aIndex - bIndex;
+  // Reverse so highest priority consequences (lower index) draw last (on top)
+  return bIndex - aIndex;
 };
 export const sortVariantsByCorrelation = (a: VariantJoined, b: VariantJoined) => {
   const aCorrelation = a.correlation ?? Number.POSITIVE_INFINITY;

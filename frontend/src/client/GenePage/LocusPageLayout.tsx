@@ -561,20 +561,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           >
             <>
               <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} />
-              {!regionId && (
-                <RegionsTrack
-                  height={20}
-                  regions={regions}
-                  renderLeftPanel={() => (
-                    <LeftPanel>
-                      <StrandIcon>
-                        {geneModel?.strand === '-' ? <span>&larr;</span> : <span>&rarr;</span>}
-                      </StrandIcon>
-                    </LeftPanel>
-                  )}
-                />
-              )}
-              {regions && <GenesTrackContainer geneModelsInRegion={geneModels} />}
+              {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} />}
             </>
           </RegionViewer>
         </div>
