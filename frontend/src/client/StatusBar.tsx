@@ -8,10 +8,11 @@ import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {
   resultIndexAtom,
   resultLayoutAtom,
+  themeModeAtom,
   useGetActiveItems
 } from './sharedState'
 import { AnalysisMetadata, GeneModels } from './types'
-import { LayoutToggle, LayoutMode } from './UserInterface'
+import { LayoutToggle, LayoutMode, ThemeToggle } from './UserInterface'
 import { getAnalysisDisplayTitle } from './utils'
 const Container = styled.div`
   display: flex;
@@ -40,6 +41,16 @@ interface Data {
 }
 
 const Message: React.FC<{ message: string }> = ({ message }) => <Container>{message}</Container>
+
+const ThemeToggleWrapper: React.FC = () => {
+  const [themeMode, setThemeMode] = useRecoilState(themeModeAtom)
+  return (
+    <ThemeToggle
+      value={themeMode}
+      onChange={setThemeMode}
+    />
+  )
+}
 
 export const StatusBar: React.FC = () => {
 
@@ -166,12 +177,13 @@ export const StatusBar: React.FC = () => {
           </Link>
         </div>
       )}
-      <div className="status-bar-item" style={{ marginLeft: 'auto', marginRight: 20 }}>
+      <div className="status-bar-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, marginRight: 20 }}>
         <LayoutToggle
           value={resultsLayout as LayoutMode}
           onChange={(mode) => setResultsLayout(mode)}
           rightLabel={rightLabel}
         />
+        <ThemeToggleWrapper />
       </div>
     </Container>
   )

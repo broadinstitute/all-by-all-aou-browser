@@ -54,7 +54,7 @@ export const HalfPage = styled.div`
 
 export const Divider = styled.div`
   height: 80%;
-  border: 1px dashed lightgrey;
+  border: 1px dashed var(--theme-border, lightgrey);
   justify-self: center;
 `
 
@@ -90,9 +90,10 @@ export const NoDataBox = styled.div`
   justify-content: center;
   align-items: center;
   height: ${(props) => (props as any).height}px;
-  border: 1px dashed gray;
+  border: 1px dashed var(--theme-border, gray);
   font-size: 20px;
   font-weight: bold;
+  color: var(--theme-text, inherit);
 `
 
 export const InfoPage = styled(Page)`
@@ -434,7 +435,7 @@ export const TogglePaneButton: React.FC<TogglePaneButtonProps> = ({
 const LayoutToggleContainer = styled.div`
   display: flex;
   align-items: center;
-  background: #e8e8e8;
+  background: var(--theme-surface-alt, #e8e8e8);
   border-radius: 6px;
   padding: 3px;
   gap: 2px;
@@ -448,7 +449,7 @@ const LayoutOption = styled.button<{ $active: boolean }>`
   border: none;
   border-radius: 4px;
   background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
-  color: ${({ $active }) => ($active ? 'white' : '#555')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text-muted, #555)')};
   font-size: 12px;
   font-family: GothamBook, sans-serif;
   cursor: pointer;
@@ -456,7 +457,7 @@ const LayoutOption = styled.button<{ $active: boolean }>`
   white-space: nowrap;
 
   &:hover {
-    background: ${({ $active }) => ($active ? '#262262' : '#d0d0d0')};
+    background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
   }
 
   svg {
@@ -530,6 +531,76 @@ export const LayoutToggle: React.FC<LayoutToggleProps> = ({
       {rightLabel}
     </LayoutOption>
   </LayoutToggleContainer>
+);
+
+// Theme Toggle - similar style to LayoutToggle for light/dark mode
+const ThemeToggleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  background: var(--theme-surface-alt, #e8e8e8);
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+`;
+
+const ThemeOption = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text-muted, #555)')};
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const SunIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="12" r="5" />
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
+interface ThemeToggleProps {
+  value: 'light' | 'dark';
+  onChange: (mode: 'light' | 'dark') => void;
+}
+
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({ value, onChange }) => (
+  <ThemeToggleContainer>
+    <ThemeOption
+      $active={value === 'light'}
+      onClick={() => onChange('light')}
+      title="Light mode"
+    >
+      <SunIcon />
+    </ThemeOption>
+    <ThemeOption
+      $active={value === 'dark'}
+      onClick={() => onChange('dark')}
+      title="Dark mode"
+    >
+      <MoonIcon />
+    </ThemeOption>
+  </ThemeToggleContainer>
 );
 
 

@@ -6,8 +6,8 @@ const SearchBarWrapper = styled.div`
 import { useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
-import { useSetRecoilState, useRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, themeModeAtom } from './sharedState'
+import { useSetRecoilState } from 'recoil'
+import { resultIndexAtom, resultLayoutAtom } from './sharedState'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
 
@@ -175,8 +175,6 @@ const PageHeading = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const setResultIndex = useSetRecoilState(resultIndexAtom)
   const setResultsLayout = useSetRecoilState(resultLayoutAtom)
-  const [themeMode, setThemeMode] = useRecoilState(themeModeAtom)
-  const toggleTheme = () => setThemeMode(prev => prev === 'light' ? 'dark' : 'light')
 
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen)
   const closeDropdown = () => setDropdownOpen(false)
@@ -249,9 +247,6 @@ const PageHeading = () => {
           </ExternalLink>
         </div>
       </div>
-      <button onClick={toggleTheme} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', marginLeft: 'auto', marginRight: '15px' }} title="Toggle Theme">
-        {themeMode === 'light' ? '🌙' : '☀️'}
-      </button>
       <SearchBarWrapper><NewSearchBar /></SearchBarWrapper>
       {/* Register Button for Desktop */}
       <div className="register">

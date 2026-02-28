@@ -42,7 +42,7 @@ const TabContainer = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--theme-border, #e0e0e0);
   margin-bottom: 20px;
 `;
 
@@ -51,7 +51,7 @@ const Tab = styled.button<{ $active: boolean }>`
   font-size: 14px;
   font-family: GothamBook, sans-serif;
   background-color: ${({ $active }) => ($active ? '#262262' : 'transparent')};
-  color: ${({ $active }) => ($active ? 'white' : '#262262')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #262262)')};
   border: none;
   border-bottom: ${({ $active }) =>
     $active ? '3px solid #262262' : '3px solid transparent'};
@@ -60,7 +60,7 @@ const Tab = styled.button<{ $active: boolean }>`
   font-weight: ${({ $active }) => ($active ? 'bold' : 'normal')};
 
   &:hover {
-    background-color: ${({ $active }) => ($active ? '#262262' : '#f0f0f0')};
+    background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f0f0f0)')};
   }
 `;
 
