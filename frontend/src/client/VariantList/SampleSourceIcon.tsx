@@ -9,7 +9,7 @@ const Icon = styled.span<{ isFiltered: boolean; color: string }>`
   border-radius: 3px;
   margin-left: 10px;
   background-color: ${(props) =>
-    props.isFiltered ? transparentize(0.5, props.color) : props.color};
+    props.isFiltered ? transparentize(0.5, props.color || '#757575') : (props.color || '#757575')};
   color: white;
 `
 
@@ -38,8 +38,8 @@ const SampleSourceIcon = ({ source, filters }: Props) => {
 
   return (
     <TooltipAnchor tooltip={tooltip}>
-      <Icon color={colors[source]} isFiltered={isFiltered}>
-        {abbreviations[source]}
+      <Icon color={colors[source] || '#757575'} isFiltered={isFiltered}>
+        {abbreviations[source] || '?'}
       </Icon>
     </TooltipAnchor>
   )

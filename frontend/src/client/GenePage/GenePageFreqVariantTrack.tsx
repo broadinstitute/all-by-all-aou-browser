@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 
 import { VariantPlotProps } from './GenePagePlots'
 
@@ -46,6 +46,7 @@ export const GenePageFreqVariantTrack = ({
   applyStroke,
   gwasCatalogOption = 'hide',
 }: VariantPlotProps) => {
+  const theme = useTheme() as any;
   const margin = {
     bottom: 10,
     left: leftPanelWidth,
@@ -98,6 +99,7 @@ export const GenePageFreqVariantTrack = ({
         getAfField,
         applyStroke,
         gwasCatalogOption,
+        theme,
       })
     }
 
@@ -160,10 +162,13 @@ export const GenePageFreqVariantTrack = ({
 
         ctx.beginPath()
         ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = '#000'
+        ctx.fillStyle = theme.surface || '#000'
         ctx.fill()
 
-        ctx.fillStyle = '#fff'
+        ctx.strokeStyle = theme.border || '#333'
+        ctx.strokeRect(labelX, labelY, textWidth + 12, 24)
+
+        ctx.fillStyle = theme.text || '#fff'
         ctx.fillText(label, labelX + 6, labelY + 16)
 
         ctx.restore()

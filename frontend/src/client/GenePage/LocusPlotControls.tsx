@@ -35,12 +35,11 @@ export const ZoomRegion: React.FC = () => {
     <div style={{ display: 'flex', gap: '10px', }}>
       <Button
         onClick={() => handleZoom(true)}
-        backgroundColor='lightgreen'
         disabled={isZoomInDisabled()}
       >
         Zoom In
       </Button>
-      <Button onClick={() => handleZoom(false)} backgroundColor='lightcoral'>
+      <Button onClick={() => handleZoom(false)}>
         Zoom Out
       </Button>
     </div>

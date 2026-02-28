@@ -114,6 +114,7 @@ export const LocusPvaluePlot = ({
         height,
         applyStroke,
         gwasCatalogOption,
+        theme,
       })
     }
 
@@ -139,7 +140,7 @@ export const LocusPvaluePlot = ({
 
       if (threshold.label) {
         ctx.font = '14px sans-serif'
-        ctx.fillStyle = '#000'
+        ctx.fillStyle = theme.text || '#000'
         ctx.fillText(threshold.label, 2, thresholdY - 4)
       }
     })
@@ -269,6 +270,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
   width,
   axisTicks,
 }) => {
+  const theme = useTheme() as any;
   const hPadding = 30
 
   const variantsAll = variantDatasets.flatMap((v) => v)
@@ -286,7 +288,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
   })
 
   const yAxisLabel = (
-    <text x={5} y={height / 2} transform={`rotate(270 ${hPadding / 3} ${height / 2})`}>
+    <text x={5} y={height / 2} transform={`rotate(270 ${hPadding / 3} ${height / 2})`} fill={theme.text}>
       {'-log10(P)'}
     </text>
   )
@@ -301,13 +303,14 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
               textAnchor='middle'
               x={hPadding - 5}
               y={logLogScale(t) + marginBottom - 2}
+              fill={theme.text}
             >
               {t.toFixed(0)}
             </text>
           </g>
         )
       })}
-      <text className='yTickText' textAnchor='middle' x={5} y={margin.top / 2}>
+      <text className='yTickText' textAnchor='middle' x={5} y={margin.top / 2} fill={theme.text}>
         &gt;
       </text>
     </g>
@@ -318,21 +321,21 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
 
   const yAxis = (
     <g>
-      <line x1={43} x2={43} y1={yAxisStart} y2={yAxisEnd} stroke='black' />
-      <line x1={marginBottom} x2={43} y1={yAxisEnd} y2={yAxisEnd} stroke='black' />
-      <line x1={marginBottom} x2={43} y1={yAxisStart} y2={yAxisStart} stroke='black' />
+      <line x1={43} x2={43} y1={yAxisStart} y2={yAxisEnd} stroke={theme.border} />
+      <line x1={marginBottom} x2={43} y1={yAxisEnd} y2={yAxisEnd} stroke={theme.border} />
+      <line x1={marginBottom} x2={43} y1={yAxisStart} y2={yAxisStart} stroke={theme.border} />
     </g>
   )
 
   const NoPValLabel = (
-    <text x={0} y={height - 10}>
+    <text x={0} y={height - 10} fill={theme.text}>
       {'No P-val'}
     </text>
   )
 
   return (
     <svg width={width} height={height}>
-      <rect fill='none' style={{ border: '1px solid black' }} />
+      <rect fill='none' style={{ border: `1px solid ${theme.border}` }} />
       {yAxisLabel}
       {yAxisTicks}
       {yAxis}

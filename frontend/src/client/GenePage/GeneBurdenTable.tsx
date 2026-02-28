@@ -21,7 +21,7 @@ const Table = styled(BaseTable)`
     text-decoration: underline;
     text-decoration-style: dashed;
     text-decoration-thickness: 1px;
-    text-decoration-color: grey;
+    text-decoration-color: var(--theme-text-muted, grey);
   }
 `
 
@@ -267,12 +267,12 @@ export const GeneBurdenTable = ({
           ))}
           {allRows.length === 0 && (
             <tr>
-              <td colSpan={membershipFilters ? 5 : 4} style={{ textAlign: 'center', color: '#666' }}>
+              <td colSpan={membershipFilters ? 5 : 4} style={{ textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
                 No burden test results available
               </td>
             </tr>
           )}
-          <tr style={{ borderTop: '1px double black' }}>
+          <tr style={{ borderTop: '1px double var(--theme-border, black)' }}>
             <th className='tooltip'>
               <TooltipAnchor
                 tooltip={

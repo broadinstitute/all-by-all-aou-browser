@@ -491,7 +491,7 @@ const AlleleFrequencyLegend: React.FC = () => {
               cy={height * 0.66}
               r={alleleFrequencyScale(tick)}
               fill='grey'
-              stroke='black'
+              stroke='var(--theme-border, black)'
               strokeWidth={1}
             />
           </g>
@@ -639,7 +639,6 @@ const UnselectVariant: React.FC = () => {
         setVariantSearchText('')
         setVariantId(null)
       }}
-      backgroundColor={'lightblue'}
     >
       Unselect variant
     </Button>

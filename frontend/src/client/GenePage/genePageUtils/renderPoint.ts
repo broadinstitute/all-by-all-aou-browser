@@ -23,6 +23,7 @@ interface RenderPointArgs {
   betaScale: any
   height: number
   gwasCatalogOption?: GwasCatalogOption
+  theme?: { border?: string }
 }
 
 export const renderPoint = ({
@@ -41,7 +42,9 @@ export const renderPoint = ({
     variant.allele_frequency || variant.association_af || variant.af_cases || 0,
   height,
   gwasCatalogOption,
+  theme,
 }: RenderPointArgs) => {
+  const strokeColor = theme?.border || 'black';
   if (selectedVariant && point.data.locus.position == selectedVariant.locus.position) {
     ctx.beginPath()
     ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false)
@@ -72,7 +75,7 @@ export const renderPoint = ({
 
   if (applyStroke) {
     ctx.fillStyle = pointColor(point.data, betaScale)
-    ctx.strokeStyle = 'black'
+    ctx.strokeStyle = strokeColor
     ctx.lineWidth = 1
     ctx.stroke()
   } else if (point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
@@ -84,7 +87,7 @@ export const renderPoint = ({
   ) {
     ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = pointColor(point.data, betaScale)
-    ctx.strokeStyle = 'black'
+    ctx.strokeStyle = strokeColor
     ctx.lineWidth = 1.5
     ctx.stroke()
   } else {

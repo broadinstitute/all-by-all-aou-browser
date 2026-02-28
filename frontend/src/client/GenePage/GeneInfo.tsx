@@ -51,7 +51,7 @@ const RegionText = styled.span`
 const DetailsToggle = styled.button`
   background: none;
   border: none;
-  color: #1976d2;
+  color: var(--theme-primary, #262262);
   cursor: pointer;
   font-size: 13px;
   padding: 0;
@@ -139,7 +139,7 @@ const LinkChip = styled.a`
   background: ${(props) => props.theme.surface};
   border: 1px solid ${(props) => props.theme.border};
   border-radius: 16px;
-  color: #1976d2;
+  color: var(--theme-primary, #262262);
   font-size: 12px;
   font-weight: 500;
   text-decoration: none;
@@ -147,7 +147,7 @@ const LinkChip = styled.a`
 
   &:hover {
     background: #e3f2fd;
-    border-color: #1976d2;
+    border-color: var(--theme-primary, #262262);
     text-decoration: none;
   }
 

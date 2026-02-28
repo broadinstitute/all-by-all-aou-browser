@@ -277,7 +277,7 @@ const Tab = styled.button<{ $active: boolean }>`
   background: transparent;
   font-size: 14px;
   font-weight: ${({ $active }) => ($active ? '600' : '400')};
-  color: ${({ $active, theme }) => ($active ? '#1976d2' : theme.textMuted)};
+  color: ${({ $active, theme }) => ($active ? '#262262' : theme.textMuted)};
   cursor: pointer;
   position: relative;
   transition: color 0.15s ease;
@@ -289,12 +289,12 @@ const Tab = styled.button<{ $active: boolean }>`
     left: 0;
     right: 0;
     height: 2px;
-    background: ${({ $active }) => ($active ? '#1976d2' : 'transparent')};
+    background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
     transition: background 0.15s ease;
   }
 
   &:hover {
-    color: ${({ $active, theme }) => ($active ? '#1976d2' : theme.text)};
+    color: ${({ $active, theme }) => ($active ? '#262262' : theme.text)};
   }
 `
 
