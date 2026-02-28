@@ -5,7 +5,7 @@ import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
-import type { UnifiedOverviewResponse } from './types';
+import type { UnifiedOverviewResponse, UnifiedLocus } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
 
@@ -56,7 +56,26 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   });
 
   // Stable callbacks for peak selection
-  const togglePeak = useCallback((peakId: string) => {
+  const togglePeak = useCallback((peakId: string, allFilteredLoci?: UnifiedLocus[]) => {
+    // If entering custom mode for the first time, initialize with top 25 peaks
+    if (!customLabelMode && allFilteredLoci) {
+      const sortedLoci = [...allFilteredLoci].sort((a, b) => {
+        const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
+        const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
+        return bestA - bestB;
+      });
+      const top25Ids = new Set(sortedLoci.slice(0, 25).map((l) => `${l.contig}-${l.position}`));
+      // Apply the toggle to the initialized set
+      if (top25Ids.has(peakId)) {
+        top25Ids.delete(peakId);
+      } else {
+        top25Ids.add(peakId);
+      }
+      setSelectedPeakIds(top25Ids);
+      setCustomLabelMode(true);
+      return;
+    }
+
     setCustomLabelMode(true);
     setSelectedPeakIds((prev) => {
       const next = new Set(prev);
@@ -67,7 +86,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       }
       return next;
     });
-  }, []);
+  }, [customLabelMode]);
 
   const clearSelection = useCallback(() => {
     setSelectedPeakIds(new Set());

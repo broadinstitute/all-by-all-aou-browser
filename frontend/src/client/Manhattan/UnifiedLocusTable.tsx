@@ -14,8 +14,8 @@ export interface UnifiedLocusTableProps {
   onGeneClick?: (geneId: string) => void;
   /** Set of selected peak IDs for custom labeling */
   selectedPeakIds: Set<string>;
-  /** Callback to toggle a peak selection */
-  onTogglePeak: (peakId: string) => void;
+  /** Callback to toggle a peak selection - passes filtered loci for initialization */
+  onTogglePeak: (peakId: string, filteredLoci?: UnifiedLocus[]) => void;
   /** Whether in custom label mode */
   customLabelMode: boolean;
   /** Clear all selections */
@@ -81,6 +81,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
 }) => {
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
+  const [searchText, setSearchText] = useState('');
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -98,11 +99,63 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     });
   }, [unifiedLoci]);
 
+  // Filter by search text - matches gene_symbol, contig:position, or special keywords
+  const searchFilteredLoci = useMemo(() => {
+    if (!searchText.trim()) return sortedLoci;
+    const term = searchText.trim().toLowerCase();
+
+    return sortedLoci.filter((locus) => {
+      // Check locus position (e.g., "chr1:12345" or just "chr1")
+      const locusStr = `${locus.contig}:${locus.position}`.toLowerCase();
+      if (locusStr.includes(term) || locus.contig.toLowerCase().includes(term)) {
+        return true;
+      }
+
+      // Check gene symbols
+      if (locus.genes.some((g) => g.gene_symbol.toLowerCase().includes(term))) {
+        return true;
+      }
+
+      // Special keywords: "lof" matches loci with significant LoF variants/burden
+      if (term === 'lof' || term === 'plof') {
+        return locus.genes.some((g) => {
+          const coding = getGeneCodingCounts(g);
+          const hasLofBurden = getGeneBurdenTypes(g).includes('pLoF');
+          return coding.lof > 0 || hasLofBurden;
+        });
+      }
+
+      // Special keywords: "missense" or "mis" matches loci with missense variants/burden
+      if (term === 'missense' || term === 'mis') {
+        return locus.genes.some((g) => {
+          const coding = getGeneCodingCounts(g);
+          const hasMisBurden = getGeneBurdenTypes(g).includes('missenseLC');
+          return coding.missense > 0 || hasMisBurden;
+        });
+      }
+
+      // Special keywords: "coding" matches loci with any coding variants
+      if (term === 'coding') {
+        return locus.genes.some((g) => {
+          const coding = getGeneCodingCounts(g);
+          return coding.lof > 0 || coding.missense > 0;
+        });
+      }
+
+      // Special keywords: "burden" matches loci with any significant burden test
+      if (term === 'burden') {
+        return locus.genes.some((g) => getGeneBurdenTypes(g).length > 0);
+      }
+
+      return false;
+    });
+  }, [sortedLoci, searchText]);
+
   // Filter to only loci with gene evidence
   const filteredLoci = useMemo(() => {
-    if (!showOnlyImplicated) return sortedLoci;
-    return sortedLoci.filter((locus) => locus.genes.some(geneHasEvidence));
-  }, [sortedLoci, showOnlyImplicated]);
+    if (!showOnlyImplicated) return searchFilteredLoci;
+    return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
+  }, [searchFilteredLoci, showOnlyImplicated]);
 
   const handleSelectAllFiltered = useCallback(() => {
     const ids = new Set(filteredLoci.map((l) => `${l.contig}-${l.position}`));
@@ -126,12 +179,30 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           background: 'var(--theme-surface-alt)',
           borderRadius: 4,
           fontSize: 12,
+          flexWrap: 'wrap',
+          gap: 8,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Search input */}
+          <input
+            type="text"
+            placeholder="Search genes, loci, lof, missense..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{
+              padding: '4px 8px',
+              fontSize: 11,
+              border: '1px solid var(--theme-border, #ccc)',
+              borderRadius: 3,
+              width: 180,
+              background: 'var(--theme-surface, #fff)',
+              color: 'var(--theme-text, #333)',
+            }}
+          />
           <span style={{ color: 'var(--theme-text)' }}>
             <strong>{filteredLoci.length}</strong>
-            {showOnlyImplicated ? ` / ${sortedLoci.length}` : ''} loci
+            {(showOnlyImplicated || searchText) ? ` / ${sortedLoci.length}` : ''} loci
           </span>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
             <input
@@ -176,39 +247,38 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           <span style={{ fontSize: 10, color: '#262262', fontWeight: 500 }}>
             (nLOF) (nMIS)
           </span>
+          {/* Always show Clear all button in custom mode */}
           {customLabelMode && (
-            <>
-              {selectedPeakIds.size > 0 && (
-                <button
-                  onClick={onClearSelection}
-                  style={{
-                    fontSize: 11,
-                    padding: '4px 10px',
-                    cursor: 'pointer',
-                    background: 'var(--theme-surface, #fff)',
-                    color: 'var(--theme-text, #333)',
-                    border: '1px solid var(--theme-border, #ccc)',
-                    borderRadius: 3,
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
-              <button
-                onClick={onResetToDefault}
-                style={{
-                  fontSize: 11,
-                  padding: '4px 10px',
-                  cursor: 'pointer',
-                  background: 'var(--theme-surface, #fff)',
-                  color: 'var(--theme-text, #333)',
-                  border: '1px solid var(--theme-border, #ccc)',
-                  borderRadius: 3,
-                }}
-              >
-                Reset to top 25
-              </button>
-            </>
+            <button
+              onClick={onClearSelection}
+              style={{
+                fontSize: 11,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                background: 'var(--theme-surface, #fff)',
+                color: 'var(--theme-text, #333)',
+                border: '1px solid var(--theme-border, #ccc)',
+                borderRadius: 3,
+              }}
+            >
+              Clear all
+            </button>
+          )}
+          {customLabelMode && (
+            <button
+              onClick={onResetToDefault}
+              style={{
+                fontSize: 11,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                background: 'var(--theme-surface, #fff)',
+                color: 'var(--theme-text, #333)',
+                border: '1px solid var(--theme-border, #ccc)',
+                borderRadius: 3,
+              }}
+            >
+              Reset to top 25
+            </button>
           )}
         </div>
       </div>
@@ -261,7 +331,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   <input
                     type="checkbox"
                     checked={hasLabel}
-                    onChange={() => onTogglePeak(locusId)}
+                    onChange={() => onTogglePeak(locusId, sortedLoci)}
                     title={hasLabel ? 'Remove label' : 'Add label'}
                     style={{ cursor: 'pointer' }}
                   />

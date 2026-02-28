@@ -207,18 +207,20 @@ export function usePeakLabelLayout(
     // Sort by x position
     nodes.sort((a, b) => a.targetX - b.targetX);
 
-    // Initial pass: position labels at a baseline, then let force push them up
-    // Start with labels at y=100 (arbitrary starting point)
-    const baseline = 100;
+    // Initial pass: position labels at a baseline closer to the data
+    // Lower baseline (50 instead of 100) keeps labels closer to peaks
+    const baseline = 50;
     for (const node of nodes) {
       node.y = baseline;
     }
 
     // Run force simulation - labels will spread out to avoid collisions
+    // Lower forceX strength allows more horizontal spreading
+    // Higher forceY strength keeps labels anchored near the baseline
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const simulation = d3Force.forceSimulation(nodes as any)
-      .force('x', d3Force.forceX((d: PeakLabelNode) => d.targetX).strength(0.4))
-      .force('y', d3Force.forceY(baseline).strength(0.05))
+      .force('x', d3Force.forceX((d: PeakLabelNode) => d.targetX).strength(0.2))
+      .force('y', d3Force.forceY(baseline).strength(0.1))
       .force('collide', d3Force.forceCollide((d: PeakLabelNode) => d.collisionRadius * 1.2).strength(1).iterations(6))
       .stop();
 
@@ -266,7 +268,8 @@ export function usePeakLabelLayout(
 }
 
 /**
- * Resolve remaining overlaps by stacking labels.
+ * Resolve remaining overlaps by pushing labels apart.
+ * Prefers horizontal spreading over vertical stacking to keep labels closer to data.
  * Runs multiple passes to ensure all overlaps are resolved.
  */
 function resolveOverlaps(nodes: PeakLabelNode[]): void {
@@ -274,7 +277,7 @@ function resolveOverlaps(nodes: PeakLabelNode[]): void {
   const sorted = [...nodes].sort((a, b) => a.x - b.x);
 
   // Run multiple passes until no overlaps remain
-  for (let pass = 0; pass < 10; pass++) {
+  for (let pass = 0; pass < 15; pass++) {
     let hadOverlap = false;
 
     for (let i = 0; i < sorted.length; i++) {
@@ -286,9 +289,34 @@ function resolveOverlaps(nodes: PeakLabelNode[]): void {
 
         if (labelsOverlap(current, other)) {
           hadOverlap = true;
-          // Move the one with higher Y (lower on screen) up above the other
-          if (current.y >= other.y) {
-            current.y = other.y - LABEL_HEIGHT - MIN_LABEL_SPACING;
+
+          // Calculate overlap amounts in each direction
+          const dx = current.x - other.x;
+          const dy = current.y - other.y;
+          const minDist = (current.collisionRadius + other.collisionRadius) * 0.7;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist === 0) {
+            // Same position - push apart horizontally
+            current.x += minDist / 2;
+          } else {
+            // Prefer horizontal separation: use a 2:1 bias for horizontal vs vertical
+            const pushAmount = (minDist - dist) / 2 + MIN_LABEL_SPACING;
+            const horizontalBias = 2;
+
+            if (Math.abs(dx) * horizontalBias > Math.abs(dy)) {
+              // Push horizontally
+              const direction = dx >= 0 ? 1 : -1;
+              current.x += direction * pushAmount;
+            } else {
+              // Push vertically (only if horizontal won't work well)
+              // Move the one with higher Y (lower on screen) up above the other
+              if (current.y >= other.y) {
+                current.y = other.y - LABEL_HEIGHT - MIN_LABEL_SPACING;
+              } else {
+                other.y = current.y - LABEL_HEIGHT - MIN_LABEL_SPACING;
+              }
+            }
           }
         }
       }

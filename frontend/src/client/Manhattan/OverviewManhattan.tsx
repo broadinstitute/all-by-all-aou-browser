@@ -1,12 +1,13 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
-import { PeakLabels } from './components/PeakLabels';
+import { PeakLabels, LabelPositionOverride } from './components/PeakLabels';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { LocusContextMenu } from './components/LocusContextMenu';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
+import { exportManhattanPlot } from './utils/exportPlot';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
 
@@ -115,12 +116,16 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const exportContainerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredPeakNode, setHoveredPeakNode] = useState<PeakLabelNode | null>(null);
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [genomeLoaded, setGenomeLoaded] = useState(false);
   const [exomeLoaded, setExomeLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  // Label position overrides from user dragging
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -171,6 +176,32 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     }
   }, []);
 
+  // Handle label drag end - store the new position
+  const handleLabelDragEnd = useCallback((id: string, x: number, y: number) => {
+    setLabelOverrides((prev) => ({
+      ...prev,
+      [id]: { x, y },
+    }));
+  }, []);
+
+  // Reset all label positions to auto-layout
+  const handleResetLayout = useCallback(() => {
+    setLabelOverrides({});
+  }, []);
+
+  // Export the plot to PNG
+  const handleExportPlot = useCallback(async () => {
+    if (!exportContainerRef.current) return;
+    setIsExporting(true);
+    try {
+      await exportManhattanPlot(exportContainerRef.current, 'manhattan-plot.png');
+    } catch (err) {
+      console.error('Failed to export plot:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
+
   const handleGenomeLoad = useCallback(() => {
     setGenomeLoaded(true);
     setImageError(false);
@@ -204,7 +235,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
 
   return (
     <div ref={containerRef} className="manhattan-container">
-      <div className="manhattan-plot-row" style={{ display: 'flex' }}>
+      <div ref={exportContainerRef} className="manhattan-plot-row" style={{ display: 'flex' }}>
         {/* Y-Axis */}
         {showYAxis && imagesLoaded && (
           <div
@@ -280,6 +311,8 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                     position: node.peak.position,
                   });
                 }}
+                labelOverrides={labelOverrides}
+                onLabelDragEnd={handleLabelDragEnd}
               />
             </svg>
           )}
@@ -346,6 +379,42 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
             <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
               <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
             </span>
+            {/* Reset Layout button - only show if there are overrides */}
+            {Object.keys(labelOverrides).length > 0 && (
+              <button
+                onClick={handleResetLayout}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  background: 'var(--theme-surface, #fff)',
+                  color: 'var(--theme-text, #333)',
+                  border: '1px solid var(--theme-border, #ccc)',
+                  borderRadius: 3,
+                }}
+                title="Reset all labels to auto-positioned layout"
+              >
+                Reset layout
+              </button>
+            )}
+            {/* Export to PNG button */}
+            <button
+              onClick={handleExportPlot}
+              disabled={isExporting}
+              style={{
+                fontSize: 11,
+                padding: '4px 10px',
+                cursor: isExporting ? 'wait' : 'pointer',
+                background: 'var(--theme-primary, #262262)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 3,
+                opacity: isExporting ? 0.7 : 1,
+              }}
+              title="Export plot as PNG image"
+            >
+              {isExporting ? 'Exporting...' : 'Export PNG'}
+            </button>
           </div>
         </div>
       )}
