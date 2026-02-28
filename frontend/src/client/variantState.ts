@@ -270,3 +270,9 @@ export const variantLabelsAtom = atom<Record<string, string>>({
   key: 'variantLabels',
   default: {},
 })
+
+// Feature flag for custom variant labels (disabled by default)
+export const enableVariantLabelsAtom = atom<boolean>({
+  key: 'enableVariantLabels',
+  default: false,
+})

@@ -21,6 +21,7 @@ import {
   VariantFieldType,
   hoveredVariantAtom,
   multiAnalysisVariantTableFormatAtom,
+  enableVariantLabelsAtom,
 } from '../variantState'
 
 import { scaleDiverging } from 'd3-scale'
@@ -126,12 +127,13 @@ export const GenePageVariantTable = ({
   const analysisId = useRecoilValue(analysisIdAtom)
   const geneId = useRecoilValue(geneIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
+  const enableVariantLabels = useRecoilValue(enableVariantLabelsAtom)
 
   const baseColumns = variantId
     ? []
     : [
       'variant_id',
-      'label',
+      ...(enableVariantLabels ? ['label'] : []),
       // 'sequencing_type',
       // 'ancestry_group',
       // 'consequence',
