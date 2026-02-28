@@ -86,8 +86,9 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
     left: Math.min(x, window.innerWidth - 180),
     top: Math.min(y, window.innerHeight - 80),
     zIndex: 10000,
-    background: '#fff',
-    border: '1px solid #ddd',
+    background: 'var(--theme-surface, #fff)',
+    color: 'var(--theme-text, #333)',
+    border: '1px solid var(--theme-border, #ddd)',
     borderRadius: 4,
     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
     padding: '4px 0',
@@ -105,7 +106,7 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
   };
 
   const menuItemHoverStyle = {
-    background: '#f5f5f5',
+    background: 'var(--theme-surface-alt, #f5f5f5)',
   };
 
   return (

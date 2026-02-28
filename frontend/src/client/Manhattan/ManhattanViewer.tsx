@@ -495,7 +495,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     <span style={{ fontSize: 11 }}>Gene implicated</span>
                   </label>
                   {customLabelMode ? (
-                    <span style={{ color: '#1565c0' }}>
+                    <span style={{ color: 'var(--theme-primary, #262262)' }}>
                       <strong>{selectedPeakIds.size}</strong> labeled
                     </span>
                   ) : (
@@ -540,8 +540,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                             fontSize: 11,
                             padding: '4px 10px',
                             cursor: 'pointer',
-                            background: '#fff',
-                            border: '1px solid #ccc',
+                            background: 'var(--theme-surface, #fff)',
+                            color: 'var(--theme-text, #333)',
+                            border: '1px solid var(--theme-border, #ccc)',
                             borderRadius: 3,
                           }}
                         >
@@ -554,8 +555,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           fontSize: 11,
                           padding: '4px 10px',
                           cursor: 'pointer',
-                          background: '#fff',
-                          border: '1px solid #ccc',
+                          background: 'var(--theme-surface, #fff)',
+                          color: 'var(--theme-text, #333)',
+                          border: '1px solid var(--theme-border, #ccc)',
                           borderRadius: 3,
                         }}
                       >
@@ -636,7 +638,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           style={{ cursor: 'pointer' }}
                           title="Click to view locus, right-click for options"
                         >
-                          <span style={{ color: '#1565c0', textDecoration: 'underline' }}>
+                          <span style={{ color: 'var(--theme-primary, #262262)', textDecoration: 'underline' }}>
                             {peak.contig}:{peak.position.toLocaleString()}
                           </span>
                         </td>
@@ -658,7 +660,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                 }}
                               >
                                 <span
-                                  style={{ fontWeight: 600, cursor: 'pointer', color: '#1565c0' }}
+                                  style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--theme-primary, #262262)' }}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onGeneClick?.(g.gene_id);

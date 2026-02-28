@@ -143,7 +143,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             <span style={{ fontSize: 11 }}>Gene implicated</span>
           </label>
           {customLabelMode ? (
-            <span style={{ color: '#1565c0' }}>
+            <span style={{ color: 'var(--theme-primary, #262262)' }}>
               <strong>{selectedPeakIds.size}</strong> labeled
             </span>
           ) : (
@@ -185,8 +185,9 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                     fontSize: 11,
                     padding: '4px 10px',
                     cursor: 'pointer',
-                    background: '#fff',
-                    border: '1px solid #ccc',
+                    background: 'var(--theme-surface, #fff)',
+                    color: 'var(--theme-text, #333)',
+                    border: '1px solid var(--theme-border, #ccc)',
                     borderRadius: 3,
                   }}
                 >
@@ -199,8 +200,9 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   fontSize: 11,
                   padding: '4px 10px',
                   cursor: 'pointer',
-                  background: '#fff',
-                  border: '1px solid #ccc',
+                  background: 'var(--theme-surface, #fff)',
+                  color: 'var(--theme-text, #333)',
+                  border: '1px solid var(--theme-border, #ccc)',
                   borderRadius: 3,
                 }}
               >
@@ -278,7 +280,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
                   title="Click to view locus, right-click for options"
                 >
-                  <span style={{ color: '#1565c0', textDecoration: 'underline' }}>
+                  <span style={{ color: 'var(--theme-primary, #262262)', textDecoration: 'underline' }}>
                     {locus.contig}:{locus.position.toLocaleString()}
                   </span>
                   {isBurdenOnly && (
@@ -315,7 +317,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                         }}
                       >
                         <span
-                          style={{ fontWeight: 600, cursor: 'pointer', color: '#1565c0' }}
+                          style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--theme-primary, #262262)' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             onGeneClick?.(g.gene_id);
@@ -350,7 +352,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   })}
                   {/* Non-implicated genes condensed */}
                   {nonImplicatedGenes.length > 0 && (
-                    <span style={{ color: '#888', fontSize: 11 }}>
+                    <span style={{ color: 'var(--theme-text-muted, #888)', fontSize: 11 }}>
                       {nonImplicatedGenes.slice(0, 3).map((g, idx) => (
                         <React.Fragment key={g.gene_id}>
                           <span

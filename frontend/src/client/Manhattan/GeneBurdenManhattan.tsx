@@ -108,8 +108,10 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
     const layout = getChromosomeLayout('all');
     const yScale = getYScale();
 
-    // Standard AoU colors for Manhattan plot points
-    const colors = ['#262262', '#71797E'];
+    // Consistent AoU colors for Manhattan plot points - two shades of blue
+    // These match the CSS-filtered variant Manhattan plots
+    const isDarkMode = theme.background !== '#fafafa';
+    const colors = isDarkMode ? ['#7c7cff', '#5c5cdf'] : ['#262262', '#4a4a8a'];
 
     // First pass: draw all points and collect positions
     const plotted: PlottedGene[] = [];
@@ -293,8 +295,8 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
                 position: 'fixed',
                 left: mousePos.x + 10,
                 top: mousePos.y - 10,
-                background: 'white',
-                border: '1px solid #ccc',
+                background: 'var(--theme-surface, white)',
+                border: '1px solid var(--theme-border, #ccc)',
                 borderRadius: 4,
                 padding: '6px 10px',
                 fontSize: 12,

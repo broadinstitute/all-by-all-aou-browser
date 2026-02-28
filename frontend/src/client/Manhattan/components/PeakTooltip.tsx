@@ -70,9 +70,9 @@ const PvalueCell: React.FC<{ value: number | undefined; annotation?: string }> =
 
   // Color based on annotation type when significant
   const dotColor = isSignificant
-    ? (annotation === 'pLoF' ? '#c62828' : annotation === 'missenseLC' ? '#f9a825' : '#666')
+    ? (annotation === 'pLoF' ? '#c62828' : annotation === 'missenseLC' ? '#f9a825' : 'var(--theme-text-muted, #666)')
     : undefined;
-  const textColor = isSignificant ? '#333' : '#666';
+  const textColor = isSignificant ? 'var(--theme-text, #333)' : 'var(--theme-text-muted, #666)';
   const fontWeight = isSignificant ? 600 : 400;
 
   return (
@@ -107,8 +107,8 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     top: y + 10,
     left: shouldFlip ? undefined : x + 10,
     right: shouldFlip ? containerWidth - x + 10 : undefined,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    color: '#333',
+    backgroundColor: 'var(--theme-surface, rgba(255, 255, 255, 0.98))',
+    color: 'var(--theme-text, #333)',
     padding: '12px',
     borderRadius: '6px',
     fontSize: '11px',
@@ -125,7 +125,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     fontSize: '12px',
     marginBottom: '10px',
     paddingBottom: '8px',
-    borderBottom: '1px solid #e0e0e0',
+    borderBottom: '1px solid var(--theme-border, #e0e0e0)',
   };
 
   const tableStyle: React.CSSProperties = {
@@ -138,8 +138,8 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     textAlign: 'right',
     padding: '4px 6px',
     fontWeight: 600,
-    color: '#666',
-    borderBottom: '1px solid #e0e0e0',
+    color: 'var(--theme-text-muted, #666)',
+    borderBottom: '1px solid var(--theme-border, #e0e0e0)',
     whiteSpace: 'nowrap',
   };
 
@@ -152,7 +152,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     <div style={style} className="manhattan-peak-tooltip">
       {/* Header */}
       <div style={headerStyle}>
-        <div style={{ color: '#666', fontSize: '10px', marginBottom: '2px' }}>
+        <div style={{ color: 'var(--theme-text-muted, #666)', fontSize: '10px', marginBottom: '2px' }}>
           {peak.contig}:{peak.position.toLocaleString()}
         </div>
         <div>
@@ -162,7 +162,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
 
       {/* Show message if no implicated genes */}
       {implicatedGenes.length === 0 && (
-        <div style={{ color: '#666', fontStyle: 'italic', fontSize: '11px' }}>
+        <div style={{ color: 'var(--theme-text-muted, #666)', fontStyle: 'italic', fontSize: '11px' }}>
           No genes with significant burden tests or coding variants in this locus.
           <br />
           <span style={{ fontSize: '10px' }}>({peak.genes.length} nearby genes without evidence)</span>
@@ -197,7 +197,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{
                   fontWeight: 700,
-                  color: '#1565c0',
+                  color: 'var(--theme-primary, #262262)',
                   fontSize: '12px',
                 }}>
                   {gene.gene_symbol}
@@ -232,7 +232,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                   </span>
                 )}
               </div>
-              <div style={{ color: '#888', fontSize: '10px' }}>
+              <div style={{ color: 'var(--theme-text-muted, #888)', fontSize: '10px' }}>
                 {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb
               </div>
             </div>
@@ -283,7 +283,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
 
       {/* Additional counts */}
       {(implicatedGenes.length > 6 || otherGenesCount > 0) && (
-        <div style={{ color: '#888', fontStyle: 'italic', marginTop: '8px', fontSize: '10px' }}>
+        <div style={{ color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', marginTop: '8px', fontSize: '10px' }}>
           {implicatedGenes.length > 6 && (
             <span>+{implicatedGenes.length - 6} more implicated genes</span>
           )}
@@ -298,9 +298,9 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
       <div style={{
         marginTop: '10px',
         paddingTop: '8px',
-        borderTop: '1px solid #e0e0e0',
+        borderTop: '1px solid var(--theme-border, #e0e0e0)',
         fontSize: '9px',
-        color: '#888',
+        color: 'var(--theme-text-muted, #888)',
         display: 'flex',
         gap: '12px',
       }}>
