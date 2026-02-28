@@ -105,7 +105,9 @@ const GridHorizontalViewport = styled.div`
 const HeaderRow = styled.div`
   ${baseRowStyle};
   border-top: none;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--theme-border, #e0e0e0);
+  background-color: var(--theme-surface-alt, #f5f5f5);
+  color: var(--theme-text, #333);
 `;
 const ColumnHeaderBase = styled.div`
   ${baseCellStyle};

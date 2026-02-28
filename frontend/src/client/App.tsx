@@ -64,7 +64,38 @@ const GlobalStyle = createGlobalStyle`
   button {
     background-color: ${(props) => props.theme.surface};
     color: ${(props) => props.theme.text};
+    border: 1px solid ${(props) => props.theme.border};
+    border-radius: 4px;
+  }
+
+  button:hover {
+    background-color: ${(props) => props.theme.surfaceAlt};
+  }
+
+  /* SegmentedControl from @gnomad/ui */
+  [class*="SegmentedControl"] {
+    background-color: ${(props) => props.theme.surfaceAlt};
     border-color: ${(props) => props.theme.border};
+  }
+
+  [class*="SegmentedControl"] label {
+    background-color: ${(props) => props.theme.surface};
+    color: ${(props) => props.theme.text};
+    border-color: ${(props) => props.theme.border};
+  }
+
+  [class*="SegmentedControl"] input:checked + label {
+    background-color: #262262;
+    color: white;
+    border-color: #262262;
+  }
+
+  [class*="SegmentedControl"] label:hover {
+    background-color: ${(props) => props.theme.surfaceAlt};
+  }
+
+  [class*="SegmentedControl"] input:checked + label:hover {
+    background-color: #262262;
   }
 
   /* Input and select styling */

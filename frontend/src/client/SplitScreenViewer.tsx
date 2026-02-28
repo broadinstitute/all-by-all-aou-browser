@@ -50,7 +50,7 @@ const ResizableItems = withSize({
     let borderStyles = {}
 
     if (resultsLayout !== 'hidden' && resultsLayout !== 'full') {
-      borderStyles = { borderRight: '1px dashed black' }
+      borderStyles = { borderRight: '1px dashed var(--theme-border, black)' }
     }
 
     const closeRightPanel = () => {

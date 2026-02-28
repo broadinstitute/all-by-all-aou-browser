@@ -35,7 +35,8 @@ const NoPhenotypes = styled.div`
   justify-content: center;
   align-items: center;
   height: ${(props) => (props as any).height}px;
-  border: 1px dashed gray;
+  border: 1px dashed var(--theme-border, gray);
+  color: var(--theme-text, inherit);
   font-size: 20px;
   font-weight: bold;
 `

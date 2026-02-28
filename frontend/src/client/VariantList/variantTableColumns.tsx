@@ -137,8 +137,8 @@ const GwasCatalogTooltip = ({ rowData }: any) => {
   )
 }
 
-const borderBottom = '1px solid black'
-const background = 'whitesmoke'
+const borderBottom = '1px solid var(--theme-border, black)'
+const background = 'var(--theme-surface-alt, whitesmoke)'
 
 export const countColumns = (ancestryGroup: AncestryGroupCodes, betaScale?: any) => [
   {
