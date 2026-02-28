@@ -3,7 +3,6 @@ import React from 'react'
 import styled from 'styled-components'
 import AnalysisControls from '../AnalysisControls'
 import { ColorMarker } from '../UserInterface'
-import RangeSlider from './RangeSlider'
 import {
   P_VALUE_BURDEN,
   P_VALUE_SKAT,
@@ -43,7 +42,7 @@ const ControlsHeader = styled.div`
 const HeaderTitle = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--theme-text, #333);
 `
 
 const CloseButton = styled.button`
@@ -52,13 +51,13 @@ const CloseButton = styled.button`
   cursor: pointer;
   padding: 4px 8px;
   font-size: 18px;
-  color: #666;
+  color: var(--theme-text-muted, #666);
   line-height: 1;
   border-radius: 4px;
 
   &:hover {
-    background: #e0e0e0;
-    color: #333;
+    background: var(--theme-border, #e0e0e0);
+    color: var(--theme-text, #333);
   }
 `
 
@@ -70,7 +69,7 @@ const Section = styled.div`
 
 const SectionTitle = styled.strong`
   font-size: 13px;
-  color: #333;
+  color: var(--theme-text, #333);
   margin-bottom: 4px;
 `
 
@@ -131,7 +130,7 @@ const CategoryHeader = styled.div`
   button {
     background: none;
     border: none;
-    color: #1976d2;
+    color: var(--theme-primary, #262262);
     cursor: pointer;
     padding: 0;
     font-size: 12px;
@@ -149,11 +148,11 @@ const CategoryItem = styled.label<{ $selected: boolean }>`
   padding: 6px 8px;
   font-size: 13px;
   cursor: pointer;
-  background: ${(props) => (props.$selected ? '#e3f2fd' : props.theme.surface)};
+  background: ${(props) => (props.$selected ? 'rgba(25, 118, 210, 0.15)' : props.theme.surface)};
   border-bottom: 1px solid ${(props) => props.theme.border};
 
   &:hover {
-    background: ${(props) => (props.$selected ? '#bbdefb' : props.theme.surfaceAlt)};
+    background: ${(props) => (props.$selected ? 'rgba(25, 118, 210, 0.25)' : props.theme.surfaceAlt)};
   }
 
   &:last-child {
@@ -173,7 +172,7 @@ const CategoryName = styled.span`
 `
 
 const CategoryCount = styled.span`
-  color: #666;
+  color: var(--theme-text-muted, #666);
   font-size: 11px;
 `
 
@@ -213,19 +212,11 @@ interface PhewasControlsProps {
   pValueType: string
   setPValueType: (value: any) => void
 
-  // P-value interval
-  pValueInterval: [number, number]
-  pIntervalMin: number
-  pIntervalMax: number
-  onPvalueIntervalChange: (range: [number, number]) => void
-
   // Plot options
   plotType: string
   setPlotType: (value: string) => void
   plotSortKey: string
   onTogglePvalueOrder: () => void
-  logLogEnabled: boolean
-  onToggleLogLog: () => void
 
   // Multi-phenotype selection
   analysesCount: number
@@ -254,16 +245,10 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   setSelectedMaf,
   pValueType,
   setPValueType,
-  pValueInterval,
-  pIntervalMin,
-  pIntervalMax,
-  onPvalueIntervalChange,
   plotType,
   setPlotType,
   plotSortKey,
   onTogglePvalueOrder,
-  logLogEnabled,
-  onToggleLogLog,
   analysesCount,
   topAnalyses,
   onSelectTop,
@@ -352,21 +337,6 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
         </PValueLegend>
       </Section>
 
-      {/* P-value Cutoffs */}
-      <Section>
-        <SectionTitle>
-          <span>-Log</span>
-          <sub>10</sub>
-          <span>P cutoffs</span>
-        </SectionTitle>
-        <RangeSlider
-          presetInterval={[pIntervalMin, pIntervalMax]}
-          onIntervalChange={onPvalueIntervalChange}
-          currentValue={pValueInterval}
-          step={1}
-        />
-      </Section>
-
       {/* Plot Options */}
       <Section>
         <SectionTitle>Plot options</SectionTitle>
@@ -384,10 +354,6 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
               onChange={onTogglePvalueOrder}
             />
             P-value ordered
-          </label>
-          <label>
-            <input type='checkbox' checked={logLogEnabled} onChange={onToggleLogLog} />
-            Log Log Plot
           </label>
         </PlotOptionCheckboxes>
       </Section>

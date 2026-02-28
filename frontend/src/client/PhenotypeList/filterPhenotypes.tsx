@@ -1,15 +1,12 @@
-import { pValueTypeToPValueKeyName, P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './Utils'
+import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './Utils'
 
 const filterPhenotypes = ({
   phenotypes,
   searchText,
   showFilteredAnalyses,
-  maxValues,
   pValueType,
   phewasType,
 }: any) => {
-  // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-  const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
   let filteredPhenotypes = phenotypes
 
   if (searchText) {
@@ -61,18 +58,6 @@ const filterPhenotypes = ({
     filteredPhenotypes = filteredPhenotypes
   }
 
-  // if (maxValues && maxValues.maxBeta !== undefined && maxValues.minBeta !== undefined) {
-  //   filteredPhenotypes = filteredPhenotypes.filter(
-  //     (p: any) => p.BETA >= maxValues.minBeta && p.BETA <= maxValues.maxBeta
-  //   )
-  // }
-  // if (maxValues && maxValues.maxLogPvalue !== undefined && maxValues.minLogPValue !== undefined) {
-  //   filteredPhenotypes = filteredPhenotypes.filter(
-  //     (p: any) =>
-  //       -Math.log10(p[pValueKeyName]) >= maxValues.minLogPValue &&
-  //       -Math.log10(p[pValueKeyName]) <= maxValues.maxLogPvalue
-  //   )
-  // }
   return filteredPhenotypes
 }
 

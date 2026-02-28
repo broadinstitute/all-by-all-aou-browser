@@ -91,7 +91,7 @@ export const renderPvalueCell =
 
         const border = pass ? 'solid' : 'dashed'
         const borderColor = pass ? 'black' : 'grey'
-        highlightColor = pass ? highlightColor : transparentize(0.8, highlightColor || 'white')
+        highlightColor = pass ? highlightColor : (highlightColor ? transparentize(0.8, highlightColor) : 'rgba(255, 255, 255, 0.2)')
 
         return (
           <>

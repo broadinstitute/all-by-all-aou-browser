@@ -23,15 +23,15 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   padding: 8px 16px;
   font-size: 13px;
   font-family: GothamBook, sans-serif;
-  background-color: ${({ $active }) => ($active ? '#262262' : '#f5f5f5')};
-  color: ${({ $active }) => ($active ? 'white' : '#333')};
-  border: 1px solid ${({ $active }) => ($active ? '#262262' : '#ddd')};
+  background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  border: 1px solid ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #ddd)')};
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
-    background-color: ${({ $active }) => ($active ? '#262262' : '#e8e8e8')};
+    background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #e8e8e8)')};
   }
 `;
 
@@ -40,7 +40,7 @@ const ControlPanel = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--theme-surface-alt, #f5f5f5);
   border-radius: 4px;
   font-size: 12px;
   margin-bottom: 8px;
@@ -56,18 +56,19 @@ const SmallButton = styled.button`
   font-size: 11px;
   padding: 4px 10px;
   cursor: pointer;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--theme-surface, #fff);
+  color: var(--theme-text, #333);
+  border: 1px solid var(--theme-border, #ccc);
   border-radius: 3px;
 
   &:hover {
-    background: #f0f0f0;
+    background: var(--theme-surface-alt, #f0f0f0);
   }
 `;
 
 const TableContainer = styled.div`
   margin-top: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--theme-border, #e0e0e0);
   border-radius: 4px;
   max-height: 500px;
   overflow: auto;
@@ -78,21 +79,22 @@ const Table = styled.table`
   border-collapse: collapse;
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--theme-text, #333);
 
   th {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: #f5f5f5;
+    background: var(--theme-surface-alt, #f5f5f5);
     padding: 10px 12px;
     text-align: left;
     font-weight: 600;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--theme-border, #e0e0e0);
     cursor: pointer;
     user-select: none;
 
     &:hover {
-      background: #eaeaea;
+      background: var(--theme-border, #eaeaea);
     }
 
     &:first-child {
@@ -101,14 +103,14 @@ const Table = styled.table`
       text-align: center;
 
       &:hover {
-        background: #f5f5f5;
+        background: var(--theme-surface-alt, #f5f5f5);
       }
     }
   }
 
   td {
     padding: 8px 12px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--theme-border, #f0f0f0);
   }
 
   tbody tr {
@@ -116,7 +118,7 @@ const Table = styled.table`
     cursor: pointer;
 
     &:hover {
-      background: #f8f8f8;
+      background: var(--theme-surface-alt, #f8f8f8);
     }
   }
 
@@ -149,16 +151,18 @@ const Pagination = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #f9f9f9;
-  border-top: 1px solid #e0e0e0;
+  background: var(--theme-surface-alt, #f9f9f9);
+  border-top: 1px solid var(--theme-border, #e0e0e0);
   font-size: 13px;
+  color: var(--theme-text, #333);
 `;
 
 const PageButton = styled.button`
   padding: 6px 12px;
   font-size: 12px;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--theme-surface, #fff);
+  color: var(--theme-text, #333);
+  border: 1px solid var(--theme-border, #ddd);
   border-radius: 4px;
   cursor: pointer;
 
@@ -168,7 +172,7 @@ const PageButton = styled.button`
   }
 
   &:hover:not(:disabled) {
-    background: #f0f0f0;
+    background: var(--theme-surface-alt, #f0f0f0);
   }
 `;
 
@@ -471,7 +475,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
       {/* Control Panel */}
       <ControlPanel>
         <ControlGroup>
-          <span style={{ color: '#333' }}>
+          <span style={{ color: 'var(--theme-text, #333)' }}>
             <strong>{sortedData.length.toLocaleString()}</strong>
             {showOnlySignificant ? ` / ${(queryStates.geneData?.data ?? []).length.toLocaleString()}` : ''} genes
           </span>
@@ -488,11 +492,11 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
             <span style={{ fontSize: 11 }}>Significant only ({significantCount})</span>
           </label>
           {customLabelMode ? (
-            <span style={{ color: '#1565c0' }}>
+            <span style={{ color: 'var(--theme-primary, #262262)' }}>
               <strong>{selectedGeneIds.size}</strong> labeled
             </span>
           ) : (
-            <span style={{ color: '#666', fontSize: 11 }}>Top 25 labeled</span>
+            <span style={{ color: 'var(--theme-text-muted, #666)', fontSize: 11 }}>Top 25 labeled</span>
           )}
         </ControlGroup>
         <ControlGroup>
@@ -554,13 +558,13 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
               </tr>
             ) : queryStates.geneData?.error ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: '#666' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   Gene burden data not available for this phenotype
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: '#666' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   No gene burden results found
                 </td>
               </tr>

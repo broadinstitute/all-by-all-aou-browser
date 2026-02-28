@@ -40,7 +40,7 @@ export const Tick = styled.div`
     content: '';
     position: absolute;
     left: 0;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--theme-border, rgba(0, 0, 0, 0.2));
     height: 5px;
     width: 2px;
     transform: translate(-50%, 0.7rem);
@@ -50,7 +50,7 @@ export const Tick = styled.div`
 export const TickLabel = styled.div`
   position: absolute;
   font-size: 0.6rem;
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--theme-text-muted, rgba(0, 0, 0, 0.5));
   top: 100%;
   transform: translate(-50%, 1.2rem);
   white-space: nowrap;
@@ -180,8 +180,8 @@ const RangeSlider = ({
                   height: '14px',
                   outline: 'none',
                   borderRadius: '100%',
-                  background: 'linear-gradient(to bottom, #eee 45%, #ddd 55%)',
-                  border: 'solid 1px #888',
+                  background: 'var(--theme-surface, linear-gradient(to bottom, #eee 45%, #ddd 55%))',
+                  border: 'solid 1px var(--theme-border, #888)',
                 },
               })}
             />

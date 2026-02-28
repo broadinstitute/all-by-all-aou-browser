@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
-import styled from 'styled-components'
-// import { Select, MenuItem } from "@material-ui/core";
-import { extent } from 'd3-array'
+import styled, { useTheme } from 'styled-components'
 import { scaleLinear, scalePoint } from 'd3-scale'
 import { withSize } from 'react-sizeme'
 
@@ -21,9 +19,9 @@ interface Analysis extends GeneAssociations {
 interface Props {
   analyses: Analysis[]
   logLogEnabled?: boolean
-  yExtent: [number, number]
   activeAnalyses?: string[]
   activeGene?: string
+  primaryAnalysisId?: string
   pointRadius?: number
   showStroke?: boolean
   size: { height: number; width: number }
@@ -36,6 +34,7 @@ interface Props {
   xLabel?: string
   yLabel?: string
   hideLegend?: boolean
+  phewasType?: string
 }
 
 const PlotWrapper = styled.div`
@@ -46,9 +45,9 @@ const PlotWrapper = styled.div`
 
 const PhewasBetaPlot = ({
   analyses = [],
-  // yExtent,
   activeAnalyses,
   activeGene,
+  primaryAnalysisId,
   pointRadius = 4,
   showStroke,
   size,
@@ -60,11 +59,13 @@ const PhewasBetaPlot = ({
   thresholds = [],
   xLabel = '',
   yLabel = 'Beta',
+  phewasType = 'gene',
 }: Props) => {
+  const theme = useTheme() as any;
   const width = size.width || 1100
 
   const margin = {
-    bottom: 15,
+    bottom: 25,
     left: 50,
     right: 30,
     top: 30,
@@ -72,16 +73,51 @@ const PhewasBetaPlot = ({
 
   const pointPadding = 10
 
-  const yExtent = extent(analyses, (d) => d.BETA_Burden || d.BETA) as Array<number>
+  // Calculate maximum absolute beta to create a symmetric scale around 0
+  const maxAbsBeta = analyses.reduce((max, d) => {
+    const beta = Math.abs(d.BETA_Burden || d.BETA || 0)
+    return beta > max ? beta : max
+  }, 0)
+
+  // Anchor the plot so it doesn't zoom in uncomfortably tight on noise
+  const limit = Math.max(0.5, maxAbsBeta * 1.1)
 
   const yScale = scaleLinear()
-    .domain(yExtent)
+    .domain([-limit, limit])
     .range([height - margin.top - margin.bottom, 0])
     .nice()
 
   const xScale = scalePoint()
     .domain(analyses.map((_: any, i: number) => `${i}`))
     .range([margin.left, width - margin.right])
+
+  // Map category groups for alternating background bands
+  const categoryBands: { name: string; startX: number; endX: number; colorIndex: number }[] = []
+  if (analyses.length > 0) {
+    let currentCategory = analyses[0].group
+    let startIndex = 0
+    let colorIndex = 0
+
+    for (let i = 1; i <= analyses.length; i++) {
+      if (i === analyses.length || analyses[i].group !== currentCategory) {
+        const startX = xScale(`${startIndex}`) || margin.left
+        const endX = xScale(`${i - 1}`) || width - margin.right
+
+        categoryBands.push({
+          name: currentCategory,
+          startX: startX - (i > 1 ? pointPadding : 0),
+          endX: endX + pointPadding,
+          colorIndex,
+        })
+
+        if (i < analyses.length) {
+          currentCategory = analyses[i].group
+          startIndex = i
+          colorIndex++
+        }
+      }
+    }
+  }
 
   const points = analyses.map((d, i) => {
     const beta = d.BETA_Burden || (d.BETA as number)
@@ -110,6 +146,17 @@ const PhewasBetaPlot = ({
     const w = width - margin.left - margin.right
     const h = height - margin.top - margin.bottom
 
+    // Background Category Bands
+    // ====================================================
+    ctx.save()
+    categoryBands.forEach((band) => {
+      if (band.colorIndex % 2 === 0) {
+        ctx.fillStyle = theme.surfaceAlt || '#f5f5f5'
+        ctx.fillRect(band.startX + pointPadding, margin.top, band.endX - band.startX, h)
+      }
+    })
+    ctx.restore()
+
     // Y Axis
     // ====================================================
 
@@ -117,7 +164,9 @@ const PhewasBetaPlot = ({
 
     ctx.transform(1, 0, 0, 1, margin.left, margin.top)
 
-    const ticks = yScale.ticks(2)
+    // Dynamic ticks based on plot height
+    const numTicks = Math.max(2, Math.floor(h / 25))
+    const ticks = yScale.ticks(numTicks)
 
     for (let i = 0; i < ticks.length; i += 1) {
       const t = ticks[i]
@@ -126,11 +175,11 @@ const PhewasBetaPlot = ({
       ctx.beginPath()
       ctx.moveTo(-5, y)
       ctx.lineTo(0, y)
-      ctx.strokeStyle = 'yellow:'
+      ctx.strokeStyle = theme.border || '#333'
       ctx.stroke()
 
       ctx.font = '10px sans-serif'
-      ctx.fillStyle = '#000'
+      ctx.fillStyle = theme.text || '#000'
       const { width: tickLabelWidth } = ctx.measureText(`${t}`)
       ctx.fillText(`${t}`, -(9 + tickLabelWidth), y + 3)
     }
@@ -138,7 +187,7 @@ const PhewasBetaPlot = ({
     ctx.beginPath()
     ctx.moveTo(0, 0)
     ctx.lineTo(0, h)
-    ctx.strokeStyle = '#333'
+    ctx.strokeStyle = theme.border || '#333'
     ctx.stroke()
 
     ctx.font = '12px sans-serif'
@@ -158,7 +207,7 @@ const PhewasBetaPlot = ({
     ctx.beginPath()
     ctx.moveTo(0, 0)
     ctx.lineTo(w, 0)
-    ctx.strokeStyle = '#333'
+    ctx.strokeStyle = theme.border || '#333'
     ctx.lineWidth = 1
     ctx.stroke()
 
@@ -207,36 +256,104 @@ const PhewasBetaPlot = ({
 
     ctx.restore()
 
-    // Significance thresholds
+    // Zero Line Anchor
     // ====================================================
-
     ctx.save()
+    ctx.transform(1, 0, 0, 1, margin.left + pointPadding, margin.top)
+    const zeroY = yScale(0) || 0
+    ctx.beginPath()
+    ctx.moveTo(0, zeroY)
+    ctx.lineTo(w, zeroY)
+    ctx.setLineDash([4, 4])
+    ctx.strokeStyle = theme.textMuted || '#999'
+    ctx.stroke()
+    ctx.restore()
 
-    ctx.transform(1, 0, 0, 1, margin.left, margin.top)
+    // Top Hit Labels
+    // ====================================================
+    ctx.save()
+    ctx.transform(1, 0, 0, 1, pointPadding, margin.top)
+    ctx.font = '10px sans-serif'
+    ctx.textBaseline = 'middle'
 
-    thresholds.forEach((threshold) => {
-      const thresholdY = yScale(-Math.log10(threshold.value)) || 0
-      ctx.beginPath()
-      ctx.moveTo(0, thresholdY)
-      ctx.lineTo(w, thresholdY)
-      ctx.setLineDash([3, 3])
-      ctx.lineWidth = 2
-      ctx.strokeStyle = threshold.color || '#333'
-      ctx.stroke()
+    // Always include primary (URL) analysis and selected analyses in labels, plus top effect sizes
+    const primaryPoint = points.find((p) => p.data.analysis_id === primaryAnalysisId)
+    const selectedPoints = points.filter((p) =>
+      p.data.analysis_id !== primaryAnalysisId && activeAnalyses && activeAnalyses.includes(p.data.analysis_id)
+    )
+    const alreadyLabeledIds = new Set([primaryAnalysisId, ...(activeAnalyses || [])])
+    const topEffectPoints = [...points]
+      .filter((p) => Math.abs(p.data.BETA_Burden || p.data.BETA || 0) > limit * 0.3 && !alreadyLabeledIds.has(p.data.analysis_id))
+      .sort((a, b) => Math.abs(b.data.BETA_Burden || b.data.BETA || 0) - Math.abs(a.data.BETA_Burden || a.data.BETA || 0))
+      .slice(0, 15 - selectedPoints.length - (primaryPoint ? 1 : 0))
 
-      if (threshold.label) {
-        ctx.font = '14px sans-serif'
-        ctx.fillStyle = '#000'
-        ctx.fillText(threshold.label, 2, thresholdY - 4)
+    const pointsToLabel = [...(primaryPoint ? [primaryPoint] : []), ...selectedPoints, ...topEffectPoints]
+
+    const labelRects: Array<{ x: number; y: number; w: number; h: number }> = []
+
+    pointsToLabel.forEach((p) => {
+      let labelText = p.data.description || p.data.gene_symbol || ''
+      if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
+      if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
+
+      const textWidth = ctx.measureText(labelText).width
+      const labelHeight = 12
+      const pad = 2
+
+      // Positions to test for collision: Right, Left, Top, Bottom
+      const positions = [
+        { x: p.x + 8, y: p.y },
+        { x: p.x - 8 - textWidth, y: p.y },
+        { x: p.x - textWidth / 2, y: p.y - 12 },
+        { x: p.x - textWidth / 2, y: p.y + 12 },
+      ]
+
+      let bestPos = positions[0]
+      let foundSpot = false
+
+      for (const pos of positions) {
+        const rect = {
+          x: pos.x - pad,
+          y: pos.y - labelHeight / 2 - pad,
+          w: textWidth + pad * 2,
+          h: labelHeight + pad * 2,
+        }
+
+        // Inside bounds check
+        if (rect.x < margin.left || rect.x + rect.w > width - margin.right) continue
+        if (rect.y < 0 || rect.y + rect.h > h) continue
+
+        // Collision check
+        const overlaps = labelRects.some(
+          (r) =>
+            rect.x < r.x + r.w &&
+            rect.x + rect.w > r.x &&
+            rect.y < r.y + r.h &&
+            rect.y + rect.h > r.y
+        )
+
+        if (!overlaps) {
+          bestPos = pos
+          labelRects.push(rect)
+          foundSpot = true
+          break
+        }
+      }
+
+      if (foundSpot) {
+        ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.95)'
+        ctx.fillRect(bestPos.x - 1, bestPos.y - 6, textWidth + 2, 12)
+        ctx.fillStyle = theme.text || '#333'
+        ctx.textAlign = 'left'
+        ctx.fillText(labelText, bestPos.x, bestPos.y)
       }
     })
-
     ctx.restore()
 
     // ====================================================
 
     return canvas
-  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds])
+  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme, phewasType, scale, categoryBands, points, margin, pointPadding, yScale, showStroke, pointRadius, activeAnalyses, activeGene, selectedPhenotype, limit, primaryAnalysisId])
 
   const mainCanvas: {
     current: HTMLCanvasElement | null
@@ -287,16 +404,23 @@ const PhewasBetaPlot = ({
         const label = pointLabel(nearestPoint.data)
         const { width: textWidth } = ctx.measureText(label)
 
-        const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - textWidth - 10
+        const categoryLabel = nearestPoint.data.category || 'Unknown'
+        const fullLabel = `${label} | ${categoryLabel}`
+        const { width: fullTextWidth } = ctx.measureText(fullLabel)
+
+        const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - fullTextWidth - 10
         const labelY = y < 30 ? nearestPoint.y : nearestPoint.y - 24
 
         ctx.beginPath()
-        ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = '#000'
+        ctx.rect(labelX, labelY, fullTextWidth + 12, 24)
+        ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.95)'
         ctx.fill()
 
-        ctx.fillStyle = '#fff'
-        ctx.fillText(label, labelX + 6, labelY + 16)
+        ctx.strokeStyle = theme.border || '#333'
+        ctx.strokeRect(labelX, labelY, fullTextWidth + 12, 24)
+
+        ctx.fillStyle = theme.text || '#fff'
+        ctx.fillText(fullLabel, labelX + 6, labelY + 16)
 
         ctx.restore()
       }

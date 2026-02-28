@@ -12,7 +12,7 @@ const Container = styled.div`
 const LoadingMessage = styled.div`
   padding: 40px;
   text-align: center;
-  color: #666;
+  color: var(--theme-text-muted, #666);
 `;
 
 const HeatmapContainer = styled.div`
@@ -47,7 +47,7 @@ const ColumnHeader = styled.th<{ $color: string }>`
     left: 50%;
     font-size: 10px;
     font-weight: 500;
-    color: #333;
+    color: var(--theme-text, #333);
   }
 `;
 
@@ -55,7 +55,7 @@ const GeneCell = styled.td<{ $significant: boolean }>`
   padding: 2px 8px 2px 4px;
   text-align: right;
   font-weight: ${({ $significant }) => ($significant ? 600 : 400)};
-  color: ${({ $significant }) => ($significant ? '#c62828' : '#333')};
+  color: ${({ $significant }) => ($significant ? '#ef5350' : 'var(--theme-text, #333)')};
   cursor: pointer;
   white-space: nowrap;
 
@@ -74,20 +74,16 @@ const DataCell = styled.td<{ $intensity: number; $significant: boolean; $color: 
   position: relative;
   background-color: ${({ $intensity, $color }) => {
     if ($intensity === 0) return 'transparent';
-    // Parse the hex color and create a gradient from white to that color
+    // Parse the hex color and use alpha channel so theme background shows through
     const hex = $color.replace('#', '');
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
-    // Interpolate from white (255,255,255) to the color based on intensity
-    const finalR = Math.round(255 - (255 - r) * $intensity);
-    const finalG = Math.round(255 - (255 - g) * $intensity);
-    const finalB = Math.round(255 - (255 - b) * $intensity);
-    return `rgb(${finalR}, ${finalG}, ${finalB})`;
+    return `rgba(${r}, ${g}, ${b}, ${$intensity})`;
   }};
 
   &:hover {
-    outline: 2px solid #333;
+    outline: 2px solid var(--theme-text, #333);
     outline-offset: -2px;
     z-index: 1;
   }
@@ -99,7 +95,7 @@ const DataCell = styled.td<{ $intensity: number; $significant: boolean; $color: 
       content: '*';
       font-weight: bold;
       font-size: 12px;
-      color: #000;
+      color: var(--theme-text, #000);
     }
   `}
 `;
@@ -110,21 +106,22 @@ const Legend = styled.div`
   gap: 16px;
   margin-top: 12px;
   font-size: 11px;
-  color: #666;
+  color: var(--theme-text-muted, #666);
 `;
 
 const GradientBar = styled.div`
   width: 80px;
   height: 12px;
   background: linear-gradient(to right, transparent, #ffcdd2, #ef5350, #c62828);
-  border: 1px solid #ddd;
+  border: 1px solid var(--theme-border, #ddd);
   border-radius: 2px;
 `;
 
 const Tooltip = styled.div`
   position: fixed;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--theme-surface, white);
+  color: var(--theme-text, #333);
+  border: 1px solid var(--theme-border, #ccc);
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 12px;
@@ -137,10 +134,11 @@ const SummaryBar = styled.div`
   display: flex;
   gap: 24px;
   padding: 12px;
-  background: #f5f5f5;
+  background: var(--theme-surface-alt, #f5f5f5);
   border-radius: 4px;
   margin-bottom: 16px;
   font-size: 13px;
+  color: var(--theme-text, #333);
 `;
 
 const SummaryStat = styled.div`
@@ -149,7 +147,7 @@ const SummaryStat = styled.div`
   gap: 6px;
 
   & > span:first-child {
-    color: #666;
+    color: var(--theme-text-muted, #666);
   }
 
   & > span:last-child {
@@ -460,15 +458,15 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
         <span>-log₁₀(p): 0 → 15+</span>
         <div style={{ display: 'flex', gap: 12, marginLeft: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, #fff, ${ANNOTATION_COLORS.pLoF})`, border: '1px solid #ddd', borderRadius: 2 }} />
+            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, var(--theme-surface, #fff), ${ANNOTATION_COLORS.pLoF})`, border: '1px solid var(--theme-border, #ddd)', borderRadius: 2 }} />
             <span style={{ color: ANNOTATION_COLORS.pLoF }}>pLoF</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, #fff, ${ANNOTATION_COLORS.missenseLC})`, border: '1px solid #ddd', borderRadius: 2 }} />
+            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, var(--theme-surface, #fff), ${ANNOTATION_COLORS.missenseLC})`, border: '1px solid var(--theme-border, #ddd)', borderRadius: 2 }} />
             <span style={{ color: ANNOTATION_COLORS.missenseLC }}>Mis</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, #fff, ${ANNOTATION_COLORS.synonymous})`, border: '1px solid #ddd', borderRadius: 2 }} />
+            <div style={{ width: 40, height: 12, background: `linear-gradient(to right, var(--theme-surface, #fff), ${ANNOTATION_COLORS.synonymous})`, border: '1px solid var(--theme-border, #ddd)', borderRadius: 2 }} />
             <span style={{ color: ANNOTATION_COLORS.synonymous }}>Syn</span>
           </div>
         </div>
@@ -479,11 +477,11 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
       {hoveredCell && (
         <Tooltip style={{ left: hoveredCell.x + 12, top: hoveredCell.y - 10 }}>
           <div style={{ fontWeight: 600 }}>{hoveredCell.gene.gene_symbol}</div>
-          <div style={{ color: '#666', fontSize: 11, marginBottom: 4 }}>
+          <div style={{ color: 'var(--theme-text-muted, #666)', fontSize: 11, marginBottom: 4 }}>
             {hoveredCell.column.label}
           </div>
           <div>
-            <span style={{ color: '#666' }}>P-value: </span>
+            <span style={{ color: 'var(--theme-text-muted, #666)' }}>P-value: </span>
             <span style={{ fontFamily: 'monospace' }}>
               {hoveredCell.gene.values[hoveredCell.column.key]?.toExponential(2) ?? 'N/A'}
             </span>

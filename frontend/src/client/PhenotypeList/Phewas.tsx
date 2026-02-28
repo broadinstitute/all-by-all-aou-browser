@@ -5,7 +5,6 @@
 /* eslint-disable no-else-return */
 /* eslint-disable no-shadow */
 /* eslint-disable camelcase */
-import { max, min } from 'd3-array'
 import sortBy from 'lodash/sortBy'
 import React, { useMemo, useState } from 'react'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
@@ -86,20 +85,49 @@ const TooltipHint = styled(TooltipHintBase)`
 const PlotContainer = styled.div`
   display: flex;
   flex-direction: column;
-  min-height: 200px;
   width: 100%;
+  flex-shrink: 0;
+`
+
+const DragHandle = styled.div`
+  height: 12px;
+  background: var(--theme-surface-alt, #f0f0f0);
+  border-top: 1px solid var(--theme-border, #e0e0e0);
+  border-bottom: 1px solid var(--theme-border, #e0e0e0);
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--theme-primary, #428bca);
+  }
+
+  &::after {
+    content: '';
+    width: 60px;
+    height: 4px;
+    background: var(--theme-border, #ccc);
+    border-radius: 2px;
+  }
+
+  &:hover::after {
+    background: white;
+  }
 `
 
 const RootContainerVariant = styled(RootContainerGene)``
 
 const TableContainer = styled.div`
   position: relative;
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
   display: flex;
   flex-direction: column;
   min-width: 100%;
-  height: 100%;
+  flex-grow: 1;
+  overflow: hidden;
 `
 
 const Warnings = styled.div`
@@ -122,22 +150,20 @@ const ShowControlsButton = styled.button`
   writing-mode: vertical-rl;
   text-orientation: mixed;
   padding: 12px 6px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
+  background: var(--theme-surface-alt, #f5f5f5);
+  border: 1px solid var(--theme-border, #e0e0e0);
   border-left: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
-  color: #333;
+  color: var(--theme-text, #333);
   z-index: 10;
 
   &:hover {
-    background: #e8e8e8;
+    background: var(--theme-border, #e8e8e8);
   }
 `
-
-const pValueSliderStep = 1
 
 interface Category {
   category: string
@@ -163,7 +189,7 @@ const Phewas = ({
   const [sortKey, updateSortKey] = useState('pvalue')
 
   const [plotSortKey, setPlotSortKey] = useState('pvalue')
-  const [logLogEnabled, setLogLogEnabled] = useState(false)
+  // Log-log scale is always enabled
 
   const [sortDirection, updateSortAscending] = useState('ascending')
 
@@ -193,6 +219,10 @@ const Phewas = ({
 
   // MAF filter state for gene burden results
   const [selectedMaf, setSelectedMaf] = useState<number>(0.001)
+
+  // Plot height state for draggable resizing (total plot area height)
+  const [totalPlotHeight, setTotalPlotHeight] = useState(320)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Simple category state - Set of selected category names
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(() => {
@@ -239,7 +269,11 @@ const Phewas = ({
 
   const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
 
-  const [plotType, setPlotType] = useState('P-value')
+  const [plotType, setPlotType] = useState('Both')
+
+  // Calculate individual plot heights based on total and plot type
+  const pValuePlotHeight = plotType === 'Both' ? Math.floor(totalPlotHeight * 0.55) : totalPlotHeight
+  const betaPlotHeight = plotType === 'Both' ? totalPlotHeight - pValuePlotHeight : totalPlotHeight
 
   const columns = useMemo(() => {
     return originalColumns.map((originalColumn: any) => {
@@ -263,37 +297,6 @@ const Phewas = ({
     })
   }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup])
 
-  const pValueKeyName = !isGenePhewas ? 'pvalue' : pValueTypeToPValueKeyName[pValueType]
-
-  const {
-    betaIntervalMin,
-    betaIntervalMax,
-    pIntervalMin,
-    pIntervalMax,
-    initialBetaIntervalMin,
-    initialBetaIntervalMax,
-  } = useMemo(() => {
-    const betaIntervalMin = min(uniquePhenotypes.map((p: any) => p.BETA))
-    const betaIntervalMax = max(uniquePhenotypes.map((p: any) => p.BETA))
-    const nonZeroPValues = uniquePhenotypes.filter((p: any) => p[pValueKeyName] > 0)
-    const pIntervalMin = min(nonZeroPValues.map((p: any) => -Math.log10(p[pValueKeyName])))
-    const pIntervalMax = max(nonZeroPValues.map((p: any) => -Math.log10(p[pValueKeyName])))
-    const initialBetaIntervalMin = betaIntervalMin
-    const initialBetaIntervalMax = betaIntervalMax
-    return {
-      // @ts-expect-error ts-migrate(2532) FIXME: Object is possibly 'undefined'.
-      pIntervalMin: pIntervalMin <= 0 ? 0 : Math.floor(pIntervalMin),
-      // @ts-expect-error ts-migrate(2345) FIXME: Argument of type 'string | undefined' is not assig... Remove this comment to see the full error message
-      pIntervalMax: Math.ceil(pIntervalMax),
-      betaIntervalMin,
-      betaIntervalMax,
-      initialBetaIntervalMin,
-      initialBetaIntervalMax,
-    }
-  }, [uniquePhenotypes, pValueKeyName])
-  const [pValueInterval, setPvalueInterval] = useState<[number, number]>([0, pIntervalMax])
-  const [betaInterval, setBetaInterval] = useState([initialBetaIntervalMin, initialBetaIntervalMax])
-
   const phenotypesWithPreparedText = preparePhenotypesText(phenotypesWithColor)
 
   const filteredByOtherCriteria = filterPhenotypes({
@@ -302,12 +305,6 @@ const Phewas = ({
     pValueType,
     showFilteredAnalyses: isGenePhewas ? showFilteredAnalyses : true,
     phewasType,
-    maxValues: {
-      minBeta: betaInterval[0],
-      maxBeta: betaInterval[1],
-      minLogPValue: pValueInterval[0],
-      maxLogPvalue: pValueInterval[1],
-    },
   })
 
   const numHiddenPhenotypes = uniquePhenotypes.length - filteredByOtherCriteria.length
@@ -428,13 +425,27 @@ const Phewas = ({
     }
   }
 
-  const handleLogLogEnable = () => {
-    setLogLogEnabled(!logLogEnabled)
-    setPvalueInterval([pIntervalMin, pIntervalMax])
-  }
+  // Drag handler for resizing plot area vs table
+  const handlePlotDragStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    const startY = e.clientY
+    const startHeight = totalPlotHeight
 
-  const handlePvalueIntervalChange = (range: [number, number]) => {
-    setPvalueInterval(range)
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = moveEvent.clientY - startY
+      const newHeight = Math.max(150, Math.min(600, startHeight + deltaY))
+      setTotalPlotHeight(newHeight)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
   }
 
   const topAnalyses = (tablePhenotypes as GeneAssociations[])
@@ -481,11 +492,15 @@ const Phewas = ({
   let numRowsRendered = 20
 
   if (windowSize.height) {
-    numRowsRendered = (windowSize.height - 500) / 30
+    // Account for plot height when calculating available table space
+    // Base offset includes header, controls, and other UI elements
+    const baseOffset = 280
+    const availableHeight = windowSize.height - baseOffset - totalPlotHeight
+    numRowsRendered = Math.floor(availableHeight / 25) // 25px per row
   }
 
-  if (numRowsRendered < 24) {
-    numRowsRendered = 24
+  if (numRowsRendered < 10) {
+    numRowsRendered = 10
   }
 
   const RootContainer = isGenePhewas ? RootContainerGene : RootContainerVariant
@@ -515,16 +530,10 @@ const Phewas = ({
             setSelectedMaf={setSelectedMaf}
             pValueType={pValueType}
             setPValueType={setPValueType}
-            pValueInterval={pValueInterval}
-            pIntervalMin={pIntervalMin}
-            pIntervalMax={pIntervalMax}
-            onPvalueIntervalChange={handlePvalueIntervalChange}
             plotType={plotType}
             setPlotType={setPlotType}
             plotSortKey={plotSortKey}
             onTogglePvalueOrder={handlePvalueOrder}
-            logLogEnabled={logLogEnabled}
-            onToggleLogLog={handleLogLogEnable}
             analysesCount={analyses.length}
             topAnalyses={topAnalyses}
             onSelectTop={() => setSelectedAnalyses(topAnalyses)}
@@ -552,27 +561,29 @@ const Phewas = ({
                   analyses={displayPlotPhenotypes}
                   activeAnalyses={activeAnalyses}
                   activeGene={geneIdOrName}
+                  primaryAnalysisId={analysisId}
                   onClickPoint={onPointClick}
                   pValueType={pValueType}
                   pointColor={analysisPointColor}
-                  logLogEnabled={logLogEnabled}
-                  yExtent={pValueInterval}
+                  logLogEnabled={true}
                   pointRadius={pointRadius}
                   showStroke={showStroke}
                   pointLabel={pointLabel}
-                  height={130}
+                  height={pValuePlotHeight}
+                  phewasType={phewasType}
                 />
                 <PhewasBetaPlot
                   analyses={displayPlotPhenotypes}
                   activeAnalyses={activeAnalyses}
                   activeGene={geneIdOrName}
+                  primaryAnalysisId={analysisId}
                   onClickPoint={onPointClick}
                   pointColor={analysisPointColor}
-                  yExtent={pValueInterval}
                   pointRadius={pointRadius}
                   showStroke={showStroke}
                   pointLabel={pointLabel}
-                  height={70}
+                  height={betaPlotHeight}
+                  phewasType={phewasType}
                 />
               </>
             )}
@@ -581,14 +592,15 @@ const Phewas = ({
                 analyses={plotPhenotypes}
                 activeAnalyses={selected}
                 activeGene={geneIdOrName}
+                primaryAnalysisId={analysisId}
                 onClickPoint={onPointClick}
                 pValueType={pValueType}
-                logLogEnabled={logLogEnabled}
-                yExtent={pValueInterval}
+                logLogEnabled={true}
                 pointRadius={pointRadius}
                 showStroke={showStroke}
                 pointLabel={pointLabel}
-                height={180}
+                height={totalPlotHeight}
+                phewasType={phewasType}
               />
             )}
             {plotType === 'Beta' && (
@@ -596,15 +608,21 @@ const Phewas = ({
                 analyses={plotPhenotypes}
                 activeAnalyses={selected}
                 activeGene={geneIdOrName}
+                primaryAnalysisId={analysisId}
                 onClickPoint={onPointClick}
-                yExtent={pValueInterval}
                 pointRadius={pointRadius}
                 showStroke={showStroke}
                 pointLabel={pointLabel}
-                height={180}
+                height={totalPlotHeight}
+                phewasType={phewasType}
               />
             )}
           </PlotContainer>
+          <DragHandle
+            onMouseDown={handlePlotDragStart}
+            style={{ cursor: isDragging ? 'ns-resize' : 'ns-resize' }}
+            title="Drag to resize plot area"
+          />
           <TableContainer>
             <PhenotypeTableInnerContainer>
               <PhenotypeTable

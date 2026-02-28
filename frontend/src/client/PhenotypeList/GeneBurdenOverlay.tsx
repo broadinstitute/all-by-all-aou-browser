@@ -23,7 +23,7 @@ const ControlBar = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--theme-surface-alt, #f5f5f5);
   border-radius: 4px;
   margin-bottom: 8px;
   font-size: 12px;
@@ -70,13 +70,13 @@ const StatsGroup = styled.div`
   display: flex;
   gap: 16px;
   font-size: 11px;
-  color: #666;
+  color: var(--theme-text-muted, #666);
 `;
 
 const TestToggleGroup = styled.div`
   display: flex;
   gap: 2px;
-  background: #e0e0e0;
+  background: var(--theme-border, #e0e0e0);
   border-radius: 4px;
   padding: 2px;
 `;
@@ -84,8 +84,8 @@ const TestToggleGroup = styled.div`
 const TestToggleButton = styled.button<{ $active: boolean }>`
   padding: 4px 10px;
   font-size: 11px;
-  background: ${({ $active }) => ($active ? '#fff' : 'transparent')};
-  color: ${({ $active }) => ($active ? '#333' : '#666')};
+  background: ${({ $active }) => ($active ? 'var(--theme-surface, #fff)' : 'transparent')};
+  color: ${({ $active }) => ($active ? 'var(--theme-text, #333)' : 'var(--theme-text-muted, #666)')};
   border: none;
   border-radius: 3px;
   cursor: pointer;
@@ -93,7 +93,7 @@ const TestToggleButton = styled.button<{ $active: boolean }>`
   box-shadow: ${({ $active }) => ($active ? '0 1px 2px rgba(0,0,0,0.1)' : 'none')};
 
   &:hover {
-    background: ${({ $active }) => ($active ? '#fff' : 'rgba(255,255,255,0.5)')};
+    background: ${({ $active }) => ($active ? 'var(--theme-surface, #fff)' : 'var(--theme-surface-alt, rgba(255,255,255,0.5))')};
   }
 `;
 
@@ -111,8 +111,9 @@ const CanvasWrapper = styled.div`
 
 const Tooltip = styled.div`
   position: fixed;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--theme-surface, white);
+  color: var(--theme-text, #333);
+  border: 1px solid var(--theme-border, #ccc);
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 12px;
@@ -499,7 +500,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
   if (anyLoading()) {
     return (
       <Container>
-        <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
           Loading gene burden data...
         </div>
       </Container>
@@ -519,7 +520,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
               />
               <LegendShape $color={ann.color} $shape={ann.shape} />
               <span style={{ color: ann.color, fontWeight: 500 }}>{ann.label}</span>
-              <span style={{ color: '#666' }}>
+              <span style={{ color: 'var(--theme-text-muted, #666)' }}>
                 ({stats[ann.key]?.significant ?? 0} sig)
               </span>
             </LegendItem>
@@ -575,7 +576,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
       {hoveredPoint && (
         <Tooltip style={{ left: mousePos.x + 12, top: mousePos.y - 10 }}>
           <div style={{ fontWeight: 600 }}>{hoveredPoint.gene_symbol}</div>
-          <div style={{ color: '#666', fontSize: 11 }}>{hoveredPoint.gene_id}</div>
+          <div style={{ color: 'var(--theme-text-muted, #666)', fontSize: 11 }}>{hoveredPoint.gene_id}</div>
           <div style={{ marginTop: 4 }}>
             <span
               style={{
@@ -587,7 +588,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
             </span>
           </div>
           <div>
-            <span style={{ color: '#666' }}>P-value: </span>
+            <span style={{ color: 'var(--theme-text-muted, #666)' }}>P-value: </span>
             <span style={{ fontFamily: 'monospace' }}>
               {hoveredPoint.pvalue.toExponential(2)}
             </span>

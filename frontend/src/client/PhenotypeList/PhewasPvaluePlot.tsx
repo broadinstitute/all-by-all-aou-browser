@@ -21,9 +21,9 @@ interface Props {
   analyses: Analysis[]
   pValueType: typeof P_VALUE_SKAT_O | typeof P_VALUE_BURDEN | typeof P_VALUE_SKAT
   logLogEnabled?: boolean
-  yExtent: [number, number]
   activeAnalyses?: string[]
   activeGene?: string
+  primaryAnalysisId?: string
   size: { height: number; width: number }
   pointRadius?: number
   showStroke?: boolean
@@ -36,6 +36,7 @@ interface Props {
   xLabel?: string
   yLabel?: string
   hideLegend?: boolean
+  phewasType?: string
 }
 
 const PlotWrapper = styled.div`
@@ -46,10 +47,10 @@ const PlotWrapper = styled.div`
 
 const PhewasPvaluePlot = ({
   analyses = [],
-  yExtent,
   pValueType,
   activeAnalyses,
   activeGene,
+  primaryAnalysisId,
   pointRadius = 4,
   showStroke,
   logLogEnabled = true,
@@ -59,9 +60,10 @@ const PhewasPvaluePlot = ({
   pointColor = (d) => d.color,
   pointLabel = (d) => d.description || '',
   selectedPhenotype,
-  thresholds = [],
+  thresholds = [{ color: '#c62828', label: '', value: 2.5e-6 }],
   xLabel = '',
   yLabel = '-log10(p)',
+  phewasType = 'gene',
 }: Props) => {
   const theme = useTheme() as any;
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
@@ -69,7 +71,7 @@ const PhewasPvaluePlot = ({
   const width = size.width || 1100
 
   const margin = {
-    bottom: 15,
+    bottom: 25,
     left: 50,
     right: 30,
     top: 30,
@@ -77,76 +79,76 @@ const PhewasPvaluePlot = ({
 
   const pointPadding = 10
 
-  // const yExtent = (extent(
-  //   analyses,
-  //   (d) => d[pValueKeyName]
-  // ) as Array<number>)
-  //   .map((p) => -Math.log10(p))
-  //   .reverse();
-
+  // Standardize the linear scale up to 15 for normal view
+  const maxNegLogP = 350
   const yScaleNormal = scaleLinear()
-    .domain(yExtent)
+    .domain([0, 15])
     .range([height - margin.top - margin.bottom, 0])
-    .nice()
 
-  // var force = Force()
-  //     .nodes(nodes)
-  //     .links([])
-  //     .gravity(0)
-  //     .size([width, height])
-  //     .on("tick", tick);
-
-  // LogLog Plot scale
-
-  const logLogYExtent = [0, 100]
+  // LogLog Plot scale (matches Manhattan layout)
   const yScaleLogThreshold = 10
-
-  const yScaleExtent = [logLogYExtent[0], yScaleLogThreshold]
-  const yScaleLogExtent = [yScaleLogThreshold, logLogYExtent[1]]
+  const linearFraction = 0.6 // Same as Manhattan layout
 
   const plotHeight = height - margin.top - margin.bottom
 
   const yScale = scaleLinear()
-    .domain(yScaleExtent)
-    .range([plotHeight, plotHeight / 2])
-    .nice()
+    .domain([0, yScaleLogThreshold])
+    .range([plotHeight, plotHeight * (1 - linearFraction)])
 
   const yScaleLog = scaleLog()
-    .domain(yScaleLogExtent)
-    .range([plotHeight / 2, 0])
-    .nice()
+    .domain([yScaleLogThreshold, maxNegLogP])
+    .range([plotHeight * (1 - linearFraction), 0])
 
-  const yWithLogLogScale =
-    (yScale: ScaleLinear<number, number>, yScaleLog: ScaleLogarithmic<number, number>) =>
-    (log10PValue: number) => {
-      let yScaled
-      if (log10PValue < yScaleLogThreshold) {
-        yScaled = yScale(log10PValue)
-      } else {
-        yScaled = yScaleLog(log10PValue)
-      }
-      return yScaled
+  const yWithLogLogScale = (log10PValue: number) => {
+    if (log10PValue < yScaleLogThreshold) {
+      return yScale(log10PValue)
+    } else {
+      // Math.min bounds it up to 350 to prevent overflow
+      return yScaleLog(Math.min(log10PValue, maxNegLogP))
     }
+  }
 
-  const yScaleLogLog = yWithLogLogScale(yScale, yScaleLog)
+  const yScaleLogLog = yWithLogLogScale
 
   const xScale = scalePoint()
     .domain(analyses.map((_: any, i: number) => `${i}`))
     .range([margin.left, width - margin.right])
 
+  // Map category groups for alternating background bands
+  const categoryBands: { name: string; startX: number; endX: number; colorIndex: number }[] = []
+  if (analyses.length > 0) {
+    let currentCategory = analyses[0].group
+    let startIndex = 0
+    let colorIndex = 0
+
+    for (let i = 1; i <= analyses.length; i++) {
+      if (i === analyses.length || analyses[i].group !== currentCategory) {
+        const startX = xScale(`${startIndex}`) || margin.left
+        const endX = xScale(`${i - 1}`) || width - margin.right
+
+        categoryBands.push({
+          name: currentCategory,
+          startX: startX - (i > 1 ? pointPadding : 0),
+          endX: endX + pointPadding,
+          colorIndex,
+        })
+
+        if (i < analyses.length) {
+          currentCategory = analyses[i].group
+          startIndex = i
+          colorIndex++
+        }
+      }
+    }
+  }
+
   const points = analyses.map((d, i) => {
     const pValue = d[pValueKeyName] as number
-
     let y
-
-    const value = -Math.log10(pValue)
+    const value = pValue <= 0 ? maxNegLogP : -Math.log10(pValue)
 
     if (logLogEnabled) {
-      if (value < 100) {
-        y = yScaleLogLog(value) || 0
-      } else {
-        y = -(margin.top / 2 + 5)
-      }
+      y = yScaleLogLog(value) || 0
     } else {
       y = yScaleNormal(value) || 0
     }
@@ -155,6 +157,7 @@ const PhewasPvaluePlot = ({
       data: d,
       x: (xScale(`${i}`) as number) || 0,
       y,
+      logp: value
     }
   })
 
@@ -174,19 +177,42 @@ const PhewasPvaluePlot = ({
     const w = width - margin.left - margin.right
     const h = height - margin.top - margin.bottom
 
+    // Background Category Bands
+    // ====================================================
+    ctx.save()
+    categoryBands.forEach((band) => {
+      if (band.colorIndex % 2 === 0) {
+        ctx.fillStyle = theme.surfaceAlt || '#f5f5f5'
+        ctx.fillRect(band.startX + pointPadding, margin.top, band.endX - band.startX, h)
+      }
+    })
+    ctx.restore()
+
     // Y Axis
     // ====================================================
 
     ctx.save()
-
     ctx.transform(1, 0, 0, 1, margin.left, margin.top)
 
     let ticks
-
     if (logLogEnabled) {
-      ticks = [0, 2, 4, 6, 8, 10, 18, 30, 50, 90]
+      // Dynamic ticks based on plot height - show fewer ticks for smaller plots
+      const allTicks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200, 300]
+      const minTickSpacing = 18 // Minimum pixels between ticks
+      const maxTicks = Math.floor(h / minTickSpacing)
+
+      if (maxTicks >= allTicks.length) {
+        ticks = allTicks
+      } else if (maxTicks >= 7) {
+        ticks = [0, 4, 8, 10, 20, 50, 100, 200]
+      } else if (maxTicks >= 5) {
+        ticks = [0, 5, 10, 50, 100]
+      } else {
+        ticks = [0, 10, 50, 100]
+      }
     } else {
-      ticks = yScaleNormal.ticks(5)
+      const numTicks = Math.max(2, Math.floor(h / 30))
+      ticks = yScaleNormal.ticks(numTicks)
     }
 
     const yScaleVersion = logLogEnabled ? yScaleLogLog : yScaleNormal
@@ -230,7 +256,7 @@ const PhewasPvaluePlot = ({
     ctx.beginPath()
     ctx.moveTo(0, 0)
     ctx.lineTo(w, 0)
-    ctx.strokeStyle = '#333'
+    ctx.strokeStyle = theme.border || '#333'
     ctx.lineWidth = 1
     ctx.stroke()
 
@@ -321,8 +347,90 @@ const PhewasPvaluePlot = ({
 
       if (threshold.label) {
         ctx.font = '14px sans-serif'
-        ctx.fillStyle = '#000'
+        ctx.fillStyle = theme.text || '#000'
         ctx.fillText(threshold.label, 2, thresholdY - 4)
+      }
+    })
+
+    ctx.restore()
+
+    // Top Hit Labels
+    // ====================================================
+    ctx.save()
+    ctx.transform(1, 0, 0, 1, pointPadding, margin.top)
+    ctx.font = '10px sans-serif'
+    ctx.textBaseline = 'middle'
+
+    // Always include primary (URL) analysis and selected analyses in labels, plus top hits
+    const primaryPoint = points.find((p) => p.data.analysis_id === primaryAnalysisId)
+    const selectedPoints = points.filter((p) =>
+      p.data.analysis_id !== primaryAnalysisId && activeAnalyses && activeAnalyses.includes(p.data.analysis_id)
+    )
+    const alreadyLabeledIds = new Set([primaryAnalysisId, ...(activeAnalyses || [])])
+    const topHitPoints = [...points]
+      .filter((p) => p.logp > -Math.log10(1e-6) && !alreadyLabeledIds.has(p.data.analysis_id))
+      .sort((a, b) => b.logp - a.logp)
+      .slice(0, 15 - selectedPoints.length - (primaryPoint ? 1 : 0))
+
+    const pointsToLabel = [...(primaryPoint ? [primaryPoint] : []), ...selectedPoints, ...topHitPoints]
+
+    const labelRects: Array<{ x: number; y: number; w: number; h: number }> = []
+
+    pointsToLabel.forEach((p) => {
+      let labelText = p.data.description || p.data.gene_symbol || ''
+      if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
+      if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
+
+      const textWidth = ctx.measureText(labelText).width
+      const labelHeight = 12
+      const pad = 2
+
+      // Positions to test for collision: Right, Left, Top, Bottom
+      const positions = [
+        { x: p.x + 8, y: p.y },
+        { x: p.x - 8 - textWidth, y: p.y },
+        { x: p.x - textWidth / 2, y: p.y - 12 },
+        { x: p.x - textWidth / 2, y: p.y + 12 },
+      ]
+
+      let bestPos = positions[0]
+      let foundSpot = false
+
+      for (const pos of positions) {
+        const rect = {
+          x: pos.x - pad,
+          y: pos.y - labelHeight / 2 - pad,
+          w: textWidth + pad * 2,
+          h: labelHeight + pad * 2,
+        }
+
+        // Inside bounds check
+        if (rect.x < margin.left || rect.x + rect.w > width - margin.right) continue
+        if (rect.y < 0 || rect.y + rect.h > h) continue
+
+        // Collision check
+        const overlaps = labelRects.some(
+          (r) =>
+            rect.x < r.x + r.w &&
+            rect.x + rect.w > r.x &&
+            rect.y < r.y + r.h &&
+            rect.y + rect.h > r.y
+        )
+
+        if (!overlaps) {
+          bestPos = pos
+          labelRects.push(rect)
+          foundSpot = true
+          break
+        }
+      }
+
+      if (foundSpot) {
+        ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.95)'
+        ctx.fillRect(bestPos.x - 1, bestPos.y - 6, textWidth + 2, 12)
+        ctx.fillStyle = theme.text || '#333'
+        ctx.textAlign = 'left'
+        ctx.fillText(labelText, bestPos.x, bestPos.y)
       }
     })
 
@@ -331,7 +439,7 @@ const PhewasPvaluePlot = ({
     // ====================================================
 
     return canvas
-  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme])
+  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme, logLogEnabled, phewasType, scale, categoryBands, points, margin, pointPadding, yScaleLogLog, yScaleNormal, showStroke, pointRadius, activeAnalyses, activeGene, selectedPhenotype, primaryAnalysisId])
 
   const mainCanvas: {
     current: HTMLCanvasElement | null
@@ -382,19 +490,23 @@ const PhewasPvaluePlot = ({
         const label = pointLabel(nearestPoint.data)
         const { width: textWidth } = ctx.measureText(label)
 
-        const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - textWidth - 10
+        const categoryLabel = nearestPoint.data.category || 'Unknown'
+        const fullLabel = `${label} | ${categoryLabel}`
+        const { width: fullTextWidth } = ctx.measureText(fullLabel)
+
+        const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - fullTextWidth - 10
         const labelY = y < 30 ? nearestPoint.y : nearestPoint.y - 24
 
         ctx.beginPath()
-        ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = theme.surface || '#000'
+        ctx.rect(labelX, labelY, fullTextWidth + 12, 24)
+        ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.95)'
         ctx.fill()
 
         ctx.strokeStyle = theme.border || '#333'
-        ctx.strokeRect(labelX, labelY, textWidth + 12, 24)
+        ctx.strokeRect(labelX, labelY, fullTextWidth + 12, 24)
 
         ctx.fillStyle = theme.text || '#fff'
-        ctx.fillText(label, labelX + 6, labelY + 16)
+        ctx.fillText(fullLabel, labelX + 6, labelY + 16)
 
         ctx.restore()
       }
