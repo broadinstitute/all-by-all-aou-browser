@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
 import { LocusContextMenu } from './components/LocusContextMenu';
+import { GeneContextMenu } from './components/GeneContextMenu';
 import './ManhattanViewer.css';
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -88,6 +89,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     y: number;
     contig: string;
     position: number;
+  } | null>(null);
+  const [geneContextMenu, setGeneContextMenu] = useState<{
+    x: number;
+    y: number;
+    geneId: string;
+    geneSymbol: string;
   } | null>(null);
 
   // Sort by best p-value
@@ -392,7 +399,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                             e.stopPropagation();
                             onGeneClick?.(g.gene_id);
                           }}
-                          title={`View ${g.gene_symbol} page`}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setGeneContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              geneId: g.gene_id,
+                              geneSymbol: g.gene_symbol,
+                            });
+                          }}
+                          title={`View ${g.gene_symbol} page, right-click for options`}
                         >
                           {g.gene_symbol}
                         </span>
@@ -431,7 +448,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                               e.stopPropagation();
                               onGeneClick?.(g.gene_id);
                             }}
-                            title={`View ${g.gene_symbol} page`}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setGeneContextMenu({
+                                x: e.clientX,
+                                y: e.clientY,
+                                geneId: g.gene_id,
+                                geneSymbol: g.gene_symbol,
+                              });
+                            }}
+                            title={`View ${g.gene_symbol} page, right-click for options`}
                           >
                             {g.gene_symbol}
                           </span>
@@ -480,6 +507,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           contig={contextMenu.contig}
           position={contextMenu.position}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Gene Context Menu */}
+      {geneContextMenu && (
+        <GeneContextMenu
+          x={geneContextMenu.x}
+          y={geneContextMenu.y}
+          geneId={geneContextMenu.geneId}
+          geneSymbol={geneContextMenu.geneSymbol}
+          onClose={() => setGeneContextMenu(null)}
         />
       )}
     </div>

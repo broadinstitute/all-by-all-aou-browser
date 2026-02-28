@@ -7,6 +7,7 @@ import { YAxis } from './components/YAxis';
 import { PeakLabels } from './components/PeakLabels';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { LocusContextMenu } from './components/LocusContextMenu';
+import { GeneContextMenu } from './components/GeneContextMenu';
 import { computeDisplayHits, getChromosomeLayout } from './layout';
 import type { Peak } from './types';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
@@ -90,6 +91,12 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     y: number;
     contig: string;
     position: number;
+  } | null>(null);
+  const [geneContextMenu, setGeneContextMenu] = useState<{
+    x: number;
+    y: number;
+    geneId: string;
+    geneSymbol: string;
   } | null>(null);
 
   // Compute display coordinates from raw hits
@@ -665,7 +672,17 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                     e.stopPropagation();
                                     onGeneClick?.(g.gene_id);
                                   }}
-                                  title={`View ${g.gene_symbol} page`}
+                                  onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setGeneContextMenu({
+                                      x: e.clientX,
+                                      y: e.clientY,
+                                      geneId: g.gene_id,
+                                      geneSymbol: g.gene_symbol,
+                                    });
+                                  }}
+                                  title={`View ${g.gene_symbol} page, right-click for options`}
                                 >
                                   {g.gene_symbol}
                                 </span>
@@ -700,7 +717,17 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                       e.stopPropagation();
                                       onGeneClick?.(g.gene_id);
                                     }}
-                                    title={`View ${g.gene_symbol} page`}
+                                    onContextMenu={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setGeneContextMenu({
+                                        x: e.clientX,
+                                        y: e.clientY,
+                                        geneId: g.gene_id,
+                                        geneSymbol: g.gene_symbol,
+                                      });
+                                    }}
+                                    title={`View ${g.gene_symbol} page, right-click for options`}
                                   >
                                     {g.gene_symbol}
                                   </span>
@@ -815,6 +842,17 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
           contig={contextMenu.contig}
           position={contextMenu.position}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Gene Context Menu */}
+      {geneContextMenu && (
+        <GeneContextMenu
+          x={geneContextMenu.x}
+          y={geneContextMenu.y}
+          geneId={geneContextMenu.geneId}
+          geneSymbol={geneContextMenu.geneSymbol}
+          onClose={() => setGeneContextMenu(null)}
         />
       )}
     </div>

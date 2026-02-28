@@ -64,6 +64,65 @@ function estimateLabelWidth(
   return text.length * CHAR_WIDTH + LABEL_PADDING * 2;
 }
 
+const SIG_THRESHOLD = 2.5e-6;
+
+interface PeakGene {
+  gene_id: string;
+  gene_symbol: string;
+  burden_results?: Array<{
+    annotation: string;
+    pvalue?: number;
+    pvalue_burden?: number;
+    pvalue_skat?: number;
+  }>;
+  coding_variant_count?: number;
+  lof_count?: number;
+  missense_count?: number;
+  distance_kb?: number;
+}
+
+/**
+ * Selects the best representative gene for a given peak based on:
+ * 1. Has significant burden or coding variants
+ * 2. Best burden p-value
+ * 3. Highest coding variant count
+ * 4. Physical distance to peak
+ */
+function getBestGeneForPeak(peak: Peak): PeakGene | undefined {
+  if (!peak.genes || peak.genes.length === 0) return undefined;
+
+  return [...peak.genes].sort((a, b) => {
+    // Helper to get minimum p-value from burden results
+    const getMinP = (br: { pvalue?: number; pvalue_burden?: number; pvalue_skat?: number }) =>
+      Math.min(br.pvalue ?? Infinity, br.pvalue_burden ?? Infinity, br.pvalue_skat ?? Infinity);
+
+    const aMinP = Math.min(...(a.burden_results?.map(getMinP) || [Infinity]));
+    const bMinP = Math.min(...(b.burden_results?.map(getMinP) || [Infinity]));
+
+    const aBurdenSig = aMinP < SIG_THRESHOLD;
+    const bBurdenSig = bMinP < SIG_THRESHOLD;
+
+    const aCodingCount = a.coding_variant_count || 0;
+    const bCodingCount = b.coding_variant_count || 0;
+
+    const aImplicated = aBurdenSig || aCodingCount > 0;
+    const bImplicated = bBurdenSig || bCodingCount > 0;
+
+    // 1. Prefer implicated genes
+    if (aImplicated && !bImplicated) return -1;
+    if (!aImplicated && bImplicated) return 1;
+
+    // 2. Best burden p-value
+    if (aMinP !== bMinP) return aMinP - bMinP;
+
+    // 3. Highest coding variant count
+    if (aCodingCount !== bCodingCount) return bCodingCount - aCodingCount;
+
+    // 4. Distance (closest physical proximity as tie-breaker)
+    return (a.distance_kb || 0) - (b.distance_kb || 0);
+  })[0];
+}
+
 /**
  * Hook that computes peak label positions and the required label area height.
  * Returns positioned nodes and the computed height needed for labels.
@@ -136,13 +195,12 @@ export function usePeakLabelLayout(
         continue;
       }
 
-      const topGene = peak.genes[0];
+      const topGene = getBestGeneForPeak(peak);
       if (!topGene) {
         continue;
       }
 
       // Collect burden types from all genes in this peak
-      const SIG_THRESHOLD = 2.5e-6;
       const burdenTypesSet = new Set<string>();
       let implicatedCount = 0;
       for (const g of peak.genes) {

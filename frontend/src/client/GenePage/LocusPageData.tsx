@@ -373,46 +373,6 @@ export const LocusPageDataContainer = () => {
       geneAssociations?.filter((association) => association.ancestry_group === ancestryGroup) || []
   }
 
-
-  if (!queryStates.geneAssociations.isLoading && geneIdOrName && !regionId) {
-    if (!geneAssociationsForAncestry || geneAssociationsForAncestry.length === 0) {
-      const availableAncestries: AncestryGroupCodes[] = geneAssociations
-        ? [
-          ...new Set(
-            geneAssociations.map(
-              (association) => association.ancestry_group as AncestryGroupCodes
-            )
-          ),
-        ]
-        : []
-
-      const identifier = regionId || geneId
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <StatusMessage>
-            No gene associations found between
-            <strong>{identifier}</strong> and phenotype <strong>{analysisId}</strong>.
-          </StatusMessage>
-          {availableAncestries.length > 0 && (
-            <div>
-              <p> The association test may not have run because of *reasons*.</p>
-              <p>
-                Select an ancestry group where associations are found for this gene/phenotype pair:
-              </p>
-              <br />
-              <br />
-              {availableAncestries.map((ancestry) => (
-                <Button key={ancestry} onClick={() => setAncestryGroup(ancestry)}>
-                  {ancestry.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    }
-  }
-
   return (
     <LocusPageLayout
       geneModels={geneModels}

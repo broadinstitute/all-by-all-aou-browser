@@ -1,40 +1,40 @@
 import React, { useEffect, useCallback } from 'react';
+import { useSetRecoilState } from 'recoil';
+import { geneIdAtom, regionIdAtom, resultIndexAtom, resultLayoutAtom } from '../../sharedState';
 
-export interface LocusContextMenuProps {
+export interface GeneContextMenuProps {
   /** X position in viewport */
   x: number;
   /** Y position in viewport */
   y: number;
-  /** Chromosome/contig */
-  contig: string;
-  /** Position in base pairs */
-  position: number;
+  /** Gene ID (e.g. ENSG...) */
+  geneId: string;
+  /** Gene symbol */
+  geneSymbol: string;
   /** Callback to close the menu */
   onClose: () => void;
 }
 
 /**
- * Context menu for locus cells and peak labels.
- * Provides options to open in new tab or copy coordinates.
+ * Context menu for genes in tables.
+ * Provides options to open PheWAS, open in a new tab, or copy symbol.
  */
-export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
+export const GeneContextMenu: React.FC<GeneContextMenuProps> = ({
   x,
   y,
-  contig,
-  position,
+  geneId,
+  geneSymbol,
   onClose,
 }) => {
+  const setGeneId = useSetRecoilState(geneIdAtom);
+  const setRegionId = useSetRecoilState(regionIdAtom);
+  const setResultIndex = useSetRecoilState(resultIndexAtom);
+  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+
   // Close on click outside
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      onClose();
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    // Delay adding listener to avoid immediate close from the triggering right-click
+    const handleClick = () => onClose();
+    const handleKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     const timeoutId = setTimeout(() => {
       document.addEventListener('click', handleClick);
       document.addEventListener('contextmenu', handleClick);
@@ -48,16 +48,16 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
     };
   }, [onClose]);
 
-  // Build locus URL with region ID (±500kb window) and hidden result layout
+  const handleOpenPheWAS = useCallback(() => {
+    setGeneId(geneId);
+    setRegionId(null);
+    setResultIndex('gene-phewas');
+    setResultLayout('half');
+    onClose();
+  }, [geneId, setGeneId, setRegionId, setResultIndex, setResultLayout, onClose]);
+
   const handleOpenInNewTab = useCallback(() => {
-    const start = Math.max(0, position - 500000);
-    const end = position + 500000;
-    const regionId = `${contig}-${start}-${end}`;
-
-    // Build URL from current location
     const url = new URL(window.location.href);
-
-    // Parse the Recoil state param if it exists to cleanly override navigation
     const stateStr = url.searchParams.get('state');
     let stateObj: Record<string, unknown> = {};
     if (stateStr) {
@@ -72,45 +72,31 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
       }
     }
 
-    // Set region, clear stale gene/variant state
-    stateObj.regionId = regionId;
-    stateObj.resultLayout = 'hidden';
-    delete stateObj.geneId;
+    stateObj.geneId = geneId;
+    stateObj.resultIndex = 'gene-phewas';
+    stateObj.resultLayout = 'half';
+    delete stateObj.regionId;
     delete stateObj.variantId;
 
     url.searchParams.set('state', JSON.stringify(stateObj));
 
-    // Clear top-level params just in case they are lingering
+    // Clear top level params just in case
     url.searchParams.delete('regionId');
-    url.searchParams.delete('resultLayout');
     url.searchParams.delete('geneId');
 
     window.open(url.toString(), '_blank');
     onClose();
-  }, [contig, position, onClose]);
+  }, [geneId, onClose]);
 
-  // Copy coordinates to clipboard
-  const handleCopyCoordinates = useCallback(() => {
-    const coords = `${contig}:${position.toLocaleString()}`;
-    navigator.clipboard.writeText(coords).then(() => {
-      onClose();
-    }).catch(() => {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = coords;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      onClose();
-    });
-  }, [contig, position, onClose]);
+  const handleCopyGeneSymbol = useCallback(() => {
+    navigator.clipboard.writeText(geneSymbol).then(() => onClose()).catch(() => onClose());
+  }, [geneSymbol, onClose]);
 
   // Prevent menu from going off-screen
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
     left: Math.min(x, window.innerWidth - 180),
-    top: Math.min(y, window.innerHeight - 80),
+    top: Math.min(y, window.innerHeight - 120),
     zIndex: 10000,
     background: 'var(--theme-surface, #fff)',
     color: 'var(--theme-text, #333)',
@@ -141,22 +127,31 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
         style={menuItemStyle}
         onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuItemHoverStyle)}
         onMouseLeave={(e) => (e.currentTarget.style.background = '')}
+        onClick={handleOpenPheWAS}
+      >
+        <span style={{ width: 16 }}>&#128202;</span>
+        Open PheWAS
+      </div>
+      <div
+        style={menuItemStyle}
+        onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuItemHoverStyle)}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '')}
         onClick={handleOpenInNewTab}
       >
-        <span style={{ width: 16 }}>↗</span>
+        <span style={{ width: 16 }}>&#8599;</span>
         Open in new tab
       </div>
       <div
         style={menuItemStyle}
         onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuItemHoverStyle)}
         onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-        onClick={handleCopyCoordinates}
+        onClick={handleCopyGeneSymbol}
       >
-        <span style={{ width: 16 }}>📋</span>
-        Copy coordinates
+        <span style={{ width: 16 }}>&#128203;</span>
+        Copy gene symbol
       </div>
     </div>
   );
 };
 
-export default LocusContextMenu;
+export default GeneContextMenu;
