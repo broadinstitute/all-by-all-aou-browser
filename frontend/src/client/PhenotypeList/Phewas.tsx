@@ -34,6 +34,7 @@ import { preparePhenotypesText } from './phenotypeUtils'
 import PhewasBetaPlot from './PhewasBetaPlot'
 import PhewasPvaluePlot from './PhewasPvaluePlot'
 import PhewasControls from './PhewasControls'
+import { Button } from '@gnomad/ui'
 import {
   pValueTypeToPValueKeyName,
   P_VALUE_BURDEN,
@@ -51,12 +52,14 @@ const RootContainerGene = styled.div`
   width: 100%;
   min-height: 1200px;
   max-width: 100%;
+  min-width: 0;
 
   .data-container {
     display: flex;
     width: 100%;
     flex-direction: column;
     padding-right: 10px;
+    min-width: 0;
   }
 
   .filter-warnings {
@@ -87,6 +90,8 @@ const PlotContainer = styled.div`
   flex-direction: column;
   width: 100%;
   flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
 `
 
 const DragHandle = styled.div`
@@ -125,9 +130,10 @@ const TableContainer = styled.div`
   position: relative;
   display: flex;
   flex-direction: column;
-  min-width: 100%;
   flex-grow: 1;
   overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 `
 
 const Warnings = styled.div`
@@ -229,6 +235,41 @@ const Phewas = ({
     return new Set(categories.map((c: Category) => c.category))
   })
 
+  // State for draggable labels
+  const [labeledPhenoIds, setLabeledPhenoIds] = useState<Set<string>>(new Set())
+  const [pvalLabelOverrides, setPvalLabelOverrides] = useState<Record<string, {x: number, y: number}>>({})
+  const [betaLabelOverrides, setBetaLabelOverrides] = useState<Record<string, {x: number, y: number}>>({})
+  const [hasInitializedLabels, setHasInitializedLabels] = useState(false)
+
+  // Initialize default labels (primary analysis + top 5) once data is loaded
+  React.useEffect(() => {
+    if (!hasInitializedLabels && uniquePhenotypes && uniquePhenotypes.length > 0) {
+      const initials = new Set<string>()
+      if (analysisId) initials.add(analysisId)
+      const topHits = [...uniquePhenotypes].sort((a: any, b: any) => a.pvalue - b.pvalue).slice(0, 5)
+      topHits.forEach((t: any) => initials.add(t.analysis_id))
+      setLabeledPhenoIds(initials)
+      setHasInitializedLabels(true)
+    }
+  }, [uniquePhenotypes, analysisId, hasInitializedLabels])
+
+  const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
+    setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
+  }, [])
+
+  const handleBetaDragEnd = React.useCallback((id: string, x: number, y: number) => {
+    setBetaLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
+  }, [])
+
+  const toggleLabel = React.useCallback((id: string) => {
+    setLabeledPhenoIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
   // Filter phenotypes by MAF (for gene phewas)
   const mafFilteredPhenotypes = useMemo(() => {
     if (!isGenePhewas) {
@@ -276,7 +317,7 @@ const Phewas = ({
   const betaPlotHeight = plotType === 'Both' ? totalPlotHeight - pValuePlotHeight : totalPlotHeight
 
   const columns = useMemo(() => {
-    return originalColumns.map((originalColumn: any) => {
+    const processed = originalColumns.map((originalColumn: any) => {
       if (originalColumn.displayId === 'pvalue') {
         const column = { ...originalColumn }
         column.key = 'pvalue'
@@ -295,7 +336,27 @@ const Phewas = ({
         return originalColumn
       }
     })
-  }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup])
+
+    // Prepend Label checkbox column
+    processed.unshift({
+      key: 'label',
+      displayId: 'label',
+      heading: 'Label',
+      minWidth: 50,
+      grow: 0,
+      render: (row: any) => (
+        <input
+          type="checkbox"
+          checked={labeledPhenoIds.has(row.analysis_id)}
+          onChange={() => toggleLabel(row.analysis_id)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'pointer', margin: '0 auto', display: 'block' }}
+        />
+      ),
+    })
+
+    return processed
+  }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup, labeledPhenoIds, toggleLabel])
 
   const phenotypesWithPreparedText = preparePhenotypesText(phenotypesWithColor)
 
@@ -554,6 +615,23 @@ const Phewas = ({
           </ShowControlsButton>
         )}
         <div className='data-container' style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--theme-surface-alt, #f5f5f5)', borderRadius: '4px', marginBottom: '8px', fontSize: '12px' }}>
+            <div>
+              <span style={{ color: 'var(--theme-text)' }}><strong>{labeledPhenoIds.size}</strong> phenotypes labeled</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {labeledPhenoIds.size > 0 && (
+                <Button onClick={() => setLabeledPhenoIds(new Set())} style={{ padding: '4px 8px', fontSize: '11px' }}>
+                  Clear labels
+                </Button>
+              )}
+              {(Object.keys(pvalLabelOverrides).length > 0 || Object.keys(betaLabelOverrides).length > 0) && (
+                <Button onClick={() => { setPvalLabelOverrides({}); setBetaLabelOverrides({}); }} style={{ padding: '4px 8px', fontSize: '11px' }}>
+                  Reset layout
+                </Button>
+              )}
+            </div>
+          </div>
           <PlotContainer>
             {plotType === 'Both' && (
               <>
@@ -571,6 +649,9 @@ const Phewas = ({
                   pointLabel={pointLabel}
                   height={pValuePlotHeight}
                   phewasType={phewasType}
+                  labeledPhenoIds={labeledPhenoIds}
+                  labelOverrides={pvalLabelOverrides}
+                  onLabelDragEnd={handlePvalDragEnd}
                 />
                 <PhewasBetaPlot
                   analyses={displayPlotPhenotypes}
@@ -584,6 +665,9 @@ const Phewas = ({
                   pointLabel={pointLabel}
                   height={betaPlotHeight}
                   phewasType={phewasType}
+                  labeledPhenoIds={labeledPhenoIds}
+                  labelOverrides={betaLabelOverrides}
+                  onLabelDragEnd={handleBetaDragEnd}
                 />
               </>
             )}
@@ -601,6 +685,9 @@ const Phewas = ({
                 pointLabel={pointLabel}
                 height={totalPlotHeight}
                 phewasType={phewasType}
+                labeledPhenoIds={labeledPhenoIds}
+                labelOverrides={pvalLabelOverrides}
+                onLabelDragEnd={handlePvalDragEnd}
               />
             )}
             {plotType === 'Beta' && (
@@ -615,6 +702,9 @@ const Phewas = ({
                 pointLabel={pointLabel}
                 height={totalPlotHeight}
                 phewasType={phewasType}
+                labeledPhenoIds={labeledPhenoIds}
+                labelOverrides={betaLabelOverrides}
+                onLabelDragEnd={handleBetaDragEnd}
               />
             )}
           </PlotContainer>

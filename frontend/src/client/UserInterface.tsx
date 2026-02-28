@@ -36,6 +36,8 @@ export const PhewasSplitGrid = styled.div`
 
   .grid-item {
     overflow: hidden;
+    min-width: 0;
+    min-height: 0;
   }
 `
 

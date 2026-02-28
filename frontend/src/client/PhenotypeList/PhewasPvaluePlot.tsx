@@ -5,6 +5,7 @@ import { withSize } from 'react-sizeme'
 
 import { pValueTypeToPValueKeyName, P_VALUE_SKAT, P_VALUE_BURDEN, P_VALUE_SKAT_O } from './Utils'
 import { GeneAssociations } from '../types'
+import { PhewasLabelsOverlay } from './PhewasLabelsOverlay'
 
 type threshold = {
   color: string
@@ -37,12 +38,16 @@ interface Props {
   yLabel?: string
   hideLegend?: boolean
   phewasType?: string
+  labeledPhenoIds?: Set<string>
+  labelOverrides?: Record<string, { x: number; y: number }>
+  onLabelDragEnd?: (id: string, x: number, y: number) => void
 }
 
 const PlotWrapper = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
+  position: relative;
 `
 
 const PhewasPvaluePlot = ({
@@ -64,6 +69,9 @@ const PhewasPvaluePlot = ({
   xLabel = '',
   yLabel = '-log10(p)',
   phewasType = 'gene',
+  labeledPhenoIds,
+  labelOverrides,
+  onLabelDragEnd,
 }: Props) => {
   const theme = useTheme() as any;
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
@@ -354,92 +362,25 @@ const PhewasPvaluePlot = ({
 
     ctx.restore()
 
-    // Top Hit Labels
-    // ====================================================
-    ctx.save()
-    ctx.transform(1, 0, 0, 1, pointPadding, margin.top)
-    ctx.font = '10px sans-serif'
-    ctx.textBaseline = 'middle'
-
-    // Always include primary (URL) analysis and selected analyses in labels, plus top hits
-    const primaryPoint = points.find((p) => p.data.analysis_id === primaryAnalysisId)
-    const selectedPoints = points.filter((p) =>
-      p.data.analysis_id !== primaryAnalysisId && activeAnalyses && activeAnalyses.includes(p.data.analysis_id)
-    )
-    const alreadyLabeledIds = new Set([primaryAnalysisId, ...(activeAnalyses || [])])
-    const topHitPoints = [...points]
-      .filter((p) => p.logp > -Math.log10(1e-6) && !alreadyLabeledIds.has(p.data.analysis_id))
-      .sort((a, b) => b.logp - a.logp)
-      .slice(0, 15 - selectedPoints.length - (primaryPoint ? 1 : 0))
-
-    const pointsToLabel = [...(primaryPoint ? [primaryPoint] : []), ...selectedPoints, ...topHitPoints]
-
-    const labelRects: Array<{ x: number; y: number; w: number; h: number }> = []
-
-    pointsToLabel.forEach((p) => {
-      let labelText = p.data.description || p.data.gene_symbol || ''
-      if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
-      if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
-
-      const textWidth = ctx.measureText(labelText).width
-      const labelHeight = 12
-      const pad = 2
-
-      // Positions to test for collision: Right, Left, Top, Bottom
-      const positions = [
-        { x: p.x + 8, y: p.y },
-        { x: p.x - 8 - textWidth, y: p.y },
-        { x: p.x - textWidth / 2, y: p.y - 12 },
-        { x: p.x - textWidth / 2, y: p.y + 12 },
-      ]
-
-      let bestPos = positions[0]
-      let foundSpot = false
-
-      for (const pos of positions) {
-        const rect = {
-          x: pos.x - pad,
-          y: pos.y - labelHeight / 2 - pad,
-          w: textWidth + pad * 2,
-          h: labelHeight + pad * 2,
-        }
-
-        // Inside bounds check
-        if (rect.x < margin.left || rect.x + rect.w > width - margin.right) continue
-        if (rect.y < 0 || rect.y + rect.h > h) continue
-
-        // Collision check
-        const overlaps = labelRects.some(
-          (r) =>
-            rect.x < r.x + r.w &&
-            rect.x + rect.w > r.x &&
-            rect.y < r.y + r.h &&
-            rect.y + rect.h > r.y
-        )
-
-        if (!overlaps) {
-          bestPos = pos
-          labelRects.push(rect)
-          foundSpot = true
-          break
-        }
-      }
-
-      if (foundSpot) {
-        ctx.fillStyle = theme.tooltipBg || 'rgba(255, 255, 255, 0.95)'
-        ctx.fillRect(bestPos.x - 1, bestPos.y - 6, textWidth + 2, 12)
-        ctx.fillStyle = theme.text || '#333'
-        ctx.textAlign = 'left'
-        ctx.fillText(labelText, bestPos.x, bestPos.y)
-      }
-    })
-
-    ctx.restore()
-
-    // ====================================================
+    // Labels are now handled by PhewasLabelsOverlay
 
     return canvas
   }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme, logLogEnabled, phewasType, scale, categoryBands, points, margin, pointPadding, yScaleLogLog, yScaleNormal, showStroke, pointRadius, activeAnalyses, activeGene, selectedPhenotype, primaryAnalysisId])
+
+  const overlayPoints = useMemo(() => {
+    return points.map(p => {
+      let labelText = p.data.description || p.data.gene_symbol || ''
+      if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
+      if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
+      return {
+        id: p.data.analysis_id,
+        targetX: p.x + pointPadding,
+        targetY: p.y + margin.top,
+        label: labelText,
+        color: pointColor(p.data)
+      }
+    })
+  }, [points, phewasType, pointPadding, margin.top, pointColor])
 
   const mainCanvas: {
     current: HTMLCanvasElement | null
@@ -545,6 +486,16 @@ const PhewasPvaluePlot = ({
         onMouseLeave={drawPlot}
         onMouseMove={onMouseMove}
       />
+      {labeledPhenoIds && (
+        <PhewasLabelsOverlay
+          points={overlayPoints}
+          labeledPhenoIds={labeledPhenoIds}
+          labelOverrides={labelOverrides || {}}
+          onLabelDragEnd={onLabelDragEnd || (() => {})}
+          width={width}
+          height={height}
+        />
+      )}
     </PlotWrapper>
   )
 }
