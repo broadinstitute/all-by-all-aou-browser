@@ -205,7 +205,7 @@ const Phewas = ({
   const [selectedMaf, setSelectedMaf] = useState<number>(0.001)
 
   // Plot height state for draggable resizing (total plot area height)
-  const [totalPlotHeight, setTotalPlotHeight] = useState(320)
+  const [totalPlotHeight, setTotalPlotHeight] = useState(450)
   const [isDragging, setIsDragging] = useState(false)
 
   // Simple category state - Set of selected category names
@@ -643,7 +643,7 @@ const Phewas = ({
               )}
             </div>
           </div>
-          <PlotContainer>
+          <PlotContainer style={{ minHeight: totalPlotHeight }}>
             {plotType === 'Both' && (
               <>
                 <PhewasPvaluePlot
