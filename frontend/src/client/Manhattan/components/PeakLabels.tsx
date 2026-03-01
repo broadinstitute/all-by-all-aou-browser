@@ -27,6 +27,15 @@ export interface PeakLabelsProps {
   labelOverrides?: Record<string, LabelPositionOverride>;
   /** Callback when a label is dragged to a new position */
   onLabelDragEnd?: (id: string, x: number, y: number) => void;
+  /** Use dog-leg/crankshaft stems instead of straight lines */
+  useDogLegStems?: boolean;
+}
+
+/**
+ * Generate a straight line path from label to peak.
+ */
+function getStraightPath(labelX: number, labelY: number, peakX: number, peakY: number): string {
+  return `M ${labelX} ${labelY} L ${peakX} ${peakY}`;
 }
 
 /**
@@ -54,7 +63,10 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
   onPeakContextMenu,
   labelOverrides = {},
   onLabelDragEnd,
+  useDogLegStems = false,
 }) => {
+  // Choose path function based on stem style
+  const getPathFn = useDogLegStems ? getDogLegPath : getStraightPath;
   const [hoveredPeakId, setHoveredPeakId] = useState<string | null>(null);
   // Drag state: track which node is being dragged and current position
   const [dragState, setDragState] = useState<{
@@ -207,14 +219,14 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
           >
             {/* Invisible wider hit area for easier hovering */}
             <path
-              d={getDogLegPath(labelX, labelY + 4, node.targetX, peakY)}
+              d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
               stroke="transparent"
               strokeWidth={10}
               fill="none"
             />
-            {/* Dog-leg leader line from label down to peak */}
+            {/* Leader line from label down to peak */}
             <path
-              d={getDogLegPath(labelX, labelY + 4, node.targetX, peakY)}
+              d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
               className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
               fill="none"
               style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2' } : hasOverride ? { stroke: '#666' } : undefined}

@@ -126,6 +126,10 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   // Label position overrides from user dragging
   const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
+  // Settings menu state
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [useDogLegStems, setUseDogLegStems] = useState(false);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -235,6 +239,149 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
 
   return (
     <div ref={containerRef} className="manhattan-container">
+      {/* Plot header with legend, stats, and settings */}
+      {imagesLoaded && (
+        <div
+          className="manhattan-plot-header"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 8,
+            marginLeft: showYAxis ? Y_AXIS_WIDTH : 0,
+            padding: '6px 0',
+            fontSize: 11,
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          {/* Left side: Stats */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ color: 'var(--theme-text-muted)' }}>
+              <strong style={{ color: 'var(--theme-text)' }}>{unifiedLoci.length.toLocaleString()}</strong> loci
+            </span>
+            <span style={{ color: 'var(--theme-text-muted)' }}>
+              P &lt; 5e-8
+            </span>
+            {/* Legend */}
+            <span style={{ color: 'var(--theme-text-muted)' }}>
+              <span style={{ color: '#d32f2f' }}>●</span> pLoF
+            </span>
+            <span style={{ color: 'var(--theme-text-muted)' }}>
+              <span style={{ color: '#f9a825' }}>●</span> Missense
+            </span>
+            <span style={{ color: 'var(--theme-text-muted)' }}>
+              <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
+            </span>
+          </div>
+          {/* Right side: Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Reset Layout button - only show if there are overrides */}
+            {Object.keys(labelOverrides).length > 0 && (
+              <button
+                onClick={handleResetLayout}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  background: 'var(--theme-surface, #fff)',
+                  color: 'var(--theme-text, #333)',
+                  border: '1px solid var(--theme-border, #ccc)',
+                  borderRadius: 3,
+                }}
+                title="Reset all labels to auto-positioned layout"
+              >
+                Reset layout
+              </button>
+            )}
+            {/* Settings menu button */}
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={settingsButtonRef}
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  background: showSettingsMenu ? 'var(--theme-surface-alt, #f5f5f5)' : 'var(--theme-surface, #fff)',
+                  color: 'var(--theme-text, #333)',
+                  border: '1px solid var(--theme-border, #ccc)',
+                  borderRadius: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+                title="Plot settings"
+              >
+                <span style={{ fontSize: 13 }}>⚙</span> Settings
+              </button>
+              {/* Settings dropdown */}
+              {showSettingsMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 4,
+                    background: 'var(--theme-surface, #fff)',
+                    border: '1px solid var(--theme-border, #ccc)',
+                    borderRadius: 4,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: 200,
+                    padding: '8px 0',
+                  }}
+                  onMouseLeave={() => setShowSettingsMenu(false)}
+                >
+                  {/* Line style toggle */}
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--theme-border, #eee)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--theme-text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Leader Line Style
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={useDogLegStems}
+                        onChange={(e) => setUseDogLegStems(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>Dog-leg / Crankshaft</span>
+                    </label>
+                    <div style={{ fontSize: 10, color: 'var(--theme-text-muted)', marginTop: 4 }}>
+                      {useDogLegStems ? 'Lines bend at right angles' : 'Straight lines (default)'}
+                    </div>
+                  </div>
+                  {/* Export button */}
+                  <div style={{ padding: '8px 12px' }}>
+                    <button
+                      onClick={() => {
+                        setShowSettingsMenu(false);
+                        handleExportPlot();
+                      }}
+                      disabled={isExporting}
+                      style={{
+                        width: '100%',
+                        fontSize: 12,
+                        padding: '8px 12px',
+                        cursor: isExporting ? 'wait' : 'pointer',
+                        background: 'var(--theme-primary, #262262)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 3,
+                        opacity: isExporting ? 0.7 : 1,
+                      }}
+                      title="Export plot as PNG image"
+                    >
+                      {isExporting ? 'Exporting...' : '📷 Export as PNG'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div ref={exportContainerRef} className="manhattan-plot-row" style={{ display: 'flex' }}>
         {/* Y-Axis */}
         {showYAxis && imagesLoaded && (
@@ -313,6 +460,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                 }}
                 labelOverrides={labelOverrides}
                 onLabelDragEnd={handleLabelDragEnd}
+                useDogLegStems={useDogLegStems}
               />
             </svg>
           )}
@@ -336,7 +484,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
         </div>
       )}
 
-      {/* Stats bar */}
+      {/* Chromosome controls bar */}
       {imagesLoaded && (
         <div className="overview-stats" style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
           {contig !== 'all' && onResetContig && (
@@ -359,62 +507,6 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
           <div className="overview-stats-item">
             <span className="overview-stats-label">Chromosome:</span>
             <ChromosomeSelector />
-          </div>
-          <div className="overview-stats-item">
-            <span className="overview-stats-label">Combined loci:</span>
-            <span className="overview-stats-value">{unifiedLoci.length.toLocaleString()}</span>
-          </div>
-          <div className="overview-stats-item">
-            <span className="overview-stats-label">Threshold:</span>
-            <span className="overview-stats-value">P &lt; 5e-8</span>
-          </div>
-          {/* Legend */}
-          <div className="overview-stats-item" style={{ marginLeft: 'auto', gap: 12, display: 'flex' }}>
-            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
-              <span style={{ color: '#d32f2f' }}>●</span> pLoF
-            </span>
-            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
-              <span style={{ color: '#f9a825' }}>●</span> Missense
-            </span>
-            <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
-              <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
-            </span>
-            {/* Reset Layout button - only show if there are overrides */}
-            {Object.keys(labelOverrides).length > 0 && (
-              <button
-                onClick={handleResetLayout}
-                style={{
-                  fontSize: 11,
-                  padding: '4px 10px',
-                  cursor: 'pointer',
-                  background: 'var(--theme-surface, #fff)',
-                  color: 'var(--theme-text, #333)',
-                  border: '1px solid var(--theme-border, #ccc)',
-                  borderRadius: 3,
-                }}
-                title="Reset all labels to auto-positioned layout"
-              >
-                Reset layout
-              </button>
-            )}
-            {/* Export to PNG button */}
-            <button
-              onClick={handleExportPlot}
-              disabled={isExporting}
-              style={{
-                fontSize: 11,
-                padding: '4px 10px',
-                cursor: isExporting ? 'wait' : 'pointer',
-                background: 'var(--theme-primary, #262262)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 3,
-                opacity: isExporting ? 0.7 : 1,
-              }}
-              title="Export plot as PNG image"
-            >
-              {isExporting ? 'Exporting...' : 'Export PNG'}
-            </button>
           </div>
         </div>
       )}
