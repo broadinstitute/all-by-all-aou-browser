@@ -131,6 +131,26 @@ export const mafSignificanceAtom = atom<MafSignificanceMap>({
     0.0001: { ...defaultMafAnnotationSig },
   },
 })
+
+// Burden test type significance - tracks which test types have hits per annotation category
+export type BurdenTestType = 'burden' | 'skat' | 'skato'
+export type BurdenTestAnnotationSignificance = Record<AnnotationCategory, MafSignificance>
+export type BurdenTestSignificanceMap = Record<BurdenTestType, BurdenTestAnnotationSignificance>
+
+const defaultBurdenTestAnnotSig: BurdenTestAnnotationSignificance = {
+  pLoF: 'none',
+  missense: 'none',
+  synonymous: 'none',
+}
+
+export const burdenTestSignificanceAtom = atom<BurdenTestSignificanceMap>({
+  key: 'burdenTestSignificance',
+  default: {
+    burden: { ...defaultBurdenTestAnnotSig },
+    skat: { ...defaultBurdenTestAnnotSig },
+    skato: { ...defaultBurdenTestAnnotSig },
+  },
+})
 export const phewasOptsAtom = atom<boolean>({
   key: 'phewasOpts',
   default: true,

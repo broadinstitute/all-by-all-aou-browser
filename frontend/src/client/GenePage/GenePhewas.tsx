@@ -25,6 +25,13 @@ import {
   selectedAnalysesColorsSelector,
   showSelectAnalysesOnlyAtom,
   useToggleSelectedAnalysis,
+  mafSignificanceAtom,
+  MafOption,
+  MafSignificanceMap,
+  AnnotationCategory,
+  MafAnnotationSignificance,
+  burdenTestSignificanceAtom,
+  BurdenTestSignificanceMap,
 } from '../sharedState'
 
 import { annotateGenePhewasWithAnalysisMetadata } from '../PhenotypeList/phenotypeUtils'
@@ -179,6 +186,8 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
   const burdenSet = useRecoilValue(burdenSetAtom)
   const geneId = useRecoilValue(geneIdAtom)
   const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const setMafSignificance = useSetRecoilState(mafSignificanceAtom)
+  const setBurdenTestSignificance = useSetRecoilState(burdenTestSignificanceAtom)
 
   const geneIdOrName = geneId
 
@@ -204,6 +213,79 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
     deps: [burdenSet, geneIdOrName],
     cacheEnabled,
   })
+
+  // Compute MAF and burden test significance for the controls - must be before conditional returns
+  React.useEffect(() => {
+    if (!queryStates?.geneAssociations?.data) {
+      return
+    }
+
+    const geneAssociationsForAncestryData = processGeneBurden(
+      queryStates.geneAssociations.data.filter((g) => g.ancestry_group === ancestryGroup)
+    )
+
+    if (geneAssociationsForAncestryData.length === 0) {
+      return
+    }
+
+    const mapAnnotation = (annotation: string): AnnotationCategory | null => {
+      if (annotation === 'pLoF') return 'pLoF'
+      if (annotation === 'pLoF;missenseLC' || annotation === 'missenseLC' || annotation === 'missense') return 'missense'
+      if (annotation === 'synonymous') return 'synonymous'
+      return null
+    }
+
+    const significanceThreshold = 1e-4
+    const isSignificant = (pvalue: number | null | undefined): boolean => {
+      return pvalue !== null && pvalue !== undefined && pvalue > 0 && pvalue < significanceThreshold
+    }
+
+    const mafOptions: MafOption[] = [0.01, 0.001, 0.0001]
+    const defaultAnnotSig: MafAnnotationSignificance = { pLoF: 'none', missense: 'none', synonymous: 'none' }
+    const newSignificance: MafSignificanceMap = {
+      0.01: { ...defaultAnnotSig },
+      0.001: { ...defaultAnnotSig },
+      0.0001: { ...defaultAnnotSig },
+    }
+
+    // Track burden test type significance per annotation category
+    const defaultBurdenAnnotSig = { pLoF: 'none' as const, missense: 'none' as const, synonymous: 'none' as const }
+    const newBurdenSig: BurdenTestSignificanceMap = {
+      burden: { ...defaultBurdenAnnotSig },
+      skat: { ...defaultBurdenAnnotSig },
+      skato: { ...defaultBurdenAnnotSig },
+    }
+
+    mafOptions.forEach((maf) => {
+      const resultsForMaf = geneAssociationsForAncestryData.filter((g) => g.max_maf === maf)
+
+      resultsForMaf.forEach((r) => {
+        const category = mapAnnotation(r.annotation)
+        if (!category) return
+
+        const pvalues = [r.pvalue, r.pvalue_burden, r.pvalue_skat]
+        const hasSignificantHit = pvalues.some(isSignificant)
+
+        if (hasSignificantHit) {
+          newSignificance[maf][category] = 'hit'
+        }
+
+        // Check each test type individually per annotation category
+        if (isSignificant(r.pvalue_burden)) {
+          newBurdenSig.burden[category] = 'hit'
+        }
+        if (isSignificant(r.pvalue_skat)) {
+          newBurdenSig.skat[category] = 'hit'
+        }
+        if (isSignificant(r.pvalue)) {
+          newBurdenSig.skato[category] = 'hit'
+        }
+      })
+    })
+
+    setMafSignificance(newSignificance)
+    setBurdenTestSignificance(newBurdenSig)
+  }, [queryStates?.geneAssociations?.data, ancestryGroup, setMafSignificance, setBurdenTestSignificance])
 
   const Container = HalfPage
 

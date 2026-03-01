@@ -32,6 +32,50 @@ export const ShowControlsButton = styled.button<{ $right?: boolean }>`
   }
 `
 
+// Reusable Controls Panel Components
+export const ControlsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid ${(props) => props.theme.border};
+  margin-bottom: 4px;
+`
+
+export const ControlsHeaderTitle = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text, #333);
+`
+
+export const ControlsCloseButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 18px;
+  color: var(--theme-text-muted, #666);
+  line-height: 1;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--theme-border, #e0e0e0);
+    color: var(--theme-text, #333);
+  }
+`
+
+export const ControlsSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+export const ControlsSectionTitle = styled.strong`
+  font-size: 13px;
+  color: var(--theme-text, #333);
+  margin-bottom: 4px;
+`
+
 export const SplitPageContainer = styled.div`
   display: flex;
   flex-direction: row;

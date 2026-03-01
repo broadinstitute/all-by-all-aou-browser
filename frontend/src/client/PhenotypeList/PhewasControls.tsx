@@ -1,8 +1,17 @@
 import { Button, Checkbox, SearchInput, SegmentedControl } from '@gnomad/ui'
 import React from 'react'
+import { useRecoilValue } from 'recoil'
 import styled from 'styled-components'
-import AnalysisControls from '../AnalysisControls'
-import { ColorMarker } from '../UserInterface'
+import {
+  ColorMarker,
+  ControlsHeader,
+  ControlsHeaderTitle,
+  ControlsCloseButton,
+  ControlsSection,
+  ControlsSectionTitle,
+} from '../UserInterface'
+import { mafSignificanceAtom, MafOption, AnnotationCategory, burdenTestSignificanceAtom, BurdenTestType } from '../sharedState'
+import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
 import {
   P_VALUE_BURDEN,
   P_VALUE_SKAT,
@@ -30,48 +39,217 @@ const ControlsContainer = styled.div`
   gap: 20px;
 `
 
-const ControlsHeader = styled.div`
+// MAF Selector with significance dots
+const MafSelectorWrapper = styled.div`
+  margin-top: 8px;
+`
+
+const MafOptionWrapper = styled.div`
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid ${(props) => props.theme.border};
-  margin-bottom: 4px;
 `
 
-const HeaderTitle = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--theme-text, #333);
+const MafSignificanceDots = styled.div`
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  height: 10px;
+  align-items: center;
+  justify-content: center;
 `
 
-const CloseButton = styled.button`
-  background: none;
+const SignificanceDot = styled.span<{ $color: string }>`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: ${(props) => props.$color};
+  border: 1px solid rgba(0, 0, 0, 0.3);
+`
+
+const EmptyDot = styled.span`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+`
+
+const MafButton = styled.button<{ $active: boolean }>`
+  padding: 6px 12px;
   border: none;
+  background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  font-size: 12px;
   cursor: pointer;
-  padding: 4px 8px;
-  font-size: 18px;
-  color: var(--theme-text-muted, #666);
-  line-height: 1;
-  border-radius: 4px;
+  transition: all 0.15s ease;
+  border-right: 1px solid var(--theme-border, #ccc);
+
+  &:last-child {
+    border-right: none;
+  }
 
   &:hover {
-    background: var(--theme-border, #e0e0e0);
-    color: var(--theme-text, #333);
+    background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #e0e0e0)')};
   }
 `
 
-const Section = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`
+const annotationColors: Record<AnnotationCategory, string> = {
+  pLoF: consequenceCategoryColors.pLoF,
+  missense: consequenceCategoryColors.missense,
+  synonymous: consequenceCategoryColors.synonymous,
+}
 
-const SectionTitle = styled.strong`
-  font-size: 13px;
-  color: var(--theme-text, #333);
-  margin-bottom: 4px;
-`
+const annotationLabels: Record<AnnotationCategory, string> = {
+  pLoF: 'pLoF',
+  missense: 'Missense',
+  synonymous: 'Synonymous',
+}
+
+// Burden Set Selector with significance dot per option
+interface BurdenSetSelectorProps {
+  burdenSet: string
+  setBurdenSet: (value: string) => void
+}
+
+const BurdenSetSelector: React.FC<BurdenSetSelectorProps> = ({ burdenSet, setBurdenSet }) => {
+  const mafSignificance = useRecoilValue(mafSignificanceAtom)
+
+  // Check if any MAF has a hit for this annotation category
+  const hasAnyHit = (category: AnnotationCategory): boolean => {
+    const mafOptions: MafOption[] = [0.01, 0.001, 0.0001]
+    return mafOptions.some((maf) => mafSignificance[maf][category] === 'hit')
+  }
+
+  const burdenSetOptions: { value: string; label: string; category: AnnotationCategory }[] = [
+    { value: 'pLoF', label: 'pLoF', category: 'pLoF' },
+    { value: 'missenseLC', label: 'Missense', category: 'missense' },
+    { value: 'synonymous', label: 'Syn', category: 'synonymous' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', gap: 0 }}>
+      {burdenSetOptions.map((opt) => {
+        const hasHit = hasAnyHit(opt.category)
+        return (
+          <MafOptionWrapper key={opt.value}>
+            <MafSignificanceDots>
+              {hasHit ? (
+                <SignificanceDot $color={greenThresholdColor} title={`${opt.label}: has significant hit`} />
+              ) : (
+                <EmptyDot title={`${opt.label}: no significant hits`} />
+              )}
+            </MafSignificanceDots>
+            <MafButton
+              $active={burdenSet === opt.value}
+              onClick={() => setBurdenSet(opt.value)}
+            >
+              {opt.label}
+            </MafButton>
+          </MafOptionWrapper>
+        )
+      })}
+    </div>
+  )
+}
+
+// Burden Test Selector with significance dots (3 dots per test type: pLoF, missense, synonymous)
+interface BurdenTestSelectorProps {
+  pValueType: string
+  setPValueType: (value: any) => void
+}
+
+const BurdenTestSelector: React.FC<BurdenTestSelectorProps> = ({ pValueType, setPValueType }) => {
+  const burdenTestSignificance = useRecoilValue(burdenTestSignificanceAtom)
+
+  const testOptions: { value: string; label: string; testKey: BurdenTestType }[] = [
+    { value: P_VALUE_BURDEN, label: 'Burden', testKey: 'burden' },
+    { value: P_VALUE_SKAT, label: 'SKAT', testKey: 'skat' },
+    { value: P_VALUE_SKAT_O, label: 'SKAT-O', testKey: 'skato' },
+  ]
+
+  const annotationOrder: AnnotationCategory[] = ['pLoF', 'missense', 'synonymous']
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 0, marginTop: 8 }}>
+        {testOptions.map((opt) => {
+          const sigForTest = burdenTestSignificance[opt.testKey]
+          return (
+            <MafOptionWrapper key={opt.value}>
+              <MafSignificanceDots>
+                {annotationOrder.map((annot) => {
+                  const hasHit = sigForTest[annot] !== 'none'
+                  const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
+                  return hasHit ? (
+                    <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
+                  ) : (
+                    <EmptyDot key={annot} title={tooltip} />
+                  )
+                })}
+              </MafSignificanceDots>
+              <MafButton
+                $active={pValueType === opt.value}
+                onClick={() => setPValueType(opt.value)}
+              >
+                {opt.label}
+              </MafButton>
+            </MafOptionWrapper>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface MafSelectorProps {
+  selectedMaf: number
+  setSelectedMaf: (value: number) => void
+}
+
+const MafSelector: React.FC<MafSelectorProps> = ({ selectedMaf, setSelectedMaf }) => {
+  const mafSignificance = useRecoilValue(mafSignificanceAtom)
+
+  const mafOptions: { value: MafOption; label: string }[] = [
+    { value: 0.01, label: '1%' },
+    { value: 0.001, label: '0.1%' },
+    { value: 0.0001, label: '0.01%' },
+  ]
+
+  const annotationOrder: AnnotationCategory[] = ['pLoF', 'missense', 'synonymous']
+
+  return (
+    <MafSelectorWrapper>
+      <ControlsSectionTitle>Max MAF</ControlsSectionTitle>
+      <div style={{ display: 'flex', gap: 0, marginTop: 8 }}>
+        {mafOptions.map((opt) => {
+          const sigForMaf = mafSignificance[opt.value]
+          return (
+            <MafOptionWrapper key={opt.value}>
+              <MafSignificanceDots>
+                {annotationOrder.map((annot) => {
+                  const hasHit = sigForMaf[annot] !== 'none'
+                  const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
+                  return hasHit ? (
+                    <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
+                  ) : (
+                    <EmptyDot key={annot} title={tooltip} />
+                  )
+                })}
+              </MafSignificanceDots>
+              <MafButton
+                $active={selectedMaf === opt.value}
+                onClick={() => setSelectedMaf(opt.value)}
+              >
+                {opt.label}
+              </MafButton>
+            </MafOptionWrapper>
+          )
+        })}
+      </div>
+    </MafSelectorWrapper>
+  )
+}
 
 const PlotOptionCheckboxes = styled.div`
   display: flex;
@@ -176,15 +354,6 @@ const CategoryCount = styled.span`
   font-size: 11px;
 `
 
-const MafSelect = styled.select`
-  padding: 6px 8px;
-  border-radius: 4px;
-  border: 1px solid ${(props) => props.theme.border};
-  background: ${(props) => props.theme.surface};
-  color: ${(props) => props.theme.text};
-  font-size: 13px;
-  width: 100%;
-`
 
 interface Category {
   category: string
@@ -267,59 +436,40 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   return (
     <ControlsContainer>
       <ControlsHeader>
-        <HeaderTitle>Controls</HeaderTitle>
-        <CloseButton onClick={onClose} title="Hide controls">
+        <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
+        <ControlsCloseButton onClick={onClose} title="Hide controls">
           &times;
-        </CloseButton>
+        </ControlsCloseButton>
       </ControlsHeader>
 
       {/* Search */}
-      <Section>
+      <ControlsSection>
         <SearchInput
           placeholder='Search phenotypes'
           onChange={onSearchChange}
         />
-      </Section>
+      </ControlsSection>
 
       {/* Burden Set & MAF (gene phewas only) */}
       {isGenePhewas && (
-        <Section>
-          <SectionTitle>Burden set</SectionTitle>
-          <AnalysisControls burdenSet={burdenSet} setBurdenSet={setBurdenSet} />
-          <div style={{ marginTop: '8px' }}>
-            <SectionTitle>Max MAF</SectionTitle>
-            <MafSelect
-              value={selectedMaf}
-              onChange={(e) => setSelectedMaf(Number(e.target.value))}
-            >
-              <option value={0.01}>1%</option>
-              <option value={0.001}>0.1%</option>
-              <option value={0.0001}>0.01%</option>
-            </MafSelect>
-          </div>
-        </Section>
+        <ControlsSection>
+          <ControlsSectionTitle>Burden set</ControlsSectionTitle>
+          <BurdenSetSelector burdenSet={burdenSet} setBurdenSet={setBurdenSet} />
+          <MafSelector selectedMaf={selectedMaf} setSelectedMaf={setSelectedMaf} />
+        </ControlsSection>
       )}
 
       {/* Burden Test Type */}
       {isGenePhewas && (
-        <Section>
-          <SectionTitle>Burden test</SectionTitle>
-          <SegmentedControl
-            id='pvalue-type-control'
-            options={[
-              { value: P_VALUE_BURDEN, label: 'Burden' },
-              { value: P_VALUE_SKAT, label: 'SKAT' },
-              { value: P_VALUE_SKAT_O, label: 'SKAT-O' },
-            ]}
-            value={pValueType}
-            onChange={setPValueType}
-          />
-        </Section>
+        <ControlsSection>
+          <ControlsSectionTitle>Burden test</ControlsSectionTitle>
+          <BurdenTestSelector pValueType={pValueType} setPValueType={setPValueType} />
+        </ControlsSection>
       )}
 
       {/* P-value Legend */}
-      <Section>
-        <SectionTitle>{isGenePhewas ? 'Gene' : 'Variant'} P-value coloring</SectionTitle>
+      <ControlsSection>
+        <ControlsSectionTitle>{isGenePhewas ? 'Gene' : 'Variant'} P-value coloring</ControlsSectionTitle>
         <PValueLegend>
           <span>
             <ColorMarker color='white' />
@@ -335,11 +485,11 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
             />
           </span>
         </PValueLegend>
-      </Section>
+      </ControlsSection>
 
       {/* Plot Options */}
-      <Section>
-        <SectionTitle>Plot options</SectionTitle>
+      <ControlsSection>
+        <ControlsSectionTitle>Plot options</ControlsSectionTitle>
         <SegmentedControl
           id='plot-type'
           options={plotTypeOptions}
@@ -356,12 +506,12 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
             P-value ordered
           </label>
         </PlotOptionCheckboxes>
-      </Section>
+      </ControlsSection>
 
       {/* Multi-phenotype Selection */}
       {phewasType !== 'topHit' && (
-        <Section>
-          <SectionTitle>Multi-phenotype selection</SectionTitle>
+        <ControlsSection>
+          <ControlsSectionTitle>Multi-phenotype selection</ControlsSectionTitle>
           <SelectionButtons>
             <Button onClick={onSelectTop}>Select top</Button>
             <Button disabled={analysesCount <= 1} onClick={onClearSelected}>
@@ -375,12 +525,12 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
             disabled={false}
             onChange={onToggleShowSelectOnly}
           />
-        </Section>
+        </ControlsSection>
       )}
 
       {/* Categories */}
-      <Section>
-        <SectionTitle>Categories</SectionTitle>
+      <ControlsSection>
+        <ControlsSectionTitle>Categories</ControlsSectionTitle>
         <CategoryList>
           <CategoryHeader>
             <span>{selectedCategories.size} of {categories.length} selected</span>
@@ -406,7 +556,7 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
             </CategoryItem>
           ))}
         </CategoryList>
-      </Section>
+      </ControlsSection>
     </ControlsContainer>
   )
 }

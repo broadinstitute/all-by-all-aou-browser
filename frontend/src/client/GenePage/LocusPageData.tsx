@@ -18,6 +18,8 @@ import {
   MafSignificanceMap,
   AnnotationCategory,
   MafAnnotationSignificance,
+  burdenTestSignificanceAtom,
+  BurdenTestSignificanceMap,
 } from '../sharedState'
 import { StatusMessage } from '../UserInterface'
 
@@ -383,6 +385,7 @@ export const LocusPageDataContainer = () => {
   // Track which gene we've already auto-selected MAF for
   const lastAutoSelectedGeneRef = useRef<string | null>(null)
   const setMafSignificance = useSetRecoilState(mafSignificanceAtom)
+  const setBurdenTestSignificance = useSetRecoilState(burdenTestSignificanceAtom)
   const setLocusMaf = useSetRecoilState(locusMafAtom)
 
   // Compute MAF significance and auto-select best MAF when gene associations load
@@ -417,6 +420,14 @@ export const LocusPageDataContainer = () => {
       0.0001: { ...defaultAnnotSig },
     }
 
+    // Track burden test type significance per annotation category
+    const defaultBurdenAnnotSig = { pLoF: 'none' as const, missense: 'none' as const, synonymous: 'none' as const }
+    const newBurdenSig: BurdenTestSignificanceMap = {
+      burden: { ...defaultBurdenAnnotSig },
+      skat: { ...defaultBurdenAnnotSig },
+      skato: { ...defaultBurdenAnnotSig },
+    }
+
     // Best pvalue and MAF for auto-selection
     let bestPvalue = Infinity
     let bestMaf: MafOption = 0.001
@@ -441,6 +452,17 @@ export const LocusPageDataContainer = () => {
           newSignificance[maf][category] = 'hit'
         }
 
+        // Check each test type individually per annotation category
+        if (isSignificant(r.pvalue_burden)) {
+          newBurdenSig.burden[category] = 'hit'
+        }
+        if (isSignificant(r.pvalue_skat)) {
+          newBurdenSig.skat[category] = 'hit'
+        }
+        if (isSignificant(r.pvalue)) {
+          newBurdenSig.skato[category] = 'hit'
+        }
+
         // Track best for auto-selection
         if (minPvalue < bestPvalue) {
           bestPvalue = minPvalue
@@ -450,6 +472,7 @@ export const LocusPageDataContainer = () => {
     })
 
     setMafSignificance(newSignificance)
+    setBurdenTestSignificance(newBurdenSig)
 
     // Auto-select the best MAF when gene changes (not on every re-render)
     const currentGeneKey = `${geneIdOrName}-${analysisId}-${ancestryGroup}`
@@ -457,7 +480,7 @@ export const LocusPageDataContainer = () => {
       lastAutoSelectedGeneRef.current = currentGeneKey
       setLocusMaf(bestMaf)
     }
-  }, [geneAssociationsForAncestry, geneIdOrName, analysisId, ancestryGroup, setMafSignificance, setLocusMaf])
+  }, [geneAssociationsForAncestry, geneIdOrName, analysisId, ancestryGroup, setMafSignificance, setBurdenTestSignificance, setLocusMaf])
 
   return (
     <LocusPageLayout

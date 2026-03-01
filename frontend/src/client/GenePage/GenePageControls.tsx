@@ -34,7 +34,7 @@ import {
 // @ts-ignore: FIXME
 import RangeSlider from '../PhenotypeList/RangeSlider'
 import { getVariantColumns } from '../VariantList/variantTableColumns'
-import { ColorMarker } from '../UserInterface'
+import { ColorMarker, ControlsHeader, ControlsHeaderTitle, ControlsCloseButton } from '../UserInterface'
 import {
   variantGreenThreshold,
   greenThresholdColor,
@@ -49,36 +49,8 @@ const TooltipHint = styled(TooltipHintBase)`
   background-image: none;
 `
 
-const ControlsHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid ${(props) => props.theme.border};
-  margin-bottom: 4px;
+const ControlsHeaderWrapper = styled(ControlsHeader)`
   grid-area: controls-header;
-`
-
-const HeaderTitle = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--theme-text, #333);
-`
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 18px;
-  color: var(--theme-text-muted, #666);
-  line-height: 1;
-  border-radius: 4px;
-
-  &:hover {
-    background: var(--theme-border, #e0e0e0);
-    color: var(--theme-text, #333);
-  }
 `
 
 const GenePageControlsGeneFocus = styled.div`
@@ -261,8 +233,8 @@ const MafOptionWrapper = styled.div`
 
 const MafSignificanceDots = styled.div`
   display: flex;
-  gap: 0px;
-  margin-bottom: 6px;
+  gap: 1px;
+  margin-bottom: 4px;
   height: 10px;
   align-items: center;
   justify-content: center;
@@ -273,6 +245,7 @@ const SignificanceDot = styled.span<{ $color: string }>`
   height: 7px;
   border-radius: 50%;
   background-color: ${(props) => props.$color};
+  border: 1px solid rgba(0, 0, 0, 0.3);
 `
 
 const EmptyDot = styled.span`
@@ -280,7 +253,7 @@ const EmptyDot = styled.span`
   height: 7px;
   border-radius: 50%;
   background-color: transparent;
-  border: 1px solid var(--theme-border, #ccc);
+  border: 1px solid rgba(0, 0, 0, 0.3);
 `
 
 const MafButton = styled.button<{ $active: boolean }>`
@@ -332,7 +305,7 @@ const MafSelector: React.FC = () => {
       <span>
         <strong>Max MAF</strong>
       </span>
-      <div style={{ display: 'flex', gap: 0, marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 0, marginTop: 4 }}>
         {mafOptions.map((opt) => {
           const sigForMaf = mafSignificance[opt.value]
           return (
@@ -776,12 +749,12 @@ export const GenePageControls = () => {
   const GenePageControlsItems: React.FC = () => {
     return (
       <>
-        <ControlsHeader>
-          <HeaderTitle>Controls</HeaderTitle>
-          <CloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+        <ControlsHeaderWrapper>
+          <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
+          <ControlsCloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
             &times;
-          </CloseButton>
-        </ControlsHeader>
+          </ControlsCloseButton>
+        </ControlsHeaderWrapper>
         <MafSelector />
         <InBurdenAnalysisControls />
         {/* <GwasCatalogOptions /> */}
@@ -803,12 +776,12 @@ export const GenePageControls = () => {
   const VariantPageControls: React.FC = () => {
     return (
       <>
-        <ControlsHeader>
-          <HeaderTitle>Controls</HeaderTitle>
-          <CloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+        <ControlsHeaderWrapper>
+          <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
+          <ControlsCloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
             &times;
-          </CloseButton>
-        </ControlsHeader>
+          </ControlsCloseButton>
+        </ControlsHeaderWrapper>
         <UnselectVariant />
         <InBurdenAnalysisControls />
         {/* <ShowCaseControlTracks /> */}
