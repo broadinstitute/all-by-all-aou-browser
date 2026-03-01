@@ -227,16 +227,42 @@ const Phewas = ({
     return row.analysis_id
   }, [phewasType])
 
-  // Initialize default labels (primary analysis + top 5) once data is loaded
+  // Compute selected analysis IDs (circled phenotypes)
+  const selectedAnalysisIds = React.useMemo(() => {
+    return analyses.length > 0 ? analyses : [analysisId]
+  }, [analyses, analysisId])
+
+  // Initialize default labels (selected analyses + top 5) once data is loaded
   React.useEffect(() => {
     if (!hasInitializedLabels && uniquePhenotypes && uniquePhenotypes.length > 0) {
       const initials = new Set<string>()
+      // Add selected/circled analyses
+      uniquePhenotypes.forEach((p: any) => {
+        if (selectedAnalysisIds.includes(p.analysis_id)) {
+          initials.add(getRowId(p))
+        }
+      })
+      // Add top 5 by p-value
       const topHits = [...uniquePhenotypes].sort((a: any, b: any) => a.pvalue - b.pvalue).slice(0, 5)
       topHits.forEach((t: any) => initials.add(getRowId(t)))
       setLabeledPhenoIds(initials)
       setHasInitializedLabels(true)
     }
-  }, [uniquePhenotypes, hasInitializedLabels, getRowId])
+  }, [uniquePhenotypes, hasInitializedLabels, getRowId, selectedAnalysisIds])
+
+  // Keep selected analyses always labeled when selection changes
+  React.useEffect(() => {
+    if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
+    setLabeledPhenoIds((prev) => {
+      const next = new Set(prev)
+      uniquePhenotypes.forEach((p: any) => {
+        if (selectedAnalysisIds.includes(p.analysis_id)) {
+          next.add(getRowId(p))
+        }
+      })
+      return next
+    })
+  }, [selectedAnalysisIds, uniquePhenotypes, getRowId])
 
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
