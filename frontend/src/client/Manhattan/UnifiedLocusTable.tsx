@@ -245,15 +245,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Legend */}
-          <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
-            Burden: <span style={{ color: '#d32f2f' }}>●</span>pLoF{' '}
-            <span style={{ color: '#f9a825' }}>●</span>Mis{' '}
-            <span style={{ color: '#388e3c' }}>●</span>Syn
-          </span>
-          <span style={{ fontSize: 10, color: '#262262', fontWeight: 500 }}>
-            (nLOF) (nMIS)
-          </span>
           {/* Always show Clear all button in custom mode */}
           {customLabelMode && (
             <button
