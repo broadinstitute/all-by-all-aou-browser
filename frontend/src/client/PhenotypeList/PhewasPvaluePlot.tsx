@@ -372,8 +372,12 @@ const PhewasPvaluePlot = ({
       let labelText = p.data.description || p.data.gene_symbol || ''
       if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
       if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
+      // Use composite ID for topHit mode to match individual gene-phenotype pairs
+      const id = (phewasType === 'topHit' && p.data.gene_id)
+        ? `${p.data.gene_id}:${p.data.analysis_id}`
+        : p.data.analysis_id
       return {
-        id: p.data.analysis_id,
+        id,
         targetX: p.x + pointPadding,
         targetY: p.y + margin.top,
         label: labelText,

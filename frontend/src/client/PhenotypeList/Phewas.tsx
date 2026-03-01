@@ -45,6 +45,7 @@ import {
 
 import { GeneAssociations } from '../types'
 import filterPhenotypes from './filterPhenotypes'
+import { ShowControlsButton } from '../UserInterface'
 
 const RootContainerGene = styled.div`
   display: flex;
@@ -148,29 +149,6 @@ const Warnings = styled.div`
   }
 `
 
-const ShowControlsButton = styled.button`
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 12px 6px;
-  background: var(--theme-surface-alt, #f5f5f5);
-  border: 1px solid var(--theme-border, #e0e0e0);
-  border-left: none;
-  border-radius: 0 4px 4px 0;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--theme-text, #333);
-  z-index: 10;
-
-  &:hover {
-    background: var(--theme-border, #e8e8e8);
-  }
-`
-
 interface Category {
   category: string
   color: string
@@ -241,17 +219,24 @@ const Phewas = ({
   const [betaLabelOverrides, setBetaLabelOverrides] = useState<Record<string, {x: number, y: number}>>({})
   const [hasInitializedLabels, setHasInitializedLabels] = useState(false)
 
+  // Generate unique row ID - for topHit mode, combine gene_id and analysis_id
+  const getRowId = React.useCallback((row: any) => {
+    if (phewasType === 'topHit' && row.gene_id) {
+      return `${row.gene_id}:${row.analysis_id}`
+    }
+    return row.analysis_id
+  }, [phewasType])
+
   // Initialize default labels (primary analysis + top 5) once data is loaded
   React.useEffect(() => {
     if (!hasInitializedLabels && uniquePhenotypes && uniquePhenotypes.length > 0) {
       const initials = new Set<string>()
-      if (analysisId) initials.add(analysisId)
       const topHits = [...uniquePhenotypes].sort((a: any, b: any) => a.pvalue - b.pvalue).slice(0, 5)
-      topHits.forEach((t: any) => initials.add(t.analysis_id))
+      topHits.forEach((t: any) => initials.add(getRowId(t)))
       setLabeledPhenoIds(initials)
       setHasInitializedLabels(true)
     }
-  }, [uniquePhenotypes, analysisId, hasInitializedLabels])
+  }, [uniquePhenotypes, hasInitializedLabels, getRowId])
 
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
@@ -347,8 +332,8 @@ const Phewas = ({
       render: (row: any) => (
         <input
           type="checkbox"
-          checked={labeledPhenoIds.has(row.analysis_id)}
-          onChange={() => toggleLabel(row.analysis_id)}
+          checked={labeledPhenoIds.has(getRowId(row))}
+          onChange={() => toggleLabel(getRowId(row))}
           onClick={(e) => e.stopPropagation()}
           style={{ cursor: 'pointer', margin: '0 auto', display: 'block' }}
         />
@@ -356,7 +341,7 @@ const Phewas = ({
     })
 
     return processed
-  }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup, labeledPhenoIds, toggleLabel])
+  }, [originalColumns, showFilteredAnalyses, pValueType, ancestryGroup, labeledPhenoIds, toggleLabel, getRowId])
 
   const phenotypesWithPreparedText = preparePhenotypesText(phenotypesWithColor)
 

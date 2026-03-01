@@ -9,6 +9,29 @@ import { Page, Link as BaseLink, Modal, TextButton, ExternalLink as BaseExternal
 import { useEffect } from 'react'
 import { greenThresholdColor, yellowThresholdColor } from './PhenotypeList/Utils'
 
+export const ShowControlsButton = styled.button<{ $right?: boolean }>`
+  position: absolute;
+  ${(props) => props.$right ? 'right: 0;' : 'left: 0;'}
+  top: 50%;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 12px 6px;
+  background: var(--theme-surface-alt, #f5f5f5);
+  border: 1px solid var(--theme-border, #e0e0e0);
+  ${(props) => props.$right ? 'border-right: none;' : 'border-left: none;'}
+  border-radius: ${(props) => props.$right ? '4px 0 0 4px' : '0 4px 4px 0'};
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--theme-text, #333);
+  z-index: 10;
+
+  &:hover {
+    background: var(--theme-border, #e8e8e8);
+  }
+`
+
 export const SplitPageContainer = styled.div`
   display: flex;
   flex-direction: row;
