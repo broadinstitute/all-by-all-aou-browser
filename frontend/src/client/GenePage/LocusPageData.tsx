@@ -1,6 +1,6 @@
 import { Button } from '@gnomad/ui'
-import { useMemo, useState, useEffect } from 'react'
-import { useRecoilState, useRecoilValue } from 'recoil'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
@@ -11,6 +11,13 @@ import {
   regionIdAtom,
   selectedAnalyses,
   variantIdAtom,
+  locusMafAtom,
+  MafOption,
+  mafSignificanceAtom,
+  MafSignificance,
+  MafSignificanceMap,
+  AnnotationCategory,
+  MafAnnotationSignificance,
 } from '../sharedState'
 import { StatusMessage } from '../UserInterface'
 
@@ -372,6 +379,85 @@ export const LocusPageDataContainer = () => {
     geneAssociationsForAncestry =
       geneAssociations?.filter((association) => association.ancestry_group === ancestryGroup) || []
   }
+
+  // Track which gene we've already auto-selected MAF for
+  const lastAutoSelectedGeneRef = useRef<string | null>(null)
+  const setMafSignificance = useSetRecoilState(mafSignificanceAtom)
+  const setLocusMaf = useSetRecoilState(locusMafAtom)
+
+  // Compute MAF significance and auto-select best MAF when gene associations load
+  useEffect(() => {
+    if (!geneAssociationsForAncestry || geneAssociationsForAncestry.length === 0) {
+      return
+    }
+
+    // Map annotation strings to our categories
+    // pLoF;missenseLC goes under missense (orange) since it's the combined set
+    const mapAnnotation = (annotation: string): AnnotationCategory | null => {
+      if (annotation === 'pLoF') return 'pLoF'
+      if (annotation === 'pLoF;missenseLC' || annotation === 'missenseLC' || annotation === 'missense') return 'missense'
+      if (annotation === 'synonymous') return 'synonymous'
+      return null
+    }
+
+    // Threshold for significance (p < 1e-4)
+    const significanceThreshold = 1e-4
+
+    // Check if p-value is significant
+    const isSignificant = (pvalue: number | null | undefined): boolean => {
+      return pvalue !== null && pvalue !== undefined && pvalue > 0 && pvalue < significanceThreshold
+    }
+
+    // Compute significance for each MAF and annotation
+    const mafOptions: MafOption[] = [0.01, 0.001, 0.0001]
+    const defaultAnnotSig: MafAnnotationSignificance = { pLoF: 'none', missense: 'none', synonymous: 'none' }
+    const newSignificance: MafSignificanceMap = {
+      0.01: { ...defaultAnnotSig },
+      0.001: { ...defaultAnnotSig },
+      0.0001: { ...defaultAnnotSig },
+    }
+
+    // Best pvalue and MAF for auto-selection
+    let bestPvalue = Infinity
+    let bestMaf: MafOption = 0.001
+
+    mafOptions.forEach((maf) => {
+      const resultsForMaf = geneAssociationsForAncestry.filter((g) => g.max_maf === maf)
+
+      resultsForMaf.forEach((r) => {
+        const category = mapAnnotation(r.annotation)
+        if (!category) return
+
+        // Check if any p-value is significant
+        const pvalues = [r.pvalue, r.pvalue_burden, r.pvalue_skat]
+        const hasSignificantHit = pvalues.some(isSignificant)
+        const minPvalue = Math.min(
+          ...pvalues.filter((p): p is number => p !== null && p !== undefined && p > 0),
+          Infinity
+        )
+
+        // Mark as hit if significant
+        if (hasSignificantHit) {
+          newSignificance[maf][category] = 'hit'
+        }
+
+        // Track best for auto-selection
+        if (minPvalue < bestPvalue) {
+          bestPvalue = minPvalue
+          bestMaf = maf
+        }
+      })
+    })
+
+    setMafSignificance(newSignificance)
+
+    // Auto-select the best MAF when gene changes (not on every re-render)
+    const currentGeneKey = `${geneIdOrName}-${analysisId}-${ancestryGroup}`
+    if (lastAutoSelectedGeneRef.current !== currentGeneKey && bestPvalue < Infinity) {
+      lastAutoSelectedGeneRef.current = currentGeneKey
+      setLocusMaf(bestMaf)
+    }
+  }, [geneAssociationsForAncestry, geneIdOrName, analysisId, ancestryGroup, setMafSignificance, setLocusMaf])
 
   return (
     <LocusPageLayout

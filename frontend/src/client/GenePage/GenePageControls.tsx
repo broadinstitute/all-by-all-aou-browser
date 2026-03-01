@@ -43,10 +43,42 @@ import {
   yellowThresholdColor,
 } from '../PhenotypeList/Utils'
 import { getAlleleFrequencyScale, consequenceCategoryColors } from './LocusPagePlots'
-import { ancestryGroupAtom, regionIdAtom, variantIdAtom, locusMafAtom, MafOption } from '../sharedState'
+import { ancestryGroupAtom, regionIdAtom, variantIdAtom, locusMafAtom, MafOption, hideGeneOptsAtom, mafSignificanceAtom, AnnotationCategory } from '../sharedState'
 
 const TooltipHint = styled(TooltipHintBase)`
   background-image: none;
+`
+
+const ControlsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid ${(props) => props.theme.border};
+  margin-bottom: 4px;
+  grid-area: controls-header;
+`
+
+const HeaderTitle = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text, #333);
+`
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 18px;
+  color: var(--theme-text-muted, #666);
+  line-height: 1;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--theme-border, #e0e0e0);
+    color: var(--theme-text, #333);
+  }
 `
 
 const GenePageControlsGeneFocus = styled.div`
@@ -64,6 +96,7 @@ const GenePageControlsGeneFocus = styled.div`
   grid-auto-rows: min-content;
   grid-template-columns: 1fr;
   grid-template-areas:
+    'controls-header'
     'search'
     'maf-selector'
     'burden-set'
@@ -208,6 +241,7 @@ const GenePageControlsGeneFocus = styled.div`
 
 const GenePageControlStylesVariantFocus = styled(GenePageControlsGeneFocus)`
   grid-template-areas:
+    'controls-header'
     'unselect-variant'
     'burden-set'
     'show-case-control-tracks'
@@ -219,23 +253,111 @@ const GenePageControlStylesVariantFocus = styled(GenePageControlsGeneFocus)`
     'app-data-stats';
 `
 
+const MafOptionWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
+
+const MafSignificanceDots = styled.div`
+  display: flex;
+  gap: 0px;
+  margin-bottom: 6px;
+  height: 10px;
+  align-items: center;
+  justify-content: center;
+`
+
+const SignificanceDot = styled.span<{ $color: string }>`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: ${(props) => props.$color};
+`
+
+const EmptyDot = styled.span`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid var(--theme-border, #ccc);
+`
+
+const MafButton = styled.button<{ $active: boolean }>`
+  padding: 6px 12px;
+  border: none;
+  background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-right: 1px solid var(--theme-border, #ccc);
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &:hover {
+    background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #e0e0e0)')};
+  }
+`
+
+// Category colors matching the variant coloring
+const annotationColors: Record<AnnotationCategory, string> = {
+  pLoF: consequenceCategoryColors.pLoF,
+  missense: consequenceCategoryColors.missense,
+  synonymous: consequenceCategoryColors.synonymous,
+}
+
+const annotationLabels: Record<AnnotationCategory, string> = {
+  pLoF: 'pLoF',
+  missense: 'Missense',
+  synonymous: 'Synonymous',
+}
+
 const MafSelector: React.FC = () => {
   const [locusMaf, setLocusMaf] = useRecoilState(locusMafAtom)
+  const mafSignificance = useRecoilValue(mafSignificanceAtom)
+
+  const mafOptions: { value: MafOption; label: string }[] = [
+    { value: 0.01, label: '1%' },
+    { value: 0.001, label: '0.1%' },
+    { value: 0.0001, label: '0.01%' },
+  ]
+
+  const annotationOrder: AnnotationCategory[] = ['pLoF', 'missense', 'synonymous']
+
   return (
     <div className='maf-selector'>
       <span>
         <strong>Max MAF</strong>
       </span>
-      <SegmentedControl
-        id='locus-maf-selector'
-        options={[
-          { value: 0.01, label: '1%' },
-          { value: 0.001, label: '0.1%' },
-          { value: 0.0001, label: '0.01%' },
-        ]}
-        value={locusMaf}
-        onChange={(value: MafOption) => setLocusMaf(value)}
-      />
+      <div style={{ display: 'flex', gap: 0, marginTop: 8 }}>
+        {mafOptions.map((opt) => {
+          const sigForMaf = mafSignificance[opt.value]
+          return (
+            <MafOptionWrapper key={opt.value}>
+              <MafSignificanceDots>
+                {annotationOrder.map((annot) => {
+                  const hasHit = sigForMaf[annot] !== 'none'
+                  const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
+                  return hasHit ? (
+                    <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
+                  ) : (
+                    <EmptyDot key={annot} title={tooltip} />
+                  )
+                })}
+              </MafSignificanceDots>
+              <MafButton
+                $active={locusMaf === opt.value}
+                onClick={() => setLocusMaf(opt.value)}
+              >
+                {opt.label}
+              </MafButton>
+            </MafOptionWrapper>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -647,12 +769,19 @@ const UnselectVariant: React.FC = () => {
 
 export const GenePageControls = () => {
   const variantId = useRecoilValue(variantIdAtom)
+  const setHideGeneOpts = useSetRecoilState(hideGeneOptsAtom)
 
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
 
   const GenePageControlsItems: React.FC = () => {
     return (
       <>
+        <ControlsHeader>
+          <HeaderTitle>Controls</HeaderTitle>
+          <CloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+            &times;
+          </CloseButton>
+        </ControlsHeader>
         <MafSelector />
         <InBurdenAnalysisControls />
         {/* <GwasCatalogOptions /> */}
@@ -674,6 +803,12 @@ export const GenePageControls = () => {
   const VariantPageControls: React.FC = () => {
     return (
       <>
+        <ControlsHeader>
+          <HeaderTitle>Controls</HeaderTitle>
+          <CloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+            &times;
+          </CloseButton>
+        </ControlsHeader>
         <UnselectVariant />
         <InBurdenAnalysisControls />
         {/* <ShowCaseControlTracks /> */}

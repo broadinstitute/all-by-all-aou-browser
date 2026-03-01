@@ -25,87 +25,6 @@ const Table = styled(BaseTable)`
   }
 `
 
-const createRenderCell = (tableData: GeneAssociations[]) => (category: any, key: any) => {
-  const tableDataRecord = tableData[category] as Record<string, any>
-  if (tableDataRecord) {
-    if (
-      key.includes('synonymous_lambda_gc_skato') ||
-      key.includes('synonymous_lambda_gc_skat') ||
-      key.includes('synonymous_lambda_gc_burden')
-    ) {
-      const burdenSet = key.split('_')[3]
-      const passed = tableDataRecord[`keep_gene_${burdenSet}`]
-      const num = tableDataRecord[key]
-
-      const tooltip = passed
-        ? `The ${burdenSet.toUpperCase()} synonymous lambda GC for this gene is within the range of 0.75-1.5`
-        : `Caution is warranted for this gene as the ${burdenSet.toUpperCase()} synonymous lambda GC is outside 0.75-1.5`
-
-      const emoji = allGeneQcPass || passed ? '✅' : '❌'
-
-      return (
-        <TooltipAnchor tooltip={tooltip}>
-          <span className='tooltip'>
-            {emoji} <RoundedNumber num={num} />
-          </span>
-        </TooltipAnchor>
-      )
-    }
-    if (key.includes('pvalue') && tableDataRecord[key]) {
-      const num = tableDataRecord[key]
-      let highlightColor = num < geneYellowThreshold ? yellowThresholdColor : null
-      highlightColor = num < geneGreenThreshold ? greenThresholdColor : highlightColor
-      return <RoundedNumber num={num} highlightColor={highlightColor} />
-    }
-
-    if (tableDataRecord[key]) {
-      const num = tableDataRecord[key]
-      return <RoundedNumber num={num} />
-    }
-
-    return '-'
-  }
-  return '-'
-}
-
-const allGeneLambdaGcPass = true // TODO: fix me
-
-const renderPhenotypeLambda = (data: any, key: any) => {
-  if (
-    key.includes('lambda_gc_skato') ||
-    key.includes('lambda_gc_skat') ||
-    key.includes('lambda_gc_burden')
-  ) {
-    const burdenSet = key.split('_')[2]
-    const passed = data[`keep_pheno_${burdenSet}`]
-    const num = data[key]
-
-    const tooltip = passed
-      ? `The ${burdenSet.toUpperCase()} synonymous lambda GC for this phenotype is at least 0.75`
-      : `Caution is warranted for this phenotype as the ${burdenSet.toUpperCase()} synonymous lambda GC is below 0.75`
-
-    const emoji = allGeneLambdaGcPass || passed ? '✅' : '❌'
-
-    return (
-      <TooltipAnchor tooltip={tooltip}>
-        <span className='tooltip'>
-          {emoji} <RoundedNumber num={num} />
-        </span>
-      </TooltipAnchor>
-    )
-  }
-  return '-'
-}
-
-export const prepareTableData = (geneAssociations: GeneAssociations[]) => {
-  return geneAssociations.reduce((acc, entry) => {
-    return {
-      [`${entry.annotation}`]: entry,
-      ...acc,
-    }
-  }, {})
-}
-
 // Sort order for annotations
 const annotationOrder: Record<string, number> = {
   'pLoF': 1,
@@ -215,14 +134,6 @@ export const GeneBurdenTable = ({
     })
   }, [geneAssociations, selectedMaf])
 
-  // Also keep the old tableData for lambda GC rows
-  const tableData: any = prepareTableData(
-    geneAssociations.map((g: GeneAssociations) => ({
-      ...g,
-    }))
-  );
-  const renderCell = createRenderCell(tableData);
-
   // Render a p-value cell with highlighting
   const renderPvalueCell = (value: number | null | undefined) => {
     if (value === null || value === undefined) return '-'
@@ -272,38 +183,6 @@ export const GeneBurdenTable = ({
               </td>
             </tr>
           )}
-          <tr style={{ borderTop: '1px double var(--theme-border, black)' }}>
-            <th className='tooltip'>
-              <TooltipAnchor
-                tooltip={
-                  'The lambda GC (genomic control) across all phenotypes for synonymous variants in this gene.'
-                }
-              >
-                <span>Gene Lambda GC</span>
-              </TooltipAnchor>
-            </th>
-            <td>{renderCell('synonymous', 'synonymous_lambda_gc_skato')}</td>
-            <td>{renderCell('synonymous', 'synonymous_lambda_gc_burden')}</td>
-            <td>{renderCell('synonymous', 'synonymous_lambda_gc_skat')}</td>
-          </tr>
-          <tr>
-            <th className='tooltip'>
-              <TooltipAnchor
-                tooltip={
-                  'The lambda GC (genomic control) for this phenotype across all variants in this gene.'
-                }
-              >
-                <span style={{ whiteSpace: 'nowrap' }}>Pheno Lambda GC</span>
-              </TooltipAnchor>
-            </th>
-            {analysisMetadata && (
-              <>
-                <td>{renderPhenotypeLambda(analysisMetadata, 'lambda_gc_skato')}</td>
-                <td>{renderPhenotypeLambda(analysisMetadata, 'lambda_gc_burden')}</td>
-                <td>{renderPhenotypeLambda(analysisMetadata, 'lambda_gc_skat')}</td>
-              </>
-            )}
-          </tr>
         </tbody>
       </Table>
     </div>

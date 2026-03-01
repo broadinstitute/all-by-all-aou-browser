@@ -3,11 +3,12 @@ import styled from 'styled-components'
 
 import { Link } from '@gnomad/ui'
 import { useQuery } from '@axaou/ui'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useRecoilState, useSetRecoilState, useResetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {
   resultIndexAtom,
   resultLayoutAtom,
+  resizableWidthAtom,
   themeModeAtom,
   useGetActiveItems
 } from './sharedState'
@@ -92,6 +93,7 @@ export const StatusBar: React.FC = () => {
 
   const setResultIndex = useSetRecoilState(resultIndexAtom)
   const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
+  const resetResizableWidth = useResetRecoilState(resizableWidthAtom)
 
   const { queryStates } = useQuery<Data>({
     dbName: pouchDbName,
@@ -180,7 +182,10 @@ export const StatusBar: React.FC = () => {
       <div className="status-bar-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, marginRight: 20 }}>
         <LayoutToggle
           value={resultsLayout as LayoutMode}
-          onChange={(mode) => setResultsLayout(mode)}
+          onChange={(mode) => {
+            setResultsLayout(mode)
+            resetResizableWidth()
+          }}
           rightLabel={rightLabel}
         />
         <ThemeToggleWrapper />

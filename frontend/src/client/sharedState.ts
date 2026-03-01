@@ -106,6 +106,31 @@ export const locusMafAtom = atom<MafOption>({
     }),
   ],
 })
+
+// Significance: 'hit' (p < 1e-4) or 'none'
+export type MafSignificance = 'hit' | 'none'
+
+// Annotation categories we track
+export type AnnotationCategory = 'pLoF' | 'missense' | 'synonymous'
+
+// For each MAF, track whether each annotation category has a hit
+export type MafAnnotationSignificance = Record<AnnotationCategory, MafSignificance>
+export type MafSignificanceMap = Record<MafOption, MafAnnotationSignificance>
+
+const defaultMafAnnotationSig: MafAnnotationSignificance = {
+  pLoF: 'none',
+  missense: 'none',
+  synonymous: 'none',
+}
+
+export const mafSignificanceAtom = atom<MafSignificanceMap>({
+  key: 'mafSignificance',
+  default: {
+    0.01: { ...defaultMafAnnotationSig },
+    0.001: { ...defaultMafAnnotationSig },
+    0.0001: { ...defaultMafAnnotationSig },
+  },
+})
 export const phewasOptsAtom = atom<boolean>({
   key: 'phewasOpts',
   default: true,
@@ -335,6 +360,14 @@ export const firstItemWidthSelector = selectorFamily<
         const resultLayout = get(resultLayoutAtom)
         const resizableWidth = get(resizableWidthAtom)
 
+        if (resultLayout === 'full') {
+          return containerWidth / 1.05
+        }
+
+        if (resultLayout === 'hidden') {
+          return 5
+        }
+
         if (resizableWidth) {
           return resizableWidth
         }
@@ -347,20 +380,12 @@ export const firstItemWidthSelector = selectorFamily<
           return containerWidth / 1.5
         }
 
-        if (resultLayout === 'full') {
-          return containerWidth / 1.05
-        }
-
         if (resultLayout === 'small') {
           return containerWidth / 2.4
         }
 
         if (resultLayout === 'smallest') {
           return containerWidth / 3.5
-        }
-
-        if (resultLayout === 'hidden') {
-          return 5
         }
 
         // half by default
