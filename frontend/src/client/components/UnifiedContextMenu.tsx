@@ -48,6 +48,11 @@ const MatrixTable = styled.table`
     text-align: left;
     padding: 6px 16px;
     font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--theme-surface-alt, #f0f0f0);
+    }
   }
 `;
 
@@ -182,7 +187,9 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
                 <tbody>
                   {navTargets.map((t, idx) => (
                     <tr key={idx}>
-                      <td>{t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}{t.label}</td>
+                      <td onClick={() => onNavigate('split', t.resultIndex)}>
+                        {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}{t.label}
+                      </td>
                       <td><ActionBtn onClick={() => onNavigate('split', t.resultIndex)}>◐</ActionBtn></td>
                       <td><ActionBtn onClick={() => onNavigate('full', t.resultIndex)}>●</ActionBtn></td>
                       <td><ActionBtn onClick={() => onNavigate('newTab', t.resultIndex)}>↗</ActionBtn></td>
