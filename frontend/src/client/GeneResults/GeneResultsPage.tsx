@@ -8,7 +8,7 @@ import styled from 'styled-components'
 import AnalysisControls from '../AnalysisControls'
 import { tableDisplayThreshold } from '../PhenotypeList/Utils'
 import { pouchDbName, axaouDevUrl, cacheEnabled } from '../Query'
-import { analysisIdAtom, ancestryGroupAtom, burdenSetAtom, geneIdAtom, selectedContigAtom, windowSizeAtom } from '../sharedState'
+import { analysisIdAtom, ancestryGroupAtom, burdenSetAtom, geneIdAtom, regionIdAtom, selectedContigAtom, windowSizeAtom } from '../sharedState'
 import { HalfPage, Spinner, StatusMessage } from '../UserInterface'
 import getColumns from './geneResultColumns'
 import GeneResultsManhattanPlot from './GeneResultsManhattanPlot'
@@ -81,6 +81,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
 
   const analysisId = useRecoilValue(analysisIdAtom)
   const setGeneId = useSetRecoilState(geneIdAtom)
+  const setRegionId = useSetRecoilState(regionIdAtom)
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom)
   const [searchText, setSearchText] = useState('')
   const contig = useRecoilValue(selectedContigAtom)
@@ -142,6 +143,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
   // .filter((gene) => geneInTestConfig(gene, queryStates.config.data))
 
   const onGeneClick = (d: any) => {
+    setRegionId(null)  // Clear region to navigate to gene page
     setGeneId(d.gene_id)
   }
 

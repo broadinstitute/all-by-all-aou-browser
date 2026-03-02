@@ -211,10 +211,12 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
 
   const handleHitClick = (hit: SignificantHit) => {
     if (hit.hit_type === 'gene' && hit.id) {
+      setRegionId(null);  // Clear region when navigating to gene
       setGeneId(hit.id);
       setResultLayout('half');
     } else if (hit.hit_type === 'variant' && hit.contig && hit.position) {
       const windowSize = 500000; // ±500kb
+      setGeneId(null);  // Clear gene when navigating to region
       setRegionId(`${hit.contig}-${Math.max(0, hit.position - windowSize)}-${hit.position + windowSize}`);
       setVariantId(hit.id);
       setResultLayout('half');
@@ -224,6 +226,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   const handlePeakClick = (node: any) => {
     if (node.peak) {
       const windowSize = 500000; // ±500kb
+      setGeneId(null);  // Clear gene when navigating to region
       setRegionId(`${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`);
       setResultLayout('half');
     }
@@ -231,6 +234,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
 
   const handleOverviewLocusClick = (contig: string, position: number) => {
     const windowSize = 500000; // ±500kb
+    setGeneId(null);  // Clear gene when navigating to region
     setRegionId(`${contig}-${Math.max(0, position - windowSize)}-${position + windowSize}`);
     setResultLayout('half');
   };

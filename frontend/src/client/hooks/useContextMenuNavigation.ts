@@ -51,12 +51,14 @@ export function useContextMenuNavigation() {
     if (!focusRegionMode) {
       if (entityType === 'gene') {
         stateUpdates.geneId = id;
-        // When focusing on gene page (FOCUS_LOCUS), clear regionId to show gene-centric view
-        if (focusLocusMode) {
-          stateUpdates.regionId = null;
-        }
+        // Always clear regionId when navigating to a gene to avoid staying on region page
+        stateUpdates.regionId = null;
       }
-      if (entityType === 'locus') stateUpdates.regionId = id;
+      if (entityType === 'locus') {
+        stateUpdates.regionId = id;
+        // Clear geneId when navigating to a locus to show region-centric view
+        stateUpdates.geneId = null;
+      }
       if (entityType === 'phenotype') stateUpdates.analysisId = id;
       if (entityType === 'variant') stateUpdates.variantId = id;
     }

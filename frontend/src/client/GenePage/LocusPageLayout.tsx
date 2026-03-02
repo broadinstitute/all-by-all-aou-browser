@@ -476,6 +476,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   ]
 
   const handleGeneClick = (geneId: string) => {
+    setRegionId(null)  // Clear region to navigate to gene page
     setGeneId(geneId)
     setResultLayout('half')
   }
