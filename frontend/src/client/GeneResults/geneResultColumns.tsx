@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import { analysesIdFromArray } from '../PhenotypeList/phenotypeUtils'
 
 import { Link } from '@gnomad/ui'
@@ -17,6 +18,56 @@ import { useSetRecoilState } from 'recoil'
 import { geneIdAtom, regionIdAtom, resultIndexAtom, resultLayoutAtom } from '../sharedState'
 import { ColorMarker, RightArrow } from '../UserInterface'
 import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
+import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
+
+// A wrapper to hold state for gene link context menus
+const GeneLinkRenderer = ({ row }: any) => {
+  const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
+  const navigate = useContextMenuNavigation();
+  const setResultIndex = useSetRecoilState(resultIndexAtom);
+  const setGeneId = useSetRecoilState(geneIdAtom);
+  const setRegionId = useSetRecoilState(regionIdAtom);
+
+  return (
+    <>
+      <Link
+        onClick={() => {
+          setGeneId(row.gene_id)
+          setResultIndex('gene-phewas')
+          setRegionId(null)
+        }}
+        onContextMenu={(e: any) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+      >
+        {row.gene_symbol || row.gene_id}
+      </Link>
+      {menu && (
+        <UnifiedContextMenu
+          x={menu.x}
+          y={menu.y}
+          title={`GENE: ${row.gene_symbol || row.gene_id}`}
+          targets={[
+            { label: 'Gene PheWAS', resultIndex: 'gene-phewas' },
+            { label: 'Gene Manhattan', resultIndex: 'gene-manhattan' }
+          ]}
+          onNavigate={(mode, target) => {
+            navigate('gene', row.gene_id, mode, target);
+            setMenu(null);
+          }}
+          onCopy={() => {
+            navigator.clipboard.writeText(row.gene_symbol || row.gene_id);
+            setMenu(null);
+          }}
+          copyLabel="Copy Gene Symbol"
+          onClose={() => setMenu(null)}
+        />
+      )}
+    </>
+  );
+};
 
 const baseColumns = ({ burdenSet }: any) => [
   {
@@ -27,21 +78,7 @@ const baseColumns = ({ burdenSet }: any) => [
     minWidth: 80,
     grow: 0,
     render: (row: any) => {
-      const setResultIndex = useSetRecoilState(resultIndexAtom)
-      const setGeneId = useSetRecoilState(geneIdAtom)
-      const setRegionId = useSetRecoilState(regionIdAtom)
-
-      return (
-        <Link
-          onClick={() => {
-            setGeneId(row.gene_id)
-            setResultIndex('gene-phewas')
-            setRegionId(null)
-          }}
-        >
-          {row.gene_symbol || row.gene_id}
-        </Link>
-      )
+      return <GeneLinkRenderer row={row} />;
     },
   },
   {

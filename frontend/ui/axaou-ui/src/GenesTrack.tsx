@@ -60,6 +60,7 @@ const layoutRows = (genes: GeneModel[] | [], scalePosition: ScalePosition) => {
 type GeneTrackProps = {
   genes: GeneModel[] | [];
   onGeneClick: (gene: GeneModel) => void;
+  onGeneContextMenu?: (gene: GeneModel, e: React.MouseEvent) => void;
   scalePosition?: ScalePosition;
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -71,6 +72,7 @@ type GeneTrackProps = {
 export const GenesTrack = ({
   genes,
   onGeneClick,
+  onGeneContextMenu,
   scalePosition,
   leftPanelWidth,
   rightPanelWidth,
@@ -128,6 +130,12 @@ export const GenesTrack = ({
                     x={(geneStop + geneStart) / 2 - 5}
                     y={textYPosition + 3}
                     onClick={() => onGeneClick(gene)}
+                    onContextMenu={(e) => {
+                      if (onGeneContextMenu) {
+                        e.preventDefault();
+                        onGeneContextMenu(gene, e);
+                      }
+                    }}
                   >
                     {gene.symbol}
                   </GeneName>

@@ -1,6 +1,8 @@
 import React, { useEffect, useCallback } from 'react';
 import { useSetRecoilState } from 'recoil';
 import { geneIdAtom, regionIdAtom, resultIndexAtom, resultLayoutAtom } from '../../sharedState';
+import { UnifiedContextMenu } from '../../components/UnifiedContextMenu';
+import { useContextMenuNavigation, FOCUS_LOCUS, FOCUS_REGION } from '../../hooks/useContextMenuNavigation';
 
 /** Gene info for context menu */
 export interface ContextMenuGene {
@@ -10,6 +12,10 @@ export interface ContextMenuGene {
   burdenTypes?: string[];
   /** Optional: has coding variants */
   hasCoding?: boolean;
+  /** Optional: genomic position for creating locus region */
+  contig?: string;
+  start?: number;
+  stop?: number;
 }
 
 export interface LocusGeneContextMenuProps {
@@ -30,6 +36,8 @@ export interface LocusGeneContextMenuProps {
   onClose: () => void;
   /** Optional callback when navigating to locus in same tab */
   onLocusClick?: (contig: string, position: number) => void;
+  /** Optional current phenotype description for contextual Manhattan view */
+  currentPhenotypeDescription?: string;
 }
 
 /**
@@ -45,11 +53,13 @@ export const LocusGeneContextMenu: React.FC<LocusGeneContextMenuProps> = ({
   genes,
   onClose,
   onLocusClick,
+  currentPhenotypeDescription,
 }) => {
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setRegionId = useSetRecoilState(regionIdAtom);
   const setResultIndex = useSetRecoilState(resultIndexAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const navigate = useContextMenuNavigation();
 
   // Combine single gene with genes array, deduplicated
   const allGenes: ContextMenuGene[] = [];
@@ -59,7 +69,88 @@ export const LocusGeneContextMenu: React.FC<LocusGeneContextMenuProps> = ({
     allGenes.push(gene);
   }
 
-  // Close on click outside
+  // Use the new Unified Menu if it's a single gene
+  if (allGenes.length === 1 && !locus) {
+    const g = allGenes[0];
+
+    const title = (
+      <>
+        GENE: {g.geneSymbol}
+        {g.burdenTypes?.includes('pLoF') && <span style={{ color: '#d32f2f', marginLeft: 4 }}>●</span>}
+        {g.burdenTypes?.includes('missenseLC') && <span style={{ color: '#f9a825', marginLeft: 4 }}>●</span>}
+        {g.hasCoding && <span style={{ fontSize: 10, marginLeft: 4 }}>(C)</span>}
+      </>
+    );
+
+    // Build gene locus regionId if we have position data
+    const geneLocusId = g.contig && g.start && g.stop
+      ? `${g.contig}-${Math.max(0, g.start - 500000)}-${g.stop + 500000}`
+      : null;
+
+    // Organize into sections: gene-specific views vs. context-dependent views
+    const geneTargets = [
+      { label: 'Gene PheWAS', resultIndex: 'gene-phewas' },
+      { label: 'Gene Page', resultIndex: FOCUS_LOCUS },
+      { label: 'Gene Region', resultIndex: FOCUS_REGION }
+    ];
+
+    // Add Gene Locus option if we have position data
+    if (geneLocusId) {
+      geneTargets.push({ label: 'Gene Locus', resultIndex: 'locus-phewas' as any });
+    }
+
+    // Add Copy Gene Symbol as a utility action
+    geneTargets.push({
+      label: 'Copy Gene Symbol',
+      icon: '📋',
+      onClick: () => {
+        navigator.clipboard.writeText(g.geneSymbol);
+        onClose();
+      }
+    } as any);
+
+    const sections = [
+      {
+        targets: geneTargets
+      }
+    ];
+
+    // If there's a current phenotype, add a separate section for phenotype-specific views
+    if (currentPhenotypeDescription) {
+      sections.push({
+        label: `Current Phenotype: ${currentPhenotypeDescription}`,
+        targets: [
+          { label: 'Phenotype Results', resultIndex: 'pheno-info' }
+        ]
+      });
+    }
+
+    return (
+      <UnifiedContextMenu
+        x={x}
+        y={y}
+        title={title}
+        sections={sections}
+        onNavigate={(mode, target) => {
+          // For Gene Locus, navigate to the locus region instead of the gene
+          if (target === 'locus-phewas' && geneLocusId) {
+            navigate('locus', geneLocusId, mode, target, false);
+          } else if (target === FOCUS_REGION) {
+            // For Gene Region, don't change any entity - just adjust layout
+            navigate('gene', '', mode, target, false);
+          } else {
+            // Preserve analysisId when navigating to pheno-info
+            const preserveAnalysis = target === 'pheno-info';
+            navigate('gene', g.geneId, mode, target, preserveAnalysis);
+          }
+          onClose();
+        }}
+        onClose={onClose}
+      />
+    );
+  }
+
+  // Close on click outside (fallback for multi-gene locus view below)
   useEffect(() => {
     const handleClick = () => onClose();
     const handleKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();

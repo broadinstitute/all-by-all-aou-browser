@@ -4,8 +4,9 @@ import styled from 'styled-components'
 import { GenesTrack, RegionViewerContext } from '@axaou/ui'
 
 import { GeneAssociations, GeneModels } from '../types'
-import { useSetRecoilState } from 'recoil'
-import { geneIdAtom, regionIdAtom, resultIndexAtom } from '../sharedState'
+import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { analysisIdAtom, geneIdAtom, regionIdAtom, resultIndexAtom } from '../sharedState'
+import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
 
 const Container = styled.div``
 
@@ -19,6 +20,7 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
   const setGeneId = useSetRecoilState(geneIdAtom)
   const setRegionId = useSetRecoilState(regionIdAtom)
   const setResultsIndex = useSetRecoilState(resultIndexAtom)
+  const currentAnalysisId = useRecoilValue(analysisIdAtom)
 
   const { scalePosition, centerPanelWidth, leftPanelWidth, rightPanelWidth, isPositionDefined } =
     useContext(RegionViewerContext)
@@ -33,6 +35,8 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
     setRegionId(null)
     setResultsIndex("gene-phewas")
   }
+
+  const [contextMenu, setContextMenu] = React.useState<{x: number, y: number, gene: any} | null>(null);
 
   // Build gene burden map to highlight significant burden associations
   const SIG_THRESHOLD = 2.5e-6
@@ -69,8 +73,26 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
         genes={geneModels}
         title={'Genes'}
         onGeneClick={onClickGene}
+        onGeneContextMenu={(gene, e) => {
+          setContextMenu({ x: e.clientX, y: e.clientY, gene });
+        }}
         geneBurdenMap={geneBurdenMap}
       />
+      {contextMenu && (
+        <LocusGeneContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          gene={{
+            geneId: contextMenu.gene.gene_id,
+            geneSymbol: contextMenu.gene.symbol,
+            contig: contextMenu.gene.contig,
+            start: contextMenu.gene.start,
+            stop: contextMenu.gene.stop
+          }}
+          currentPhenotypeDescription={currentAnalysisId || undefined}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </Container>
   )
 }

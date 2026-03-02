@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import styled from 'styled-components'
 // @ts-expect-error ts-migrate(7016) FIXME: Could not find a declaration file for module 'reac... Remove this comment to see the full error message
 import Highlighter from 'react-highlight-words'
@@ -23,6 +23,8 @@ import {
   resultLayoutAtom,
 } from '../sharedState'
 import { useRecoilState, useSetRecoilState } from 'recoil'
+import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -105,6 +107,60 @@ const InfoTooltip = ({ rowData }: { rowData: GenePhewasAnnotated }) => {
     </InfoTooltipWrapper>
   )
 }
+
+// A wrapper to hold state for column context menus cleanly
+const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
+  const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
+  const navigate = useContextMenuNavigation();
+  const setAnalysisId = useSetRecoilState(analysisIdAtom);
+  const setGeneId = useSetRecoilState(geneIdAtom);
+  const [resultIndex, setResultIndex] = useRecoilState(resultIndexAtom);
+
+  return (
+    <>
+      <Link
+        className='grid-cell-content'
+        style={{ cursor: 'pointer' }}
+        onClick={() => {
+          setAnalysisId(row.analysis_id)
+          setResultIndex('pheno-info')
+          if (resultIndex == "top-associations") {
+            setGeneId(row.gene_id)
+          }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+      >
+        <ColorMarker color={markerColor} />
+        <DescriptionContainer>
+          <Highlighter searchWords={highlightWords} textToHighlight={row.description || ''} />
+        </DescriptionContainer>
+      </Link>
+      {menu && (
+        <UnifiedContextMenu
+          x={menu.x}
+          y={menu.y}
+          title={`PHENOTYPE: ${row.description}`}
+          targets={[
+            { label: 'Phenotype Info', resultIndex: 'pheno-info' },
+            { label: 'Gene Manhattan', resultIndex: 'gene-manhattan' },
+            { label: 'Variant Manhattan', resultIndex: 'variant-manhattan' }
+          ]}
+          onNavigate={(mode, target) => {
+            navigate('phenotype', row.analysis_id, mode, target);
+            setMenu(null);
+          }}
+          onCopy={() => { navigator.clipboard.writeText(row.analysis_id); setMenu(null); }}
+          copyLabel="Copy Phenotype ID"
+          onClose={() => setMenu(null)}
+        />
+      )}
+    </>
+  );
+};
+
 export const getPhenotypeColumns = ({
   columns,
   selectedAnalyses,
@@ -125,10 +181,6 @@ export const getPhenotypeColumns = ({
       minWidth: 100,
       grow: 1,
       render: (row: GenePhewasAnnotated, _: any, { highlightWords }: any) => {
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
-        const setGeneId = useSetRecoilState(geneIdAtom)
-        const [resultIndex, setResultIndex] = useRecoilState(resultIndexAtom)
-
         let markerColor = row.color
         if (showSelectAnalysesOnly) {
           markerColor =
@@ -137,24 +189,7 @@ export const getPhenotypeColumns = ({
               : markerColor
         }
 
-        return (
-          <Link
-            className='grid-cell-content'
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              setAnalysisId(row.analysis_id)
-              setResultIndex('pheno-info')
-              if (resultIndex == "top-associations") {
-                setGeneId(row.gene_id)
-              }
-            }}
-          >
-            <ColorMarker color={markerColor} />
-            <DescriptionContainer>
-              <Highlighter searchWords={highlightWords} textToHighlight={row.description || ''} />
-            </DescriptionContainer>
-          </Link>
-        )
+        return <PhenotypeLinkRenderer row={row} highlightWords={highlightWords} markerColor={markerColor} />;
       },
     },
     {
