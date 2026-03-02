@@ -248,34 +248,27 @@ const Phewas = ({
     }
   }, [uniquePhenotypes, hasInitializedLabels, getRowId, analysisId, phewasType])
 
-  // Add labels when user selects/circles phenotypes
-  React.useEffect(() => {
-    if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
-    if (analyses.length === 0) return
-    setLabeledPhenoIds((prev) => {
-      const next = new Set(prev)
-      uniquePhenotypes.forEach((p: any) => {
-        if (analyses.includes(p.analysis_id)) {
-          next.add(getRowId(p))
-        }
-      })
-      return next
-    })
-  }, [analyses, uniquePhenotypes, getRowId])
-
   // Add label when active/primary phenotype changes (via "show" button)
+  // For topHit mode, also check the gene matches
   React.useEffect(() => {
     if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
     setLabeledPhenoIds((prev) => {
       const next = new Set(prev)
       uniquePhenotypes.forEach((p: any) => {
         if (p.analysis_id === analysisId) {
-          next.add(getRowId(p))
+          // For topHit, only label the specific gene-phenotype pair
+          if (phewasType === 'topHit') {
+            if (p.gene_id === geneIdOrName || p.gene_symbol === geneIdOrName) {
+              next.add(getRowId(p))
+            }
+          } else {
+            next.add(getRowId(p))
+          }
         }
       })
       return next
     })
-  }, [analysisId, uniquePhenotypes, getRowId])
+  }, [analysisId, geneIdOrName, uniquePhenotypes, getRowId, phewasType])
 
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
