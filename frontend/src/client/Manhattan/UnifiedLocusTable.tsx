@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
-import { LocusContextMenu } from './components/LocusContextMenu';
-import { GeneContextMenu } from './components/GeneContextMenu';
+import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import './ManhattanViewer.css';
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -83,18 +82,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const [searchText, setSearchText] = useState('');
-  // Context menu state
+  // Unified context menu state - can include locus, gene, or both
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    contig: string;
-    position: number;
-  } | null>(null);
-  const [geneContextMenu, setGeneContextMenu] = useState<{
-    x: number;
-    y: number;
-    geneId: string;
-    geneSymbol: string;
+    locus?: { contig: string; position: number };
+    gene?: { geneId: string; geneSymbol: string };
   } | null>(null);
 
   // Sort by best p-value
@@ -245,23 +238,25 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Always show Clear all button in custom mode */}
-          {customLabelMode && (
-            <button
-              onClick={onClearSelection}
-              style={{
-                fontSize: 11,
-                padding: '4px 10px',
-                cursor: 'pointer',
-                background: 'var(--theme-surface, #fff)',
-                color: 'var(--theme-text, #333)',
-                border: '1px solid var(--theme-border, #ccc)',
-                borderRadius: 3,
-              }}
-            >
-              Clear all
-            </button>
-          )}
+          {/* Right-click hint */}
+          <span style={{ fontSize: 10, color: 'var(--theme-text-muted)', fontStyle: 'italic' }}>
+            Right-click rows for options
+          </span>
+          {/* Clear all button - always visible */}
+          <button
+            onClick={onClearSelection}
+            style={{
+              fontSize: 11,
+              padding: '4px 10px',
+              cursor: 'pointer',
+              background: 'var(--theme-surface, #fff)',
+              color: 'var(--theme-text, #333)',
+              border: '1px solid var(--theme-border, #ccc)',
+              borderRadius: 3,
+            }}
+          >
+            Clear all
+          </button>
           {customLabelMode && (
             <button
               onClick={onResetToDefault}
@@ -341,8 +336,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                     setContextMenu({
                       x: e.clientX,
                       y: e.clientY,
-                      contig: locus.contig,
-                      position: locus.position,
+                      locus: { contig: locus.contig, position: locus.position },
                     });
                   }}
                   style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
@@ -393,11 +387,11 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                           onContextMenu={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setGeneContextMenu({
+                            setContextMenu({
                               x: e.clientX,
                               y: e.clientY,
-                              geneId: g.gene_id,
-                              geneSymbol: g.gene_symbol,
+                              locus: { contig: locus.contig, position: locus.position },
+                              gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                             });
                           }}
                           title={`View ${g.gene_symbol} page, right-click for options`}
@@ -442,11 +436,11 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                             onContextMenu={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setGeneContextMenu({
+                              setContextMenu({
                                 x: e.clientX,
                                 y: e.clientY,
-                                geneId: g.gene_id,
-                                geneSymbol: g.gene_symbol,
+                                locus: { contig: locus.contig, position: locus.position },
+                                gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                               });
                             }}
                             title={`View ${g.gene_symbol} page, right-click for options`}
@@ -490,25 +484,15 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
         </button>
       )}
 
-      {/* Context menu */}
+      {/* Unified context menu */}
       {contextMenu && (
-        <LocusContextMenu
+        <LocusGeneContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          contig={contextMenu.contig}
-          position={contextMenu.position}
+          locus={contextMenu.locus}
+          gene={contextMenu.gene}
           onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      {/* Gene Context Menu */}
-      {geneContextMenu && (
-        <GeneContextMenu
-          x={geneContextMenu.x}
-          y={geneContextMenu.y}
-          geneId={geneContextMenu.geneId}
-          geneSymbol={geneContextMenu.geneSymbol}
-          onClose={() => setGeneContextMenu(null)}
+          onLocusClick={onLocusClick}
         />
       )}
     </div>
