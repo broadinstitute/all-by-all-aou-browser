@@ -242,6 +242,20 @@ const Phewas = ({
     }
   }, [uniquePhenotypes, hasInitializedLabels, getRowId, analysisId])
 
+  // Add labels when user selects/circles phenotypes
+  React.useEffect(() => {
+    if (!uniquePhenotypes || uniquePhenotypes.length === 0 || analyses.length === 0) return
+    setLabeledPhenoIds((prev) => {
+      const next = new Set(prev)
+      uniquePhenotypes.forEach((p: any) => {
+        if (analyses.includes(p.analysis_id)) {
+          next.add(getRowId(p))
+        }
+      })
+      return next
+    })
+  }, [analyses, uniquePhenotypes, getRowId])
+
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
   }, [])
