@@ -250,7 +250,8 @@ const Phewas = ({
 
   // Add labels when user selects/circles phenotypes
   React.useEffect(() => {
-    if (!uniquePhenotypes || uniquePhenotypes.length === 0 || analyses.length === 0) return
+    if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
+    if (analyses.length === 0) return
     setLabeledPhenoIds((prev) => {
       const next = new Set(prev)
       uniquePhenotypes.forEach((p: any) => {
@@ -261,6 +262,20 @@ const Phewas = ({
       return next
     })
   }, [analyses, uniquePhenotypes, getRowId])
+
+  // Add label when active/primary phenotype changes (via "show" button)
+  React.useEffect(() => {
+    if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
+    setLabeledPhenoIds((prev) => {
+      const next = new Set(prev)
+      uniquePhenotypes.forEach((p: any) => {
+        if (p.analysis_id === analysisId) {
+          next.add(getRowId(p))
+        }
+      })
+      return next
+    })
+  }, [analysisId, uniquePhenotypes, getRowId])
 
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
