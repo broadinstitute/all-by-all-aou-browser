@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useRecoilValue } from 'recoil'
 import { BaseTable, Checkbox, TooltipAnchor } from '@gnomad/ui'
 import { Badge } from '@gnomad/ui'
 
-import { locusMafAtom } from '../sharedState'
+import { analysisIdAtom, locusMafAtom } from '../sharedState'
 import {
   geneYellowThreshold,
   yellowThresholdColor,
@@ -13,6 +13,7 @@ import {
   RoundedNumber,
 } from '../PhenotypeList/Utils'
 import { GeneAssociations, AnalysisMetadata } from '../types'
+import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
 
 const Table = styled(BaseTable)`
   min-width: 325px;
@@ -142,6 +143,17 @@ export const GeneBurdenTable = ({
     return <RoundedNumber num={value} highlightColor={highlightColor} />
   }
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; gene: GeneAssociations } | null>(null);
+  const currentAnalysisId = useRecoilValue(analysisIdAtom);
+
+  // Get gene info from first row (all rows have same gene)
+  const geneInfo = allRows[0] ? {
+    geneId: allRows[0].gene_id,
+    geneSymbol: allRows[0].gene_symbol,
+    contig: allRows[0].contig,
+    start: allRows[0].gene_start_position || undefined,
+  } : null;
+
   return (
     <div>
       <Table>
@@ -156,7 +168,14 @@ export const GeneBurdenTable = ({
         </thead>
         <tbody>
           {allRows.map((row, idx) => (
-            <tr key={`${row.annotation}-${row.max_maf}`}>
+            <tr
+              key={`${row.annotation}-${row.max_maf}`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, gene: row });
+              }}
+              style={{ cursor: 'context-menu' }}
+            >
               <th>{annotationLabel[row.annotation] || row.annotation}</th>
               <td>{renderPvalueCell(row.pvalue)}</td>
               <td>{renderPvalueCell(row.pvalue_burden)}</td>
@@ -185,6 +204,15 @@ export const GeneBurdenTable = ({
           )}
         </tbody>
       </Table>
+      {contextMenu && geneInfo && (
+        <LocusGeneContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          gene={geneInfo}
+          currentPhenotypeDescription={currentAnalysisId || undefined}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }
