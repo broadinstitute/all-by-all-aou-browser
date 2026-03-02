@@ -227,20 +227,26 @@ const Phewas = ({
     return row.analysis_id
   }, [phewasType])
 
-  // Initialize default label to just the current/primary phenotype
+  // Initialize default label
   React.useEffect(() => {
     if (!hasInitializedLabels && uniquePhenotypes && uniquePhenotypes.length > 0) {
       const initials = new Set<string>()
-      // Add only the primary/current phenotype
-      uniquePhenotypes.forEach((p: any) => {
-        if (p.analysis_id === analysisId) {
-          initials.add(getRowId(p))
-        }
-      })
+      if (phewasType === 'topHit') {
+        // For top results page: only label the single top hit
+        const topHit = [...uniquePhenotypes].sort((a: any, b: any) => a.pvalue - b.pvalue)[0]
+        if (topHit) initials.add(getRowId(topHit))
+      } else {
+        // For other pages: label the current/primary phenotype
+        uniquePhenotypes.forEach((p: any) => {
+          if (p.analysis_id === analysisId) {
+            initials.add(getRowId(p))
+          }
+        })
+      }
       setLabeledPhenoIds(initials)
       setHasInitializedLabels(true)
     }
-  }, [uniquePhenotypes, hasInitializedLabels, getRowId, analysisId])
+  }, [uniquePhenotypes, hasInitializedLabels, getRowId, analysisId, phewasType])
 
   // Add labels when user selects/circles phenotypes
   React.useEffect(() => {
