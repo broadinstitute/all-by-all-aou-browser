@@ -24,6 +24,9 @@ import Link from './Link'
 
 import './App.css'
 import LogoutButton from './Logout'
+import { configQuery } from './queryStates'
+import PouchDB from 'pouchdb'
+import { pouchDbName } from './Query'
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -216,6 +219,25 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
   useMonitorWindowSize()
   const themeMode = useRecoilValue(themeModeAtom)
   const theme = themeMode === 'light' ? lightTheme : darkTheme
+  const configState = useRecoilValue(configQuery)
+
+  // Monitor data version and wipe PouchDB cache when it changes
+  React.useEffect(() => {
+    const data_version = configState.data?.data_version
+    if (data_version) {
+      const storedVersion = localStorage.getItem('axaou_data_version')
+      if (storedVersion && storedVersion !== data_version) {
+        // Version changed! Wipe the old cache to free up space.
+        const db = new PouchDB(pouchDbName)
+        db.destroy().then(() => {
+          localStorage.setItem('axaou_data_version', data_version)
+          window.location.reload() // Force a clean reload
+        })
+      } else if (!storedVersion) {
+        localStorage.setItem('axaou_data_version', data_version)
+      }
+    }
+  }, [configState.data?.data_version])
 
   return (
     <ThemeProvider theme={theme}>

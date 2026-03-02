@@ -226,6 +226,15 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     // Create Hail client for slow-path queries (caches up to 50 open tables)
     let hail_client = hail_decoder::genomic::HailClient::new(50);
 
+    // Create in-memory cache for Manhattan plots (100MB max, ~1000 items)
+    let plot_cache = moka::future::Cache::builder()
+        .max_capacity(1000)
+        .weigher(|_key, value: &Vec<u8>| -> u32 {
+            // Estimate weight as byte size in KB (1KB = 1 unit)
+            (value.len() / 1024).max(1) as u32
+        })
+        .build();
+
     // Create shared application state
     let state = Arc::new(AppState {
         metadata,
@@ -233,6 +242,7 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         gene_queries,
         clickhouse: clickhouse_client,
         hail_client,
+        plot_cache,
     });
 
     // Build the router with /api prefix to match proxy behavior

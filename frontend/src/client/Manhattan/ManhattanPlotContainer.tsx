@@ -7,6 +7,7 @@ import { ManhattanViewer } from './ManhattanViewer';
 import type { ManhattanOverlay, SignificantHit } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { configQuery } from '../queryStates';
 
 const Container = styled.div`
   width: 100%;
@@ -48,6 +49,8 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   const [contig, setContig] = useRecoilState(selectedContigAtom);
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const configState = useRecoilValue(configQuery);
+  const dataVersion = configState.data?.data_version || '';
 
   const handleGeneClick = React.useCallback((geneId: string) => {
     setGeneId(geneId);
@@ -62,11 +65,11 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}&contig=${contig}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}&contig=${contig}&v=${dataVersion}`,
         name: 'manhattanData',
       },
     ],
-    deps: [analysisId, ancestryGroup, plotType, contig],
+    deps: [analysisId, ancestryGroup, plotType, contig, dataVersion],
     cacheEnabled,
   });
 
@@ -106,12 +109,13 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
 
   const data = queryStates.manhattanData?.data;
 
-  // Construct the full image URL
+  // Construct the full image URL with cache-busting version parameter
   // The API returns a relative URL like "/api/phenotype/{id}/manhattan/image"
-  // We need to make it absolute
+  // We need to make it absolute and append the data version
+  const separator = data.image_url.includes('?') ? '&' : '?';
   const imageUrl = data.image_url.startsWith('/')
-    ? `${axaouDevUrl.replace('/api', '')}${data.image_url}`
-    : data.image_url;
+    ? `${axaouDevUrl.replace('/api', '')}${data.image_url}${separator}v=${dataVersion}`
+    : `${data.image_url}${separator}v=${dataVersion}`;
 
   // Create a minimal overlay if none exists (image-only mode)
   const overlay: ManhattanOverlay = data.overlay ?? {

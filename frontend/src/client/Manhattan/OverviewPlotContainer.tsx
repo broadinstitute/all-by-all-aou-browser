@@ -8,6 +8,7 @@ import { UnifiedLocusTable } from './UnifiedLocusTable';
 import type { UnifiedOverviewResponse, UnifiedLocus } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { configQuery } from '../queryStates';
 
 const Container = styled.div`
   width: 100%;
@@ -34,6 +35,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const configState = useRecoilValue(configQuery);
+  const dataVersion = configState.data?.data_version || '';
 
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
@@ -47,11 +50,11 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/overview?ancestry=${ancestryGroup}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/overview?ancestry=${ancestryGroup}&v=${dataVersion}`,
         name: 'overviewData',
       },
     ],
-    deps: [analysisId, ancestryGroup],
+    deps: [analysisId, ancestryGroup, dataVersion],
     cacheEnabled,
   });
 
@@ -138,22 +141,27 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     return data.unified_loci.filter((l) => l.contig === targetContig);
   }, [data, selectedContig]);
 
-  // Construct full image URLs with optional contig parameter
+  // Construct full image URLs with optional contig parameter and data version for cache-busting
   const contigParam = selectedContig !== 'all' ? `&contig=${selectedContig}` : '';
+  const versionParam = `&v=${dataVersion}`;
 
   const genomeImageUrl = useMemo(() => {
     if (!data) return '';
-    return data.genome_image_url.startsWith('/')
-      ? `${axaouDevUrl.replace('/api', '')}${data.genome_image_url}${contigParam}`
-      : `${data.genome_image_url}${contigParam}`;
-  }, [data, contigParam]);
+    const separator = data.genome_image_url.includes('?') ? '' : '?';
+    const baseUrl = data.genome_image_url.startsWith('/')
+      ? `${axaouDevUrl.replace('/api', '')}${data.genome_image_url}`
+      : data.genome_image_url;
+    return `${baseUrl}${separator}${contigParam}${versionParam}`;
+  }, [data, contigParam, dataVersion]);
 
   const exomeImageUrl = useMemo(() => {
     if (!data) return '';
-    return data.exome_image_url.startsWith('/')
-      ? `${axaouDevUrl.replace('/api', '')}${data.exome_image_url}${contigParam}`
-      : `${data.exome_image_url}${contigParam}`;
-  }, [data, contigParam]);
+    const separator = data.exome_image_url.includes('?') ? '' : '?';
+    const baseUrl = data.exome_image_url.startsWith('/')
+      ? `${axaouDevUrl.replace('/api', '')}${data.exome_image_url}`
+      : data.exome_image_url;
+    return `${baseUrl}${separator}${contigParam}${versionParam}`;
+  }, [data, contigParam, dataVersion]);
 
   // Hide entirely while loading (avoids layout shift)
   if (anyLoading()) {

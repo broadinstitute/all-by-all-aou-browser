@@ -7,7 +7,7 @@ import {
   selectorFamily
 } from 'recoil';
 import { axaouDevUrl, pouchDbName } from './Query';
-import { AnalysisMetadata, AxaouConfig, GeneSymbol, LoadedAnalysis, VariantAssociations } from './types';
+import { AnalysisMetadata, AxouConfig, GeneSymbol, LoadedAnalysis, VariantAssociations } from './types';
 import { filterValidAnalyses, getAvailableAnalysisIds } from './utils';
 
 /**
@@ -68,7 +68,12 @@ export const configQuery = selector({
   key: 'axaouConfig',
   get: async () => {
     const url = `${axaouDevUrl}/config`;
-    return fetchFromUrlWithCache<AxaouConfig>(url, { ancestry_group: "meta" });
+    try {
+      const { data } = await axios.get<AxouConfig>(url, { params: { ancestry_group: "meta" } });
+      return { data, isLoading: false };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'An unknown error occurred', isLoading: false };
+    }
   }
 });
 

@@ -7,6 +7,7 @@ export interface AxouConfig {
     burden_set_membership?:           string;
     burden_sets?:                     string[];
     data_name?:                       string;
+    data_version?:                    string;
     default_max_maf?:                 MaxMAF;
     filter_genes?:                    string[];
     keep_analysis_metadata_fields?:   string[];

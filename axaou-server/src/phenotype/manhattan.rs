@@ -34,6 +34,8 @@ pub struct ManhattanQuery {
     /// Chromosome filter (e.g., "chr1", "chr22", "chrX")
     /// Defaults to "all" for genome-wide view
     pub contig: Option<String>,
+    /// Data version for cache-busting (e.g., "20260202-0942")
+    pub v: Option<String>,
 }
 
 /// Significant variant row from ClickHouse (with annotations)
@@ -259,7 +261,7 @@ async fn get_manhattan_uri(
 
 /// GET /api/phenotype/:analysis_id/manhattan/image
 ///
-/// Streams the Manhattan plot PNG from GCS.
+/// Streams the Manhattan plot PNG from GCS with server-side caching.
 pub async fn get_manhattan_image(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
@@ -269,6 +271,25 @@ pub async fn get_manhattan_image(
 
     // Default contig to "all" if not specified
     let contig = params.contig.as_deref().unwrap_or("all");
+    let ancestry = params.ancestry.as_deref().unwrap_or("meta");
+    let plot_type = params.plot_type.as_deref().unwrap_or("genome_manhattan");
+    let data_version = params.v.as_deref().unwrap_or("");
+
+    // Construct cache key with data version
+    let cache_key = format!("{}-{}-{}-{}-{}-image", analysis_id, ancestry, plot_type, contig, data_version);
+
+    // Check cache first
+    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+        debug!("Cache hit for Manhattan image: {}", cache_key);
+        return Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "image/png")
+            .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
+            .body(Body::from(cached_bytes))
+            .unwrap());
+    }
+
+    debug!("Cache miss for Manhattan image: {}", cache_key);
 
     // Get the GCS URI from ClickHouse
     let gcs_uri = get_manhattan_uri(
@@ -306,15 +327,20 @@ pub async fn get_manhattan_image(
         .await
         .map_err(|e| AppError::DataTransformError(format!("Failed to fetch from GCS: {}", e)))?;
 
-    // Stream the bytes as response body
-    let stream = result.into_stream();
-    let body = Body::from_stream(stream);
+    // Read all bytes for caching
+    let bytes = result.bytes().await
+        .map_err(|e| AppError::DataTransformError(format!("Failed to read bytes from GCS: {}", e)))?;
+    let bytes_vec = bytes.to_vec();
+
+    // Cache the bytes
+    state.plot_cache.insert(cache_key.clone(), bytes_vec.clone()).await;
+    debug!("Cached Manhattan image: {}", cache_key);
 
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "image/png")
-        .header(header::CACHE_CONTROL, "public, max-age=86400") // Cache for 1 day
-        .body(body)
+        .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
+        .body(Body::from(bytes_vec))
         .unwrap())
 }
 
@@ -569,7 +595,7 @@ pub(crate) async fn fetch_peak_annotations(
 
 /// GET /api/phenotype/:analysis_id/manhattan/overlay
 ///
-/// Returns Manhattan plot overlay JSON with significant hits from ClickHouse.
+/// Returns Manhattan plot overlay JSON with significant hits from ClickHouse with caching.
 /// Returns raw genomic coordinates; frontend computes display positions.
 /// Supports both variant hits (exome/genome Manhattan) and gene hits (gene Manhattan).
 pub async fn get_manhattan_overlay(
@@ -582,10 +608,24 @@ pub async fn get_manhattan_overlay(
     let ancestry = params.ancestry.as_deref().unwrap_or("meta");
     let plot_type = params.plot_type.as_deref().unwrap_or("genome_manhattan");
     let contig = params.contig.as_deref().unwrap_or("all");
+    let data_version = params.v.as_deref().unwrap_or("");
+
+    // Construct cache key with data version
+    let cache_key = format!("{}-{}-{}-{}-{}-overlay", analysis_id, ancestry, plot_type, contig, data_version);
+
+    // Check cache first
+    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+        debug!("Cache hit for Manhattan overlay: {}", cache_key);
+        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
+            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
+        return Ok(Json(overlay));
+    }
+
+    debug!("Cache miss for Manhattan overlay: {}", cache_key);
 
     // Handle gene Manhattan separately
     if plot_type == "gene_manhattan" {
-        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry, contig).await;
+        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry, contig, data_version).await;
     }
 
     // Determine sequencing type from plot_type for variant Manhattan
@@ -722,11 +762,19 @@ pub async fn get_manhattan_overlay(
         }
     };
 
-    Ok(Json(ManhattanOverlay {
+    let overlay = ManhattanOverlay {
         significant_hits,
         hit_count,
         peaks,
-    }))
+    };
+
+    // Cache the overlay as JSON bytes
+    if let Ok(json_bytes) = serde_json::to_vec(&overlay) {
+        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        debug!("Cached Manhattan overlay: {}", cache_key);
+    }
+
+    Ok(Json(overlay))
 }
 
 /// Get gene Manhattan overlay from gene_associations table
@@ -735,7 +783,20 @@ async fn get_gene_manhattan_overlay(
     analysis_id: &str,
     ancestry: &str,
     contig: &str,
+    data_version: &str,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
+    // Construct cache key with data version
+    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay", analysis_id, ancestry, contig, data_version);
+
+    // Check cache first
+    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+        debug!("Cache hit for gene Manhattan overlay: {}", cache_key);
+        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
+            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
+        return Ok(Json(overlay));
+    }
+
+    debug!("Cache miss for gene Manhattan overlay: {}", cache_key);
     // Compute xpos bounds for chromosome filtering
     let xpos_filter = if contig != "all" {
         let xpos_start = compute_xpos(contig, 0);
@@ -838,11 +899,19 @@ async fn get_gene_manhattan_overlay(
         significant_hits
     };
 
-    Ok(Json(ManhattanOverlay {
+    let overlay = ManhattanOverlay {
         significant_hits: display_hits,
         hit_count,
         peaks: Some(peaks),
-    }))
+    };
+
+    // Cache the overlay as JSON bytes
+    if let Ok(json_bytes) = serde_json::to_vec(&overlay) {
+        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        debug!("Cached gene Manhattan overlay: {}", cache_key);
+    }
+
+    Ok(Json(overlay))
 }
 
 /// GET /api/phenotype/:analysis_id/manhattan

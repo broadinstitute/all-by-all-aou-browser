@@ -28,6 +28,8 @@ pub struct AppState {
     pub clickhouse: clickhouse::Client,
     /// Hail Table client for slow-path queries (directly from GCS)
     pub hail_client: hail_decoder::genomic::HailClient,
+    /// In-memory cache for Manhattan plot data and images
+    pub plot_cache: moka::future::Cache<String, Vec<u8>>,
 }
 
 /// Query parameters for the /api/analyses endpoint
@@ -76,6 +78,63 @@ pub struct AxaouConfig {
     pub test_intervals: Vec<String>,
     pub variant_pvalue_threshold: f64,
     pub top_gene_associations_threshold: f64,
+    pub data_version: Option<String>,
+}
+
+/// Extract the data version (timestamp) from the output_dir in phenotype-data.toml
+fn extract_data_version() -> Option<String> {
+    use serde::Deserialize;
+    use std::path::Path;
+
+    #[derive(Deserialize)]
+    struct TomlConfig {
+        job: JobConfig,
+    }
+
+    #[derive(Deserialize)]
+    struct JobConfig {
+        output_dir: String,
+    }
+
+    // Try to read the phenotype-data.toml file
+    let config_path = Path::new("phenotype-data.toml");
+    if !config_path.exists() {
+        tracing::warn!("phenotype-data.toml not found, data_version will be None");
+        return None;
+    }
+
+    let contents = match std::fs::read_to_string(config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("Failed to read phenotype-data.toml: {}", e);
+            return None;
+        }
+    };
+
+    let config: TomlConfig = match toml::from_str(&contents) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("Failed to parse phenotype-data.toml: {}", e);
+            return None;
+        }
+    };
+
+    // Extract the final path segment (e.g., "20260202-0942" from "gs://axaou-central/browserv2/analyses/20260202-0942")
+    let version = config
+        .job
+        .output_dir
+        .split('/')
+        .last()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    if let Some(ref v) = version {
+        tracing::info!("Extracted data version: {}", v);
+    } else {
+        tracing::warn!("Could not extract data version from output_dir");
+    }
+
+    version
 }
 
 /// Handler for GET /api/config
@@ -118,6 +177,7 @@ pub async fn get_config() -> Json<AxaouConfig> {
         ],
         variant_pvalue_threshold: 1.0,
         top_gene_associations_threshold: 1e-6,
+        data_version: extract_data_version(),
     })
 }
 
