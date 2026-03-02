@@ -1,8 +1,11 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
+import { useRecoilValue } from 'recoil';
 import { YAxis } from './components/YAxis';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { getChromosomeLayout, getYScale } from './layout';
+import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
+import { analysisIdAtom } from '../sharedState';
 import './OverviewManhattan.css';
 
 const Y_AXIS_WIDTH = 50;
@@ -59,6 +62,8 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
   const [hoveredGene, setHoveredGene] = useState<GeneAssociationResult | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [plottedGenes, setPlottedGenes] = useState<PlottedGene[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; gene: GeneAssociationResult } | null>(null);
+  const currentAnalysisId = useRecoilValue(analysisIdAtom);
 
   // Determine which genes should be labeled
   const genesToLabel = useMemo(() => {
@@ -255,6 +260,16 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
     [hoveredGene, onGeneClick]
   );
 
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (hoveredGene) {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, gene: hoveredGene });
+      }
+    },
+    [hoveredGene]
+  );
+
   return (
     <div className="manhattan-container">
       <div className="manhattan-plot-row" style={{ display: 'flex' }}>
@@ -286,6 +301,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
+            onContextMenu={handleContextMenu}
           />
 
           {/* Tooltip on hover */}
@@ -356,6 +372,23 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
           <span className="manhattan-stats-value">P &lt; 2.5e-6</span>
         </div>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <LocusGeneContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          gene={{
+            geneId: contextMenu.gene.gene_id,
+            geneSymbol: contextMenu.gene.gene_symbol,
+            contig: contextMenu.gene.contig,
+            start: contextMenu.gene.gene_start_position,
+            stop: contextMenu.gene.gene_start_position, // We don't have stop position, use start
+          }}
+          currentPhenotypeDescription={currentAnalysisId || undefined}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 };
