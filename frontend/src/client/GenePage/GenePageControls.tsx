@@ -30,6 +30,9 @@ import {
   showCaseControlTracksAtom,
   autoPvalFilter,
   gwasCatalogOptionsAtom,
+  enableVariantLabelsAtom,
+  variantLabelsAtom,
+  variantShowLabelAtom,
 } from '../variantState'
 // @ts-ignore: FIXME
 import RangeSlider from '../PhenotypeList/RangeSlider'
@@ -75,6 +78,7 @@ const GenePageControlsGeneFocus = styled.div`
     'zoom-controls'
     'gwas-catalog-options'
     'show-case-control-tracks'
+    'enable-variant-labels'
     'color-by'
     'pvalue-legend'
     'af-slider'
@@ -129,6 +133,10 @@ const GenePageControlsGeneFocus = styled.div`
 
   .show-case-control-tracks {
     grid-area: show-case-control-tracks;
+  }
+
+  .enable-variant-labels {
+    grid-area: enable-variant-labels;
   }
 
   .multi-analysis-color-by {
@@ -217,6 +225,7 @@ const GenePageControlStylesVariantFocus = styled(GenePageControlsGeneFocus)`
     'unselect-variant'
     'burden-set'
     'show-case-control-tracks'
+    'enable-variant-labels'
     'color-by'
     'transparency-slider'
     'table-format'
@@ -446,6 +455,57 @@ const ShowCaseControlTracks: React.FC = () => {
           }}
         />
       </label>
+    </div>
+  )
+}
+
+const EnableVariantLabels: React.FC = () => {
+  const [enableVariantLabels, setEnableVariantLabels] =
+    useRecoilState(enableVariantLabelsAtom)
+  const [, setVariantLabels] = useRecoilState(variantLabelsAtom)
+  const [, setVariantShowLabel] = useRecoilState(variantShowLabelAtom)
+
+  const handleClearLabels = () => {
+    setVariantLabels({})      // Clear custom text
+
+    // Explicitly set all active labels to false so they don't reappear via auto-label logic
+    setVariantShowLabel(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(k => {
+        if (next[k]) {
+          next[k] = false;
+        }
+      })
+      return next;
+    })
+  }
+
+  return (
+    <div className='enable-variant-labels' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+        <span>Enable variant labels</span>
+        <Checkbox
+          label=''
+          checked={enableVariantLabels}
+          disabled={false}
+          id='enable-variant-labels'
+          onChange={(_: boolean) => {
+            setEnableVariantLabels(!enableVariantLabels)
+          }}
+        />
+      </label>
+      {enableVariantLabels && (
+        <Button
+          onClick={handleClearLabels}
+          style={{
+            fontSize: '10px',
+            padding: '3px 8px',
+            height: 'auto',
+          }}
+        >
+          Clear
+        </Button>
+      )}
     </div>
   )
 }
@@ -696,14 +756,24 @@ const FieldGroupControls: React.FC = () => {
 const IndividualFieldCheckboxes: React.FC = () => {
   const selectedVariantFields = useRecoilValue(selectedVariantFieldsAtom)
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
+  const enableVariantLabels = useRecoilValue(enableVariantLabelsAtom)
   const toggleField = useToggleSelectedVariantField()
   const columns = getVariantColumns({ columns: selectedVariantFieldsOptions, ancestryGroup })
+
+  // Filter out label columns if feature flag is disabled
+  const filteredColumns = columns.filter((opt) => {
+    if (!enableVariantLabels && (opt.key === 'show_label' || opt.key === 'label')) {
+      return false
+    }
+    return true
+  })
+
   return (
     <div className='individual-field-checkboxes'>
       <span>
         <strong>Columns</strong>
       </span>
-      {columns.map((opt) => (
+      {filteredColumns.map((opt) => (
         <div key={opt.key} className='individual-checkbox'>
           <Checkbox
             label=''
@@ -759,6 +829,7 @@ export const GenePageControls = () => {
         <InBurdenAnalysisControls />
         {/* <GwasCatalogOptions /> */}
         {/* <ShowCaseControlTracks /> */}
+        <EnableVariantLabels />
         <ColorByControls />
         <VariantSearchInput />
         <PvalueLegend />
@@ -785,6 +856,7 @@ export const GenePageControls = () => {
         <UnselectVariant />
         <InBurdenAnalysisControls />
         {/* <ShowCaseControlTracks /> */}
+        <EnableVariantLabels />
         <ColorByControls />
         {/* <TransparencySlider /> */}
         {/* <TableFormatControls /> */}

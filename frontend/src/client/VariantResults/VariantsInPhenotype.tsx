@@ -4,6 +4,7 @@ import styled from 'styled-components'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { Button } from '@gnomad/ui'
 import { analysisIdAtom, regionIdAtom, resultLayoutAtom, selectedContigAtom } from '../sharedState'
+import { variantShowLabelAtom } from '../variantState'
 import VariantManhattanPlot from './VariantManhattanPlot'
 import VariantQQPlot from './VariantQQPlot'
 import { HalfPage, Titles } from '../UserInterface'
@@ -80,8 +81,14 @@ const VariantsInPhenotype = ({
     sortOrder: 'ascending' | 'descending'
   }>({ sortKey: 'pvalue', sortOrder: 'ascending' })
 
+  const variantShowLabel = useRecoilValue(variantShowLabelAtom)
+
   const variants = variantDatasets.flatMap(vds =>
-    vds.data.map(v => ({ ...v, sequencing_type: vds.sequencingType }))
+    vds.data.map(v => ({
+      ...v,
+      sequencing_type: vds.sequencingType,
+      show_label: variantShowLabel[v.variant_id] || false
+    }))
   )
 
   const initialRenderedVariants = sortItems(filterVariants(variants, filter), {

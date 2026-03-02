@@ -12,7 +12,7 @@ import { renderBetaCell, renderCount, renderPvalueCell } from '../PhenotypeList/
 import { AncestryGroupCodes, regionIdAtom, resultIndexAtom, resultLayoutAtom, variantIdAtom } from '../sharedState'
 import { VariantAssociationManhattan, VariantJoined } from '../types'
 import { ColorMarker } from '../UserInterface'
-import { VariantFieldGroup, variantLabelsAtom } from '../variantState'
+import { VariantFieldGroup, variantLabelsAtom, variantShowLabelAtom } from '../variantState'
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from '../vepConsequences'
 import SampleSourceIcon from './SampleSourceIcon'
 import VariantFlag from './VariantFlag'
@@ -160,6 +160,26 @@ const LabelInput = styled.input`
     font-style: italic;
   }
 `
+
+// Component for toggle label visibility cell
+const ShowLabelCell = ({ variantId }: { variantId: string }) => {
+  const [showLabels, setShowLabels] = useRecoilState(variantShowLabelAtom)
+  const isShown = showLabels[variantId] || false
+
+  const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowLabels(prev => ({ ...prev, [variantId]: e.target.checked }))
+  }
+
+  return (
+    <input
+      type="checkbox"
+      checked={isShown}
+      onChange={handleToggle}
+      onClick={(e) => e.stopPropagation()}
+      style={{ cursor: 'pointer', margin: '0 auto', display: 'block' }}
+    />
+  )
+}
 
 // Component for editable label cell
 const LabelCell = ({ variantId }: { variantId: string }) => {
@@ -445,13 +465,23 @@ export const getVariantColumns = ({
       },
     },
     {
+      key: 'show_label',
+      displayId: 'show_label',
+      heading: 'Label',
+      tooltip: 'Show label on lollipop plot',
+      grow: 0,
+      isSortable: true,
+      minWidth: 50,
+      render: (row: any) => <ShowLabelCell variantId={row.variant_id} />,
+    },
+    {
       key: 'label',
       displayId: 'label',
-      heading: 'Label',
-      tooltip: 'Custom label for this variant (shown in lollipop plot)',
+      heading: 'Custom Label',
+      tooltip: 'Custom label text for this variant',
       grow: 0,
       isSortable: false,
-      minWidth: 70,
+      minWidth: 90,
       render: (row: any) => <LabelCell variantId={row.variant_id} />,
     },
     ...(showPhenotypeInfo ? phenotypeInfo : []),

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import styled, { useTheme } from 'styled-components'
 
 import type { VariantJoined } from '../types'
@@ -9,11 +9,32 @@ import { renderPoint } from './genePageUtils/renderPoint'
 import { VariantPlotProps } from './LocusPagePlots'
 import { sortVariantsByConsequence, sortVariantsByCorrelation } from '../utils'
 import { getCategoryFromConsequence } from '../vepConsequences'
+import { useRecoilValue, useRecoilState } from 'recoil'
+import { variantShowLabelAtom } from '../variantState'
+import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 
 const PlotWrapper = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
+  position: relative;
+`
+
+const TooltipContainer = styled.div<{ x: number; y: number }>`
+  position: absolute;
+  left: ${(props) => props.x}px;
+  top: ${(props) => props.y}px;
+  background: var(--theme-surface, white);
+  color: var(--theme-text, #333);
+  border: 1px solid var(--theme-border, #ccc);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
 `
 
 const marginBottom = 40
@@ -89,6 +110,7 @@ export const TIER_COLORS = {
 } as const;
 
 interface LollipopLabel {
+  id: string;
   variant: VariantJoined;
   label: string;
   anchorX: number;     // genomic position in pixels (anchor point)
@@ -106,23 +128,23 @@ interface LollipopLabel {
 // Clustered layout: group nearby variants and spread evenly within clusters
 function runClusteredLayout(
   labels: LollipopLabel[],
-  width: number,
-  ctx: CanvasRenderingContext2D
+  width: number
 ): void {
   if (labels.length === 0) return;
   if (labels.length === 1) {
     labels[0].x = labels[0].anchorX;
     labels[0].showLabel = true;
+    // Estimate width
+    labels[0].labelWidth = labels[0].label.length * 6 + 4;
     return;
   }
 
   // Sort by anchor position
   labels.sort((a, b) => a.anchorX - b.anchorX);
 
-  // Measure label widths
-  ctx.font = 'bold 10px sans-serif';
+  // Estimate label widths
   for (const lbl of labels) {
-    lbl.labelWidth = ctx.measureText(lbl.label).width + 4;
+    lbl.labelWidth = lbl.label.length * 6 + 4;
   }
 
   // Calculate minimum spacing needed for labels
@@ -324,8 +346,26 @@ export const LocusPvaluePlot = ({
   reverseConsequenceSort = false,
   labelZoneHeight = 0,
   tierY = {},
-}: VariantPlotProps & { showLollipopLabels?: boolean; lollipopPvalueThreshold?: number; variantLabels?: Record<string, string>; reverseConsequenceSort?: boolean; labelZoneHeight?: number; tierY?: Record<string, number> }) => {
+  labelOverrides = {},
+  onLabelDragEnd,
+}: VariantPlotProps & {
+  showLollipopLabels?: boolean;
+  lollipopPvalueThreshold?: number;
+  variantLabels?: Record<string, string>;
+  reverseConsequenceSort?: boolean;
+  labelZoneHeight?: number;
+  tierY?: Record<string, number>;
+  labelOverrides?: Record<string, {x: number, y: number}>;
+  onLabelDragEnd?: (id: string, x: number, y: number) => void;
+}) => {
   const theme = useTheme() as any;
+  const [variantShowLabel, setVariantShowLabel] = useRecoilState(variantShowLabelAtom);
+  const [hoveredHit, setHoveredHit] = useState<VariantJoined | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [dragState, setDragState] = useState<{ id: string, startX: number, startY: number, initialX: number, initialY: number } | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number, y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; variant: VariantJoined } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // Add extra height for lollipop labels if enabled
   const totalHeight = height + labelZoneHeight
@@ -365,6 +405,72 @@ export const LocusPvaluePlot = ({
   })
 
   const scale = window.devicePixelRatio || 2
+
+  // Extract layout preparation into a pure useMemo
+  const labelsToRender = useMemo(() => {
+    if (!showLollipopLabels || labelZoneHeight <= 0) return [];
+
+    const w = width - margin.left - margin.right;
+
+    const allLabels: LollipopLabel[] = points
+      .filter(p => {
+        const hasCustomLabel = variantLabels[p.data.variant_id];
+        const explicitlySet = variantShowLabel[p.data.variant_id];
+        const hasHgvs = p.data.hgvsp || p.data.hgvsc;
+
+        // Only show labels for variants that have HGVS data or a custom label
+        if (!hasCustomLabel && !hasHgvs) {
+          return false;
+        }
+
+        if (explicitlySet !== undefined) {
+          return explicitlySet || !!hasCustomLabel;
+        }
+
+        const isSignificant = p.data.pvalue && p.data.pvalue < lollipopPvalueThreshold;
+        return !!hasCustomLabel || (isSignificant && hasHgvs);
+      })
+      .map(p => {
+        const customLabel = variantLabels[p.data.variant_id];
+        const hgvsLabel = parseHgvspLabel(p.data.hgvsp) || (p.data.hgvsc ? p.data.hgvsc.split(':').pop() || '' : '');
+        // Fallback to variant_id if no HGVS notation available
+        const label = customLabel || hgvsLabel || p.data.variant_id;
+        const priority = getConsequencePriority(p.data.consequence || '');
+        const tier = getTierFromPriority(priority);
+        const color = TIER_COLORS[tier];
+        return {
+          id: p.data.variant_id,
+          variant: p.data,
+          label,
+          anchorX: p.x,
+          x: p.x,
+          pointY: p.y + margin.top,
+          labelY: tierY[tier] ?? 40,
+          color,
+          priority: customLabel || variantShowLabel[p.data.variant_id] ? priority + 10000 : priority,
+          tier,
+          labelWidth: 0,
+          showLabel: true,
+          labelAngle: 0,
+        } as LollipopLabel;
+      });
+      // No need to filter by label length since we now guarantee all variants have at least variant_id as label
+
+    const pLoFLabels = allLabels.filter(l => l.tier === 'pLoF');
+    const missenseLabels = allLabels.filter(l => l.tier === 'missense');
+    const otherLabels = allLabels.filter(l => l.tier === 'other');
+
+    const maxPerTier = 15;
+    const pLoFToShow = pLoFLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, maxPerTier);
+    const missenseToShow = missenseLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, maxPerTier);
+    const otherToShow = otherLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, Math.min(10, maxPerTier));
+
+    runClusteredLayout(pLoFToShow, w);
+    runClusteredLayout(missenseToShow, w);
+    runClusteredLayout(otherToShow, w);
+
+    return [...pLoFToShow, ...missenseToShow, ...otherToShow];
+  }, [points, showLollipopLabels, labelZoneHeight, lollipopPvalueThreshold, variantLabels, variantShowLabel, width, margin.left, margin.right, margin.top, tierY]);
 
   const plotCanvas = useMemo(() => {
     const canvas = document.createElement('canvas')
@@ -437,149 +543,6 @@ export const LocusPvaluePlot = ({
 
     // ====================================================
 
-    // Lollipop labels for significant variants (tiered by consequence)
-    // ====================================================
-    if (showLollipopLabels && labelZoneHeight > 0) {
-      ctx.save()
-      ctx.setLineDash([])  // Reset line dash
-
-      // Get significant variants with HGVS labels, grouped by tier
-      // Also include any variant with a custom label, regardless of p-value
-      const allLabels: LollipopLabel[] = points
-        .filter(p => {
-          const hasCustomLabel = variantLabels[p.data.variant_id];
-          const isSignificant = p.data.pvalue && p.data.pvalue < lollipopPvalueThreshold;
-          const hasHgvs = p.data.hgvsp || p.data.hgvsc;
-          return hasCustomLabel || (isSignificant && hasHgvs);
-        })
-        .map(p => {
-          // Use custom label if available, otherwise fall back to HGVS
-          const customLabel = variantLabels[p.data.variant_id];
-          const hgvsLabel = parseHgvspLabel(p.data.hgvsp) || (p.data.hgvsc ? p.data.hgvsc.split(':').pop() || '' : '');
-          const label = customLabel || hgvsLabel;
-          const priority = getConsequencePriority(p.data.consequence || '');
-          const tier = getTierFromPriority(priority);
-          const color = TIER_COLORS[tier];
-          return {
-            variant: p.data,
-            label,
-            anchorX: p.x,
-            x: p.x,
-            pointY: p.y + margin.top,  // Absolute Y position of the point
-            labelY: tierY[tier] ?? 40,  // Y position based on dynamic tier
-            color,
-            priority: customLabel ? priority + 10000 : priority,  // Boost priority for custom-labeled variants
-            tier,
-            labelWidth: 0,  // Will be calculated during layout
-            showLabel: true,
-            labelAngle: 0,
-          } as LollipopLabel;
-        })
-        .filter(l => l.label.length > 0 && l.tier !== 'other');
-
-      // Group by tier
-      const pLoFLabels = allLabels.filter(l => l.tier === 'pLoF');
-      const missenseLabels = allLabels.filter(l => l.tier === 'missense');
-      const otherLabels = allLabels.filter(l => l.tier === 'other');
-
-      // Limit each tier to avoid overcrowding
-      const maxPerTier = 15;
-      const pLoFToShow = pLoFLabels
-        .sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1))
-        .slice(0, maxPerTier);
-      const missenseToShow = missenseLabels
-        .sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1))
-        .slice(0, maxPerTier);
-      const otherToShow = otherLabels
-        .sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1))
-        .slice(0, Math.min(10, maxPerTier));
-
-      // Run clustered layout for each tier
-      runClusteredLayout(pLoFToShow, w, ctx);
-      runClusteredLayout(missenseToShow, w, ctx);
-      runClusteredLayout(otherToShow, w, ctx);
-
-      // Combine all labels to show
-      const labelsToShow = [...pLoFToShow, ...missenseToShow, ...otherToShow];
-
-      // Draw stems and labels
-      ctx.transform(1, 0, 0, 1, margin.left, 0);  // Position relative to left margin
-
-      for (const lbl of labelsToShow) {
-        if (!lbl.showLabel) continue;
-
-        // Round coordinates to half-pixels for crisp 1px lines
-        const x = Math.round(lbl.x) + 0.5;
-        const anchorX = Math.round(lbl.anchorX) + 0.5;
-        const pointY = Math.round(lbl.pointY) + 0.5;
-
-        // Draw crankshaft stem from label to point
-        // Structure: label -> vertical down -> diagonal to anchor -> vertical to point
-        ctx.strokeStyle = lbl.color;
-        ctx.lineWidth = 1.5;  // Slightly thicker for better visibility
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-
-        const labelBottom = Math.round(lbl.labelY + 12) + 0.5;
-        const kneeY = Math.round(lbl.labelY + 25) + 0.5;
-        const anchorKneeY = Math.round(Math.max(kneeY + 15, pointY - 20)) + 0.5;
-
-        // From label down
-        ctx.moveTo(x, labelBottom);
-        // Vertical down to knee
-        ctx.lineTo(x, kneeY);
-        // Diagonal to anchor position
-        ctx.lineTo(anchorX, anchorKneeY);
-        // Vertical to near the point
-        ctx.lineTo(anchorX, pointY - 5);
-        ctx.stroke();
-
-        // Draw small dot at connection point (above the variant)
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.arc(Math.round(lbl.anchorX), Math.round(lbl.pointY) - 5, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = lbl.color;
-        ctx.fill();
-
-        // Draw label text with rotation based on density
-        ctx.globalAlpha = 1;
-        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.fillStyle = lbl.color;
-
-        // Round text positions for crisp rendering
-        const textX = Math.round(lbl.x);
-        const textY = Math.round(lbl.labelY);
-
-        if (lbl.labelAngle === 0) {
-          // Horizontal label
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(lbl.label, textX, textY + 10);
-        } else if (lbl.labelAngle === -90) {
-          // Vertical label
-          ctx.save();
-          ctx.translate(textX, textY);
-          ctx.rotate(-Math.PI / 2);
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(lbl.label, 0, 0);
-          ctx.restore();
-        } else {
-          // Diagonal label (-45)
-          ctx.save();
-          ctx.translate(textX, textY + 8);
-          ctx.rotate(lbl.labelAngle * Math.PI / 180);
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(lbl.label, 0, 0);
-          ctx.restore();
-        }
-      }
-
-      ctx.restore();
-    }
-    // ====================================================
-
     return canvas
   }, [variantDatasets, totalHeight, pointColor, width, xLabel, yLabel, thresholds, activeAnalysis, showLollipopLabels, labelZoneHeight, lollipopPvalueThreshold])
 
@@ -616,48 +579,58 @@ export const LocusPvaluePlot = ({
     return minDistance <= distanceThreshold ? nearestPoint : undefined
   }
 
-  const updateHoveredPoint = (x: number, y: number) => {
-    const nearestPoint = findNearestPoint(x, y)
+  // Handle label dragging on window to avoid clipping
+  useEffect(() => {
+    if (!dragState) return;
 
-    drawPlot()
+    const handleMouseMoveWindow = (e: MouseEvent) => {
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      setDragPos({ x: dragState.initialX + dx, y: dragState.initialY + dy });
+    };
+
+    const handleMouseUpWindow = () => {
+      if (dragPos && onLabelDragEnd) {
+        onLabelDragEnd(dragState.id, dragPos.x, dragPos.y);
+      }
+      setDragState(null);
+      setDragPos(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMoveWindow);
+    window.addEventListener('mouseup', handleMouseUpWindow);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMoveWindow);
+      window.removeEventListener('mouseup', handleMouseUpWindow);
+    };
+  }, [dragState, dragPos, onLabelDragEnd]);
+
+  const updateHoveredPoint = (x: number, y: number) => {
+    if (dragState) return; // don't update hover during drag
+    const nearestPoint = findNearestPoint(x, y);
+    drawPlot();
 
     if (nearestPoint) {
-      const canvas = mainCanvas.current
-      if (canvas) {
-        const ctx = canvas.getContext('2d')!
-        ctx.save()
-
-        ctx.transform(1, 0, 0, 1, margin.left, margin.top)
-
-        ctx.font = '14px sans-serif'
-        const label = pointLabel(nearestPoint.data)
-        const { width: textWidth } = ctx.measureText(label)
-
-        const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - textWidth - 10
-        const labelY = y < 30 ? nearestPoint.y : nearestPoint.y - 24
-
-        ctx.beginPath()
-        ctx.rect(labelX, labelY, textWidth + 12, 24)
-        ctx.fillStyle = theme.surface || '#000'
-        ctx.fill()
-
-        ctx.strokeStyle = theme.border || '#333'
-        ctx.strokeRect(labelX, labelY, textWidth + 12, 24)
-
-        ctx.fillStyle = theme.text || '#fff'
-        ctx.fillText(label, labelX + 6, labelY + 16)
-
-        ctx.restore()
-      }
+      setHoveredHit(nearestPoint.data);
+      // Tooltip position relative to plot container
+      setTooltipPos({ x: x + margin.left, y: y + margin.top });
+    } else {
+      setHoveredHit(null);
     }
-  }
+  };
 
   const onMouseMove = (event: React.MouseEvent) => {
-    const bounds = (event.target as HTMLElement).getBoundingClientRect()
-    const mouseX = event.clientX - bounds.left - margin.left
-    const mouseY = event.clientY - bounds.top - margin.top
-    updateHoveredPoint(mouseX, mouseY)
-  }
+    const bounds = (event.target as HTMLElement).getBoundingClientRect();
+    const mouseX = event.clientX - bounds.left - margin.left;
+    const mouseY = event.clientY - bounds.top - margin.top;
+    updateHoveredPoint(mouseX, mouseY);
+  };
+
+  const onMouseLeave = () => {
+    drawPlot();
+    setHoveredHit(null);
+  };
 
   const onClick = (event: React.MouseEvent) => {
     const bounds = (event.target as HTMLElement).getBoundingClientRect()
@@ -670,6 +643,18 @@ export const LocusPvaluePlot = ({
     }
   }
 
+  const onContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault()
+    const bounds = (event.target as HTMLElement).getBoundingClientRect()
+    const clickX = event.clientX - bounds.left - margin.left
+    const clickY = event.clientY - bounds.top - margin.top
+
+    const point = findNearestPoint(clickX, clickY)
+    if (point) {
+      setContextMenu({ x: event.clientX, y: event.clientY, variant: point.data })
+    }
+  }
+
   return (
     <PlotWrapper>
       <canvas
@@ -679,11 +664,137 @@ export const LocusPvaluePlot = ({
         style={{
           height: `${totalHeight}px`,
           width: `${width}px`,
+          display: 'block'
         }}
         onClick={onClick}
-        onMouseLeave={drawPlot}
+        onContextMenu={onContextMenu}
+        onMouseLeave={onMouseLeave}
         onMouseMove={onMouseMove}
       />
+
+      {/* Draggable SVG overlay for labels */}
+      {labelsToRender.length > 0 && (
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `${width}px`,
+            height: `${totalHeight}px`,
+            pointerEvents: 'none'
+          }}
+        >
+          <g transform={`translate(${margin.left}, 0)`}>
+            {labelsToRender.map((lbl) => {
+              if (!lbl.showLabel) return null;
+
+              const isDragging = dragState?.id === lbl.id;
+              const x = isDragging && dragPos ? dragPos.x : (labelOverrides[lbl.id]?.x ?? lbl.x);
+              const y = isDragging && dragPos ? dragPos.y : (labelOverrides[lbl.id]?.y ?? lbl.labelY);
+
+              const labelBottom = y + 12;
+              const kneeY = y + 25;
+              const anchorKneeY = Math.max(kneeY + 15, lbl.pointY - 20);
+
+              // Crankshaft stem - points directly down to lbl.pointY - 2 (no mini circle needed)
+              const pathD = `M ${x} ${labelBottom} L ${x} ${kneeY} L ${lbl.anchorX} ${anchorKneeY} L ${lbl.anchorX} ${lbl.pointY - 2}`;
+
+              return (
+                <g key={lbl.id}>
+                  <path
+                    d={pathD}
+                    stroke={lbl.color}
+                    strokeWidth={1.5}
+                    fill="none"
+                    opacity={0.6}
+                  />
+                  {/* Removed duplicate mini circle here */}
+                  <g
+                    transform={`translate(${x}, ${y})`}
+                    style={{ cursor: isDragging ? 'grabbing' : 'grab', pointerEvents: 'all' }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragState({ id: lbl.id, startX: e.clientX, startY: e.clientY, initialX: x, initialY: y });
+                      setDragPos({ x, y });
+                    }}
+                  >
+                    <text
+                      textAnchor={lbl.labelAngle === 0 ? "center" : "start"}
+                      dominantBaseline={lbl.labelAngle === 0 ? "text-after-edge" : "middle"}
+                      transform={lbl.labelAngle !== 0 ? `rotate(${lbl.labelAngle}) translate(0, ${lbl.labelAngle === -90 ? 0 : 8})` : `translate(0, 10)`}
+                      fontFamily="-apple-system, BlinkMacSystemFont, sans-serif"
+                      fontSize="11px"
+                      fontWeight="bold"
+                      fill={lbl.color}
+                    >
+                      {lbl.label}
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+      )}
+
+      {hoveredHit && (
+        <TooltipContainer x={tooltipPos.x} y={tooltipPos.y}>
+          <div style={{ fontWeight: 600 }}>{hoveredHit.variant_id}</div>
+          <div style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>{hoveredHit.gene_symbol || '—'}</div>
+          <div style={{ marginTop: 4 }}>
+            <span style={{ color: 'var(--theme-text-muted)' }}>Consequence: </span>
+            <span style={{ fontWeight: 500, color: TIER_COLORS[getTierFromPriority(getConsequencePriority(hoveredHit.consequence))] || '#333' }}>
+              {hoveredHit.consequence.replace(/_/g, ' ')}
+            </span>
+          </div>
+          <div>
+            <span style={{ color: 'var(--theme-text-muted)' }}>HGVS: </span>
+            <span>{hoveredHit.hgvsp ? hoveredHit.hgvsp.split(':')[1] : (hoveredHit.hgvsc ? hoveredHit.hgvsc.split(':')[1] : '—')}</span>
+          </div>
+          <div>
+            <span style={{ color: 'var(--theme-text-muted)' }}>AF: </span>
+            <span style={{ fontFamily: 'monospace' }}>{(hoveredHit.allele_frequency || hoveredHit.af_cases || 0).toExponential(2)}</span>
+          </div>
+          <div>
+            <span style={{ color: 'var(--theme-text-muted)' }}>Beta: </span>
+            <span style={{ fontFamily: 'monospace' }}>{(hoveredHit.beta || 0).toFixed(3)}</span>
+          </div>
+          <div>
+            <span style={{ color: 'var(--theme-text-muted)' }}>P-value: </span>
+            <span style={{ fontFamily: 'monospace' }}>{(hoveredHit.pvalue || 1).toExponential(2)}</span>
+          </div>
+        </TooltipContainer>
+      )}
+
+      {/* Context menu for variant labeling */}
+      {contextMenu && (
+        <UnifiedContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          title={contextMenu.variant.variant_id}
+          sections={[
+            {
+              targets: [
+                {
+                  label: variantShowLabel[contextMenu.variant.variant_id] ? 'Hide Label' : 'Show Label',
+                  onClick: () => {
+                    const variantId = contextMenu.variant.variant_id
+                    setVariantShowLabel(prev => ({
+                      ...prev,
+                      [variantId]: !prev[variantId]
+                    }))
+                    setContextMenu(null)
+                  },
+                  icon: '🏷️'
+                }
+              ]
+            }
+          ]}
+          onNavigate={() => {}}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </PlotWrapper>
   )
 }

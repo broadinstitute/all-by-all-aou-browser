@@ -154,6 +154,8 @@ export type VariantFieldType =
   | 'allele_number'
   | 'allele_frequency'
   | 'homozygote_count'
+  | 'show_label'
+  | 'label'
 // | 'gwas_catalog'
 
 export const selectedVariantFieldsOptions: VariantFieldType[] = [
@@ -179,6 +181,8 @@ export const selectedVariantFieldsOptions: VariantFieldType[] = [
   'allele_number',
   'allele_frequency',
   'homozygote_count',
+  'show_label',
+  'label',
   // 'gwas_catalog',
 ]
 
@@ -271,8 +275,33 @@ export const variantLabelsAtom = atom<Record<string, string>>({
   default: {},
 })
 
-// Feature flag for custom variant labels (disabled by default)
+// Feature flag for custom variant labels (enabled by default)
+// Persisted in localStorage so setting is remembered across sessions
 export const enableVariantLabelsAtom = atom<boolean>({
   key: 'enableVariantLabels',
-  default: false,
+  default: true,
+  effects: [
+    ({ setSelf, onSet }) => {
+      // Load from localStorage on init
+      const savedValue = localStorage.getItem('enableVariantLabels')
+      if (savedValue != null) {
+        setSelf(JSON.parse(savedValue))
+      } else {
+        setSelf(true)
+      }
+
+      // Save to localStorage on change
+      onSet((newValue, _, isReset) => {
+        isReset
+          ? localStorage.removeItem('enableVariantLabels')
+          : localStorage.setItem('enableVariantLabels', JSON.stringify(newValue))
+      })
+    },
+  ],
+})
+
+// Explicit toggle to show/hide labels on the lollipop plot
+export const variantShowLabelAtom = atom<Record<string, boolean>>({
+  key: 'variantShowLabel',
+  default: {},
 })

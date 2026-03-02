@@ -81,6 +81,9 @@ export const renderPoint = ({
   } else if (point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
     ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = pointColor(point.data, betaScale)
+    ctx.strokeStyle = strokeColor
+    ctx.lineWidth = 1
+    ctx.stroke()
   } else if (
     !singleVariantSelected &&
     (point.data.analysis_id === activeAnalysis || point.data.variant_id === activeVariant)
@@ -93,6 +96,9 @@ export const renderPoint = ({
   } else {
     ctx.globalCompositeOperation = 'destination-over'
     ctx.fillStyle = transparentize(transparency[1], pointColor(point.data, betaScale) || 'black')
+    ctx.strokeStyle = strokeColor
+    ctx.lineWidth = 0.5
+    ctx.stroke()
   }
 
   ctx.fill()

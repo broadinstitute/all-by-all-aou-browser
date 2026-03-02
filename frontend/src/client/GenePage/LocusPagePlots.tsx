@@ -21,8 +21,9 @@ import {
   multiAnalysisTransparencyAtom,
   variantLabelsAtom,
   enableVariantLabelsAtom,
+  variantShowLabelAtom,
 } from '../variantState'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil'
 import styled from 'styled-components'
 import { useState } from 'react'
 import {
@@ -259,6 +260,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
   const gwasCatalogOption = useRecoilValue(gwasCatalogOptionsAtom)
   const enableVariantLabels = useRecoilValue(enableVariantLabelsAtom)
   const variantLabels = useRecoilValue(variantLabelsAtom)
+  const [variantShowLabel, setVariantShowLabel] = useRecoilState(variantShowLabelAtom)
 
   const setVariantId = useSetRecoilState(variantIdAtom)
   const setResultsIndex = useSetRecoilState(resultIndexAtom)
@@ -270,6 +272,15 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
 
   const [plotHeight, setPlotHeight] = useState(200)
   const [isDragging, setIsDragging] = useState(false)
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, {x: number, y: number}>>({})
+
+  const handleLabelDragEnd = (id: string, x: number, y: number) => {
+    setLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
+  }
+
+  const handleResetLayout = () => {
+    setLabelOverrides({})
+  }
 
   React.useEffect(() => {
     if (variantId || variantDatasets.length === 1) {
@@ -307,15 +318,54 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
 
   const variantsAll = variantDatasets.flatMap((v) => v)
 
+  React.useEffect(() => {
+    if (!enableVariantLabels) {
+      return
+    }
+
+    const autoLabeledVariants = variantsAll.filter(v => {
+      const isSignificant = v.pvalue && v.pvalue < 1e-4;
+      const hasHgvs = v.hgvsp || v.hgvsc;
+
+      return isSignificant && hasHgvs;
+    });
+
+    if (autoLabeledVariants.length > 0) {
+      setVariantShowLabel(prev => {
+        let changed = false;
+        const newShowLabel = { ...prev };
+        autoLabeledVariants.forEach(v => {
+          if (newShowLabel[v.variant_id] === undefined) { // Only set if not previously defined
+            newShowLabel[v.variant_id] = true;
+            changed = true;
+          }
+        });
+        return changed ? newShowLabel : prev;
+      });
+    }
+  }, [enableVariantLabels, variantDatasets, setVariantShowLabel, variantsAll]);
+
   const significantVariantsWithLabels = variantsAll.filter(p => {
     const hasCustomLabel = variantLabels && variantLabels[p.variant_id];
-    const isSignificant = p.pvalue && p.pvalue < 1e-4;
+    const explicitlySet = variantShowLabel && variantShowLabel[p.variant_id];
     const hasHgvs = p.hgvsp || p.hgvsc;
-    return hasCustomLabel || (isSignificant && hasHgvs);
+
+    // Only show labels for variants that have HGVS data or a custom label
+    if (!hasCustomLabel && !hasHgvs) {
+      return false;
+    }
+
+    if (explicitlySet !== undefined) {
+      return explicitlySet || !!hasCustomLabel;
+    }
+
+    const isSignificant = p.pvalue && p.pvalue < 1e-4;
+    return !!hasCustomLabel || (isSignificant && hasHgvs);
   });
 
   const hasPLoF = significantVariantsWithLabels.some(v => getTierFromPriority(getConsequencePriority(v.consequence || '')) === 'pLoF');
   const hasMissense = significantVariantsWithLabels.some(v => getTierFromPriority(getConsequencePriority(v.consequence || '')) === 'missense');
+  const hasOther = significantVariantsWithLabels.some(v => getTierFromPriority(getConsequencePriority(v.consequence || '')) === 'other');
 
   let currentY = 30;
   const dynamicTierY: Record<string, number> = {};
@@ -327,8 +377,12 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
     dynamicTierY['missense'] = currentY;
     currentY += 35;
   }
+  if (hasOther) {
+    dynamicTierY['other'] = currentY;
+    currentY += 35;
+  }
 
-  const dynamicLabelZoneHeight = (hasPLoF || hasMissense) ? currentY + 10 : 0;
+  const dynamicLabelZoneHeight = enableVariantLabels && (hasPLoF || hasMissense || hasOther) ? currentY + 10 : 0;
 
   const betaExtent = [-1, 1]
 
@@ -374,7 +428,26 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
 
   return (
     <React.Fragment>
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', position: 'relative' }}>
+        {Object.keys(labelOverrides).length > 0 && (
+          <button
+            onClick={handleResetLayout}
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 20,
+              zIndex: 100,
+              padding: '4px 8px',
+              fontSize: '11px',
+              backgroundColor: 'var(--theme-surface, #fff)',
+              border: '1px solid var(--theme-border, #ccc)',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Reset Labels
+          </button>
+        )}
         <LocusPagePlotStyles>
           {usePngPlot ? (
             // PNG-based locus plot with interactive overlay
@@ -433,9 +506,12 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
                   showAnalysisDescription: variantDatasets.length === 1 ? false : true,
                 })}
                 gwasCatalogOption={gwasCatalogOption}
-                variantLabels={enableVariantLabels ? variantLabels : {}}
+                showLollipopLabels={enableVariantLabels}
+                variantLabels={variantLabels}
                 labelZoneHeight={dynamicLabelZoneHeight}
                 tierY={dynamicTierY}
+                labelOverrides={labelOverrides}
+                onLabelDragEnd={handleLabelDragEnd}
               />
             </>
           )}

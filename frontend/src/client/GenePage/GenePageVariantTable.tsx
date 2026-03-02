@@ -3,7 +3,7 @@ import { flatten, keyBy, mergeWith, values } from 'lodash'
 import memoizeOne from 'memoize-one'
 import React from 'react'
 import { useHistory } from 'react-router-dom'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil'
 import VariantTable from '../VariantList/VariantTable'
 import { countColumns, getVariantColumns } from '../VariantList/variantTableColumns'
 import ExportDataButton from '../ExportDataButton'
@@ -22,6 +22,7 @@ import {
   hoveredVariantAtom,
   multiAnalysisVariantTableFormatAtom,
   enableVariantLabelsAtom,
+  variantShowLabelAtom,
 } from '../variantState'
 
 import { scaleDiverging } from 'd3-scale'
@@ -118,7 +119,7 @@ export const GenePageVariantTable = ({
   const history = useHistory()
   const analysesColors = useRecoilValue(selectedAnalysesColorsSelector)
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
-  const selectedVariantFields = useRecoilValue(selectedVariantFieldsAtom)
+  const [selectedVariantFields, setSelectedVariantFields] = useRecoilState(selectedVariantFieldsAtom)
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const windowSize = useRecoilValue(windowSizeAtom)
@@ -128,19 +129,47 @@ export const GenePageVariantTable = ({
   const geneId = useRecoilValue(geneIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
   const enableVariantLabels = useRecoilValue(enableVariantLabelsAtom)
+  const variantShowLabel = useRecoilValue(variantShowLabelAtom)
+
+  // Track previous state to only add columns when feature is first enabled
+  const prevEnabledRef = React.useRef(enableVariantLabels)
+
+  // Auto-add label columns when feature is enabled (only on enable transition)
+  React.useEffect(() => {
+    const wasDisabled = !prevEnabledRef.current
+    const isNowEnabled = enableVariantLabels
+
+    if (wasDisabled && isNowEnabled) {
+      setSelectedVariantFields(prev => {
+        const needsShowLabel = !prev.includes('show_label')
+
+        if (needsShowLabel) {
+          return [...prev, 'show_label']
+        }
+        return prev
+      })
+    }
+
+    prevEnabledRef.current = enableVariantLabels
+  }, [enableVariantLabels, setSelectedVariantFields])
 
   const baseColumns = variantId
     ? []
     : [
       'variant_id',
-      ...(enableVariantLabels ? ['label'] : []),
+      // Label columns are now controlled by selectedVariantFields checkboxes
       // 'sequencing_type',
       // 'ancestry_group',
       // 'consequence',
       // 'hgvsp',
     ]
 
-  const longColumns = tableFormat === 'long' ? [...selectedVariantFields] : []
+  // Filter out label columns if feature flag is disabled
+  const filteredVariantFields = enableVariantLabels
+    ? selectedVariantFields
+    : selectedVariantFields.filter(f => f !== 'show_label' && f !== 'label')
+
+  const longColumns = tableFormat === 'long' ? [...filteredVariantFields] : []
 
   const multiVariantAnalysisColumns =
     tableFormat === 'long' && variantDatasets.length > 1 ? [] : []
@@ -247,9 +276,17 @@ export const GenePageVariantTable = ({
   )
 
   if (tableFormat === 'wide' && !variantId) {
-    variants = sortVariants(multiAnalysisVariantSummary)
+    const augmentedVariants = multiAnalysisVariantSummary.map(v => ({
+      ...v,
+      show_label: variantShowLabel[v.variant_id] || false
+    }))
+    variants = sortVariants(augmentedVariants)
   } else if (tableFormat === 'long' || variantId) {
-    variants = sortVariants(flatten(variantDatasets))
+    const augmentedVariants = flatten(variantDatasets).map(v => ({
+      ...v,
+      show_label: variantShowLabel[v.variant_id] || false
+    }))
+    variants = sortVariants(augmentedVariants)
   }
 
   const longTableGetKey = (v: VariantJoined) => `${v.variant_id}-${v.ancestry_group}-${v.sequencing_type}_long_table`
