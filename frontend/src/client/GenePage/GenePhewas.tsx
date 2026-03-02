@@ -195,7 +195,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/genes/phewas/${geneIdOrName}?annotation=${burdenSet}`,
+        url: `${axaouDevUrl}/genes/phewas/${geneIdOrName}`,
         name: 'geneAssociations',
       },
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
@@ -210,7 +210,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
         name: 'availableAnalyses',
       }
     ],
-    deps: [burdenSet, geneIdOrName],
+    deps: [geneIdOrName],
     cacheEnabled,
   })
 
@@ -324,7 +324,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
 
   const geneAssociationsForAncestry = processGeneBurden(
     (geneAssociations.data &&
-      geneAssociations.data.filter((g) => g.ancestry_group === ancestryGroup)) ||
+      geneAssociations.data.filter((g) => g.ancestry_group === ancestryGroup && g.annotation === burdenSet)) ||
     []
   )
 

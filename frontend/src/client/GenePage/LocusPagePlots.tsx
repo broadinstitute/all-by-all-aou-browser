@@ -10,7 +10,7 @@ import {
   scaleSequential,
 } from 'd3-scale'
 
-import { LocusPvaluePlot, LeftPanel } from './LocusPvaluePlot'
+import { LocusPvaluePlot, LeftPanel, getConsequencePriority, getTierFromPriority } from './LocusPvaluePlot'
 import { VariantJoined, LocusPlotResponse } from '../types'
 import { getCategoryFromConsequence } from '../vepConsequences'
 import {
@@ -24,6 +24,7 @@ import {
 } from '../variantState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
+import { useState } from 'react'
 import {
   regionIdAtom,
   resultIndexAtom,
@@ -70,6 +71,36 @@ const LocusPagePlotStyles = styled.div`
   .legend {
     width: 100%;
     border: 10px solid red;
+  }
+`
+
+const DragHandle = styled.div`
+  height: 12px;
+  background: var(--theme-surface-alt, #f0f0f0);
+  border-top: 1px solid var(--theme-border, #e0e0e0);
+  border-bottom: 1px solid var(--theme-border, #e0e0e0);
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+
+  &:hover {
+    background: var(--theme-primary, #428bca);
+  }
+
+  &::after {
+    content: '';
+    width: 60px;
+    height: 4px;
+    background: var(--theme-border, #ccc);
+    border-radius: 2px;
+  }
+
+  &:hover::after {
+    background: white;
   }
 `
 
@@ -237,20 +268,67 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
     setResultsIndex('variant-phewas')
   }
 
-  let genePageVariantPvaluePlotHeight = 200
-  let axisTicks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200]
+  const [plotHeight, setPlotHeight] = useState(200)
+  const [isDragging, setIsDragging] = useState(false)
 
-  if (variantId || variantDatasets.length === 1) {
-    genePageVariantPvaluePlotHeight = 300
-    axisTicks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200]
-  }
+  React.useEffect(() => {
+    if (variantId || variantDatasets.length === 1) {
+      setPlotHeight(300)
+    } else if (regionId) {
+      setPlotHeight(350)
+    } else {
+      setPlotHeight(200)
+    }
+  }, [variantId, regionId, variantDatasets.length])
 
-  if (regionId) {
-    genePageVariantPvaluePlotHeight = 350
-    axisTicks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200]
+  const axisTicks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200]
+
+  const handlePlotDragStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    const startY = e.clientY
+    const startHeight = plotHeight
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = moveEvent.clientY - startY
+      const newHeight = Math.max(150, Math.min(800, startHeight + deltaY))
+      setPlotHeight(newHeight)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
   }
 
   const variantsAll = variantDatasets.flatMap((v) => v)
+
+  const significantVariantsWithLabels = variantsAll.filter(p => {
+    const hasCustomLabel = variantLabels && variantLabels[p.variant_id];
+    const isSignificant = p.pvalue && p.pvalue < 1e-4;
+    const hasHgvs = p.hgvsp || p.hgvsc;
+    return hasCustomLabel || (isSignificant && hasHgvs);
+  });
+
+  const hasPLoF = significantVariantsWithLabels.some(v => getTierFromPriority(getConsequencePriority(v.consequence || '')) === 'pLoF');
+  const hasMissense = significantVariantsWithLabels.some(v => getTierFromPriority(getConsequencePriority(v.consequence || '')) === 'missense');
+
+  let currentY = 30;
+  const dynamicTierY: Record<string, number> = {};
+  if (hasPLoF) {
+    dynamicTierY['pLoF'] = currentY;
+    currentY += 35;
+  }
+  if (hasMissense) {
+    dynamicTierY['missense'] = currentY;
+    currentY += 35;
+  }
+
+  const dynamicLabelZoneHeight = (hasPLoF || hasMissense) ? currentY + 10 : 0;
 
   const betaExtent = [-1, 1]
 
@@ -296,64 +374,74 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
 
   return (
     <React.Fragment>
-      <LocusPagePlotStyles>
-        {usePngPlot ? (
-          // PNG-based locus plot with interactive overlay
-          <>
-            <div className='left-panel'>
-              <LeftPanel
-                variantDatasets={variantDatasets}
-                height={genePageVariantPvaluePlotHeight}
-                width={leftPanelWidth}
-                axisTicks={axisTicks}
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        <LocusPagePlotStyles>
+          {usePngPlot ? (
+            // PNG-based locus plot with interactive overlay
+            <>
+              <div className='left-panel'>
+                <LeftPanel
+                  variantDatasets={variantDatasets}
+                  height={plotHeight}
+                  width={leftPanelWidth}
+                  axisTicks={axisTicks}
+                  labelZoneHeight={dynamicLabelZoneHeight}
+                  tierY={dynamicTierY}
+                />
+              </div>
+              <LocusPlotTrack
+                imageUrl={fullImageUrl}
+                sidecar={locusPlotData.sidecar}
+                locusStart={locusPlotData.locus_start}
+                locusStop={locusPlotData.locus_stop}
+                variants={significantVariants}
+                height={plotHeight}
+                onClickVariant={onPngVariantClick}
               />
-            </div>
-            <LocusPlotTrack
-              imageUrl={fullImageUrl}
-              sidecar={locusPlotData.sidecar}
-              locusStart={locusPlotData.locus_start}
-              locusStop={locusPlotData.locus_stop}
-              variants={significantVariants}
-              height={genePageVariantPvaluePlotHeight}
-              onClickVariant={onPngVariantClick}
-            />
-          </>
-        ) : (
-          // Canvas-based fallback rendering
-          <>
-            <div className='left-panel'>
-              <LeftPanel
+            </>
+          ) : (
+            // Canvas-based fallback rendering
+            <>
+              <div className='left-panel'>
+                <LeftPanel
+                  variantDatasets={variantDatasets}
+                  height={plotHeight}
+                  width={leftPanelWidth}
+                  axisTicks={axisTicks}
+                  labelZoneHeight={dynamicLabelZoneHeight}
+                  tierY={dynamicTierY}
+                />
+              </div>
+              <LocusPvaluePlot
                 variantDatasets={variantDatasets}
-                height={genePageVariantPvaluePlotHeight}
-                width={leftPanelWidth}
-                axisTicks={axisTicks}
+                activeAnalysis={undefined}
+                activeVariant={hoveredVariant}
+                betaScale={betaScale}
+                alleleFrequencyScale={alleleFrequencyScale}
+                transparency={transparency}
+                height={plotHeight}
+                scalePosition={scalePosition}
+                width={centerPanelWidth}
+                leftPanelWidth={0}
+                rightPanelWidth={rightPanelWidth}
+                pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
+                applyStroke={!isRegion}
+                reverseConsequenceSort={isRegion}
+                onClickPoint={onClickVariant}
+                thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
+                pointLabel={onVariantHoverLabel({
+                  showAnalysisDescription: variantDatasets.length === 1 ? false : true,
+                })}
+                gwasCatalogOption={gwasCatalogOption}
+                variantLabels={enableVariantLabels ? variantLabels : {}}
+                labelZoneHeight={dynamicLabelZoneHeight}
+                tierY={dynamicTierY}
               />
-            </div>
-            <LocusPvaluePlot
-              variantDatasets={variantDatasets}
-              activeAnalysis={undefined}
-              activeVariant={hoveredVariant}
-              betaScale={betaScale}
-              alleleFrequencyScale={alleleFrequencyScale}
-              transparency={transparency}
-              height={genePageVariantPvaluePlotHeight}
-              scalePosition={scalePosition}
-              width={centerPanelWidth}
-              leftPanelWidth={0}
-              rightPanelWidth={rightPanelWidth}
-              pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
-              applyStroke={!isRegion}
-              onClickPoint={onClickVariant}
-              thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
-              pointLabel={onVariantHoverLabel({
-                showAnalysisDescription: variantDatasets.length === 1 ? false : true,
-              })}
-              gwasCatalogOption={gwasCatalogOption}
-              variantLabels={enableVariantLabels ? variantLabels : {}}
-            />
-          </>
-        )}
-      </LocusPagePlotStyles>
+            </>
+          )}
+        </LocusPagePlotStyles>
+        <DragHandle onMouseDown={handlePlotDragStart} style={{ cursor: isDragging ? 'ns-resize' : 'ns-resize' }} title="Drag to resize plot area" />
+      </div>
     </React.Fragment>
   )
 }

@@ -6,8 +6,7 @@ import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { PeakLabels } from './components/PeakLabels';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
-import { LocusContextMenu } from './components/LocusContextMenu';
-import { GeneContextMenu } from './components/GeneContextMenu';
+import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { computeDisplayHits, getChromosomeLayout } from './layout';
 import type { Peak } from './types';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
@@ -85,18 +84,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  // Context menu state
+  // Unified context menu state - can include locus, gene, or multiple genes
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    contig: string;
-    position: number;
-  } | null>(null);
-  const [geneContextMenu, setGeneContextMenu] = useState<{
-    x: number;
-    y: number;
-    geneId: string;
-    geneSymbol: string;
+    locus?: { contig: string; position: number };
+    gene?: { geneId: string; geneSymbol: string };
+    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
   } | null>(null);
 
   // Compute display coordinates from raw hits
@@ -404,7 +398,6 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                pointerEvents: 'none',
               }}
             >
               <PeakLabels
@@ -418,8 +411,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   setContextMenu({
                     x: clientX,
                     y: clientY,
-                    contig: node.peak.contig,
-                    position: node.peak.position,
+                    locus: { contig: node.peak.contig, position: node.peak.position },
+                    genes: node.implicatedGenes.map((g) => ({
+                      geneId: g.geneId,
+                      geneSymbol: g.geneSymbol,
+                      burdenTypes: g.burdenTypes,
+                      hasCoding: g.hasCoding,
+                    })),
                   });
                 }}
               />
@@ -538,6 +536,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
                     <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
                   </span>
+                  <span style={{ fontSize: 10, color: 'var(--theme-text-muted)', fontStyle: 'italic' }}>
+                    | Right-click for options
+                  </span>
                   {customLabelMode && (
                     <>
                       {selectedPeakIds.size > 0 && (
@@ -638,8 +639,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                             setContextMenu({
                               x: e.clientX,
                               y: e.clientY,
-                              contig: peak.contig,
-                              position: peak.position,
+                              locus: { contig: peak.contig, position: peak.position },
                             });
                           }}
                           style={{ cursor: 'pointer' }}
@@ -675,11 +675,11 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                   onContextMenu={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setGeneContextMenu({
+                                    setContextMenu({
                                       x: e.clientX,
                                       y: e.clientY,
-                                      geneId: g.gene_id,
-                                      geneSymbol: g.gene_symbol,
+                                      locus: { contig: peak.contig, position: peak.position },
+                                      gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                                     });
                                   }}
                                   title={`View ${g.gene_symbol} page, right-click for options`}
@@ -720,11 +720,11 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                     onContextMenu={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      setGeneContextMenu({
+                                      setContextMenu({
                                         x: e.clientX,
                                         y: e.clientY,
-                                        geneId: g.gene_id,
-                                        geneSymbol: g.gene_symbol,
+                                        locus: { contig: peak.contig, position: peak.position },
+                                        gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                                       });
                                     }}
                                     title={`View ${g.gene_symbol} page, right-click for options`}
@@ -834,25 +834,16 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
         <div className="manhattan-loading">Loading Manhattan plot...</div>
       )}
 
-      {/* Context menu */}
+      {/* Unified context menu */}
       {contextMenu && (
-        <LocusContextMenu
+        <LocusGeneContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          contig={contextMenu.contig}
-          position={contextMenu.position}
+          locus={contextMenu.locus}
+          gene={contextMenu.gene}
+          genes={contextMenu.genes}
           onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      {/* Gene Context Menu */}
-      {geneContextMenu && (
-        <GeneContextMenu
-          x={geneContextMenu.x}
-          y={geneContextMenu.y}
-          geneId={geneContextMenu.geneId}
-          geneSymbol={geneContextMenu.geneSymbol}
-          onClose={() => setGeneContextMenu(null)}
+          onLocusClick={onLocusClick}
         />
       )}
     </div>

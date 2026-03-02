@@ -4,7 +4,7 @@ import { PeakLabels, LabelPositionOverride } from './components/PeakLabels';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
-import { LocusContextMenu } from './components/LocusContextMenu';
+import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
 import { exportManhattanPlot } from './utils/exportPlot';
@@ -130,12 +130,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [useDogLegStems, setUseDogLegStems] = useState(false);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  // Context menu state
+  // Unified context menu state - can include locus, gene, or multiple genes
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    contig: string;
-    position: number;
+    locus?: { contig: string; position: number };
+    gene?: { geneId: string; geneSymbol: string };
+    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
   } | null>(null);
 
   // Convert unified loci to peaks format for label layout
@@ -454,8 +455,13 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                   setContextMenu({
                     x: clientX,
                     y: clientY,
-                    contig: node.peak.contig,
-                    position: node.peak.position,
+                    locus: { contig: node.peak.contig, position: node.peak.position },
+                    genes: node.implicatedGenes.map((g) => ({
+                      geneId: g.geneId,
+                      geneSymbol: g.geneSymbol,
+                      burdenTypes: g.burdenTypes,
+                      hasCoding: g.hasCoding,
+                    })),
                   });
                 }}
                 labelOverrides={labelOverrides}
@@ -516,13 +522,14 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
         <div className="manhattan-loading">Loading Manhattan plots...</div>
       )}
 
-      {/* Context menu */}
+      {/* Unified context menu */}
       {contextMenu && (
-        <LocusContextMenu
+        <LocusGeneContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          contig={contextMenu.contig}
-          position={contextMenu.position}
+          locus={contextMenu.locus}
+          gene={contextMenu.gene}
+          genes={contextMenu.genes}
           onClose={() => setContextMenu(null)}
         />
       )}

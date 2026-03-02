@@ -12,13 +12,27 @@ const LABEL_ANGLE = -45; // Degrees
 const TOP_PADDING = 15; // Minimum space above topmost label
 const BOTTOM_PADDING = 8; // Space between labels and plot
 
+/** Gene with evidence (burden or coding) in a peak */
+export interface ImplicatedGene {
+  geneId: string;
+  geneSymbol: string;
+  hasBurden: boolean;
+  hasCoding: boolean;
+  burdenTypes: string[];
+  lofCount: number;
+  missenseCount: number;
+}
+
 export interface PeakLabelNode {
   peak: Peak;
   targetX: number;
   targetY: number; // Y position on the plot (normalized, 0-1)
   x: number;
   y: number;
+  /** Gene symbol of the top gene */
   label: string;
+  /** Gene ID (ENSG...) of the top gene */
+  geneId: string;
   labelWidth: number;
   hasBurden: boolean;
   codingCount: number;
@@ -35,6 +49,8 @@ export interface PeakLabelNode {
   implicatedCount: number;
   /** Whether this is a burden-only peak (no GWAS single-variant signal) */
   isBurdenOnly: boolean;
+  /** All genes with burden or coding evidence in this peak */
+  implicatedGenes: ImplicatedGene[];
 }
 
 export interface PeakLabelLayout {
@@ -200,23 +216,38 @@ export function usePeakLabelLayout(
         continue;
       }
 
-      // Collect burden types from all genes in this peak
+      // Collect burden types and implicated genes from all genes in this peak
       const burdenTypesSet = new Set<string>();
-      let implicatedCount = 0;
+      const implicatedGenes: ImplicatedGene[] = [];
       for (const g of peak.genes) {
-        const hasGeneBurden = g.burden_results?.some((b) => (b.pvalue ?? Infinity) < SIG_THRESHOLD) ?? false;
-        const hasGeneCoding = (g.coding_variant_count || 0) > 0;
-        if (hasGeneBurden || hasGeneCoding) {
-          implicatedCount++;
-        }
+        // Collect gene-specific burden types
+        const geneBurdenTypes: string[] = [];
         if (g.burden_results) {
           for (const b of g.burden_results) {
             if ((b.pvalue ?? Infinity) < SIG_THRESHOLD) {
               burdenTypesSet.add(b.annotation);
+              geneBurdenTypes.push(b.annotation);
             }
           }
         }
+        const hasGeneBurden = geneBurdenTypes.length > 0;
+        const geneLofCount = g.lof_count || 0;
+        const geneMissenseCount = g.missense_count || 0;
+        const hasGeneCoding = geneLofCount > 0 || geneMissenseCount > 0 || (g.coding_variant_count || 0) > 0;
+
+        if (hasGeneBurden || hasGeneCoding) {
+          implicatedGenes.push({
+            geneId: g.gene_id,
+            geneSymbol: g.gene_symbol,
+            hasBurden: hasGeneBurden,
+            hasCoding: hasGeneCoding,
+            burdenTypes: geneBurdenTypes,
+            lofCount: geneLofCount,
+            missenseCount: geneMissenseCount,
+          });
+        }
       }
+      const implicatedCount = implicatedGenes.length;
       const burdenTypes = Array.from(burdenTypesSet);
       const hasBurden = burdenTypes.length > 0;
 
@@ -245,6 +276,7 @@ export function usePeakLabelLayout(
         x: targetX,
         y: 0, // Will be computed by force simulation
         label: topGene.gene_symbol,
+        geneId: topGene.gene_id,
         labelWidth,
         hasBurden,
         codingCount,
@@ -255,6 +287,7 @@ export function usePeakLabelLayout(
         missenseCount,
         implicatedCount,
         isBurdenOnly,
+        implicatedGenes,
       });
     }
 

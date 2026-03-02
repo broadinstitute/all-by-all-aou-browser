@@ -12,9 +12,10 @@ const Container = styled.div``
 interface Props {
   geneModelsInRegion: GeneModels[]
   geneAssociations?: GeneAssociations[]
+  locusMaf?: number
 }
 
-const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociations = [] }) => {
+const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociations = [], locusMaf }) => {
   const setGeneId = useSetRecoilState(geneIdAtom)
   const setRegionId = useSetRecoilState(regionIdAtom)
   const setResultsIndex = useSetRecoilState(resultIndexAtom)
@@ -38,6 +39,11 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
   const geneBurdenMap: Record<string, string[]> = {}
 
   geneAssociations.forEach((assoc) => {
+    // Filter by MAF if locusMaf is specified
+    if (locusMaf !== undefined && assoc.max_maf !== locusMaf) {
+      return
+    }
+
     const hasSig =
       (assoc.pvalue && assoc.pvalue < SIG_THRESHOLD) ||
       (assoc.pvalue_burden && assoc.pvalue_burden < SIG_THRESHOLD) ||

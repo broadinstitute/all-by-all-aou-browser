@@ -19,14 +19,8 @@ const PlotWrapper = styled.div`
 const marginBottom = 40
 
 // Height reserved for lollipop labels above the plot
-const LABEL_ZONE_HEIGHT = 90
-
-// Tier Y positions within the label zone (from top)
-const TIER_Y = {
-  pLoF: 15,      // Loss of function at top
-  missense: 45,  // Missense in middle
-  other: 70,     // Other below
-} as const;
+// Increased to accommodate vertical labels that can be 60+ pixels tall
+const LABEL_ZONE_HEIGHT = 120
 
 // Parse hgvsp to extract short label (e.g., "p.Val600Glu" -> "V600E")
 function parseHgvspLabel(hgvsp: string | undefined | null): string {
@@ -72,7 +66,7 @@ function parseHgvspLabel(hgvsp: string | undefined | null): string {
 }
 
 // Get consequence priority for sorting (higher = more severe)
-function getConsequencePriority(csq: string): number {
+export function getConsequencePriority(csq: string): number {
   const cat = getCategoryFromConsequence(csq);
   if (cat === 'lof' || cat === 'pLoF') return 4;
   if (cat === 'missense' || cat === 'missenseLC') return 3;
@@ -81,14 +75,14 @@ function getConsequencePriority(csq: string): number {
 }
 
 // Get tier name from consequence priority
-function getTierFromPriority(priority: number): 'pLoF' | 'missense' | 'other' {
+export function getTierFromPriority(priority: number): 'pLoF' | 'missense' | 'other' {
   if (priority >= 4) return 'pLoF';
   if (priority === 3) return 'missense';
   return 'other';
 }
 
 // Tier colors
-const TIER_COLORS = {
+export const TIER_COLORS = {
   pLoF: '#c62828',     // Red for loss of function
   missense: '#f57c00', // Orange for missense
   other: '#757575',    // Gray for other
@@ -327,12 +321,13 @@ export const LocusPvaluePlot = ({
   showLollipopLabels = true,
   lollipopPvalueThreshold = 1e-4,
   variantLabels = {},
-  // sort
-}: VariantPlotProps & { showLollipopLabels?: boolean; lollipopPvalueThreshold?: number; variantLabels?: Record<string, string> }) => {
+  reverseConsequenceSort = false,
+  labelZoneHeight = 0,
+  tierY = {},
+}: VariantPlotProps & { showLollipopLabels?: boolean; lollipopPvalueThreshold?: number; variantLabels?: Record<string, string>; reverseConsequenceSort?: boolean; labelZoneHeight?: number; tierY?: Record<string, number> }) => {
   const theme = useTheme() as any;
 
   // Add extra height for lollipop labels if enabled
-  const labelZoneHeight = showLollipopLabels ? LABEL_ZONE_HEIGHT : 0
   const totalHeight = height + labelZoneHeight
 
   const margin = {
@@ -362,7 +357,12 @@ export const LocusPvaluePlot = ({
         y: logLogScale(pvalue),
       }
     })
-  ).sort((a, b) => sortVariantsByConsequence(a.data, b.data))
+  ).sort((a, b) => {
+    const sortValue = sortVariantsByConsequence(a.data, b.data)
+    // Reverse sort for region pages (when reverseConsequenceSort is true)
+    // to account for different compositing behavior
+    return reverseConsequenceSort ? -sortValue : sortValue
+  })
 
   const scale = window.devicePixelRatio || 2
 
@@ -466,7 +466,7 @@ export const LocusPvaluePlot = ({
             anchorX: p.x,
             x: p.x,
             pointY: p.y + margin.top,  // Absolute Y position of the point
-            labelY: TIER_Y[tier],  // Y position based on tier
+            labelY: tierY[tier] ?? 40,  // Y position based on dynamic tier
             color,
             priority: customLabel ? priority + 10000 : priority,  // Boost priority for custom-labeled variants
             tier,
@@ -475,7 +475,7 @@ export const LocusPvaluePlot = ({
             labelAngle: 0,
           } as LollipopLabel;
         })
-        .filter(l => l.label.length > 0);
+        .filter(l => l.label.length > 0 && l.tier !== 'other');
 
       // Group by tier
       const pLoFLabels = allLabels.filter(l => l.tier === 'pLoF');
@@ -675,10 +675,10 @@ export const LocusPvaluePlot = ({
       <canvas
         ref={mainCanvas}
         height={totalHeight * scale}
-        width={(width + leftPanelWidth) * scale}
+        width={width * scale}
         style={{
           height: `${totalHeight}px`,
-          width: `${width + leftPanelWidth}px`,
+          width: `${width}px`,
         }}
         onClick={onClick}
         onMouseLeave={drawPlot}
@@ -696,12 +696,13 @@ interface LeftPanelProps {
   labelZoneHeight?: number
 }
 
-export const LeftPanel: React.FC<LeftPanelProps> = ({
+export const LeftPanel: React.FC<LeftPanelProps & { tierY?: Record<string, number> }> = ({
   height,
   variantDatasets,
   width,
   axisTicks,
-  labelZoneHeight = LABEL_ZONE_HEIGHT,
+  labelZoneHeight = 0,
+  tierY = {},
 }) => {
   const theme = useTheme() as any;
   const hPadding = 30
@@ -779,15 +780,8 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({
   // Tier labels in the label zone
   const tierLabels = labelZoneHeight > 0 ? (
     <g>
-      <text x={width - 5} y={TIER_Y.pLoF + 4} fontSize="9" fill={TIER_COLORS.pLoF} textAnchor="end" fontWeight="bold">
-        pLoF
-      </text>
-      <text x={width - 5} y={TIER_Y.missense + 4} fontSize="9" fill={TIER_COLORS.missense} textAnchor="end" fontWeight="bold">
-        missense
-      </text>
-      <text x={width - 5} y={TIER_Y.other + 4} fontSize="9" fill={TIER_COLORS.other} textAnchor="end" fontWeight="bold">
-        other
-      </text>
+      {tierY.pLoF !== undefined && <text x={width - 5} y={tierY.pLoF + 4} fontSize="9" fill={TIER_COLORS.pLoF} textAnchor="end" fontWeight="bold">pLoF</text>}
+      {tierY.missense !== undefined && <text x={width - 5} y={tierY.missense + 4} fontSize="9" fill={TIER_COLORS.missense} textAnchor="end" fontWeight="bold">missense</text>}
     </g>
   ) : null
 

@@ -140,6 +140,7 @@ export const getPhenotypeColumns = ({
         return (
           <Link
             className='grid-cell-content'
+            style={{ cursor: 'pointer' }}
             onClick={() => {
               setAnalysisId(row.analysis_id)
               setResultIndex('pheno-info')

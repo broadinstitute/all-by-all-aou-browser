@@ -89,6 +89,24 @@ export const GenesTrack = ({
   );
   const rowHeight = 30;
 
+  // Helper function to estimate text width (rough approximation)
+  // Average character width in pixels for the gene label font
+  const estimateTextWidth = (text: string): number => {
+    // Using approximate width based on typical sans-serif font metrics
+    // Uppercase letters ~9px, lowercase ~7px on average
+    let width = 0;
+    for (const char of text) {
+      if (char === char.toUpperCase() && char !== char.toLowerCase()) {
+        width += 9; // Uppercase letter
+      } else if (char >= '0' && char <= '9') {
+        width += 8; // Number
+      } else {
+        width += 7; // Lowercase or other
+      }
+    }
+    return width;
+  };
+
   return (
     <GeneTrackWrapper>
       <TestElem width={leftPanelWidth}>
@@ -113,16 +131,45 @@ export const GenesTrack = ({
                   >
                     {gene.symbol}
                   </GeneName>
-                  {geneBurdenMap && geneBurdenMap[gene.gene_id] && (
-                    <g transform={`translate(${(geneStop + geneStart) / 2 + gene.symbol.length * 6 + 5}, ${textYPosition - 1})`}>
-                      {geneBurdenMap[gene.gene_id].includes('pLoF') && (
-                        <circle cx={0} cy={0} r={4} fill="#c62828" />
-                      )}
-                      {geneBurdenMap[gene.gene_id].includes('missenseLC') && (
-                        <circle cx={geneBurdenMap[gene.gene_id].includes('pLoF') ? 10 : 0} cy={0} r={4} fill="#f57c00" />
-                      )}
-                    </g>
-                  )}
+                  {geneBurdenMap && geneBurdenMap[gene.gene_id] && (() => {
+                    // Calculate proper positioning for burden circles
+                    const textWidth = estimateTextWidth(gene.symbol);
+                    const textStartX = (geneStop + geneStart) / 2 - 5;
+                    const circleDiameter = 8; // radius 4 * 2
+                    const circleSpacing = 3; // space between circles
+                    const textPadding = 8; // space between text and first circle
+
+                    // Start circles after the text with padding
+                    const firstCircleX = textStartX + textWidth + textPadding;
+
+                    const hasPLoF = geneBurdenMap[gene.gene_id].includes('pLoF');
+                    const hasMissense = geneBurdenMap[gene.gene_id].includes('missenseLC');
+                    const hasSynonymous = geneBurdenMap[gene.gene_id].includes('synonymous');
+
+                    // Calculate x positions for each circle
+                    let currentX = 0;
+                    const pLofX = currentX;
+                    if (hasPLoF) currentX += circleDiameter + circleSpacing;
+
+                    const missenseX = currentX;
+                    if (hasMissense) currentX += circleDiameter + circleSpacing;
+
+                    const synonymousX = currentX;
+
+                    return (
+                      <g transform={`translate(${firstCircleX}, ${textYPosition - 1})`}>
+                        {hasPLoF && (
+                          <circle cx={pLofX} cy={0} r={4} fill="#c62828" />
+                        )}
+                        {hasMissense && (
+                          <circle cx={missenseX} cy={0} r={4} fill="#f57c00" />
+                        )}
+                        {hasSynonymous && (
+                          <circle cx={synonymousX} cy={0} r={4} fill="grey" />
+                        )}
+                      </g>
+                    );
+                  })()}
                 </g>
                 <line
                   x1={geneStart}

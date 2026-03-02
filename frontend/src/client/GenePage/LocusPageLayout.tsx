@@ -561,7 +561,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           >
             <>
               <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} />
-              {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} />}
+              {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
             </>
           </RegionViewer>
         </div>
