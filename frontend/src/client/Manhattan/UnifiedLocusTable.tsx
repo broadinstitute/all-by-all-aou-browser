@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useRecoilValue } from 'recoil';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
+import { analysisIdAtom } from '../sharedState';
 import './ManhattanViewer.css';
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -82,6 +84,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const [searchText, setSearchText] = useState('');
+  const currentAnalysisId = useRecoilValue(analysisIdAtom);
   // Unified context menu state - can include locus, gene, or both
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -491,6 +494,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           y={contextMenu.y}
           locus={contextMenu.locus}
           gene={contextMenu.gene}
+          currentPhenotypeDescription={currentAnalysisId || undefined}
           onClose={() => setContextMenu(null)}
           onLocusClick={onLocusClick}
         />

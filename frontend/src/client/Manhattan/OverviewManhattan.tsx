@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRecoilValue } from 'recoil';
 import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { PeakLabels, LabelPositionOverride } from './components/PeakLabels';
 import { PeakTooltip } from './components/PeakTooltip';
@@ -8,6 +9,7 @@ import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
 import { exportManhattanPlot } from './utils/exportPlot';
+import { analysisIdAtom } from '../sharedState';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
 
@@ -130,6 +132,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [useDogLegStems, setUseDogLegStems] = useState(false);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const currentAnalysisId = useRecoilValue(analysisIdAtom);
   // Unified context menu state - can include locus, gene, or multiple genes
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -530,6 +533,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
           locus={contextMenu.locus}
           gene={contextMenu.gene}
           genes={contextMenu.genes}
+          currentPhenotypeDescription={currentAnalysisId || undefined}
           onClose={() => setContextMenu(null)}
         />
       )}
