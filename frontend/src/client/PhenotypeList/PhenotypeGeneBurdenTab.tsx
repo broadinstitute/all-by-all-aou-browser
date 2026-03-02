@@ -302,6 +302,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
 
   const clearSelection = useCallback(() => {
     setSelectedGeneIds(new Set());
+    setCustomLabelMode(true);
   }, []);
 
   const resetToDefault = useCallback(() => {
@@ -367,14 +368,14 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
     if (customLabelMode) {
       return selectedGeneIds;
     }
-    // Default: top 25 by p-value
+    // Default: top 10 by p-value
     const allData = queryStates.geneData?.data ?? [];
-    const top25 = [...allData]
+    const top10 = [...allData]
       .filter((g) => g.pvalue != null)
       .sort((a, b) => (a.pvalue ?? Infinity) - (b.pvalue ?? Infinity))
-      .slice(0, 25)
+      .slice(0, 10)
       .map((g) => g.gene_id);
-    return new Set(top25);
+    return new Set(top10);
   }, [customLabelMode, selectedGeneIds, queryStates.geneData?.data]);
 
   const geneData = queryStates.geneData?.data ?? [];
@@ -496,7 +497,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
               <strong>{selectedGeneIds.size}</strong> labeled
             </span>
           ) : (
-            <span style={{ color: 'var(--theme-text-muted, #666)', fontSize: 11 }}>Top 25 labeled</span>
+            <span style={{ color: 'var(--theme-text-muted, #666)', fontSize: 11 }}>Top 10 labeled</span>
           )}
         </ControlGroup>
         <ControlGroup>
@@ -515,7 +516,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
               {selectedGeneIds.size > 0 && (
                 <SmallButton onClick={clearSelection}>Clear all</SmallButton>
               )}
-              <SmallButton onClick={resetToDefault}>Reset to top 25</SmallButton>
+              <SmallButton onClick={resetToDefault}>Reset to top 10</SmallButton>
             </>
           )}
         </ControlGroup>

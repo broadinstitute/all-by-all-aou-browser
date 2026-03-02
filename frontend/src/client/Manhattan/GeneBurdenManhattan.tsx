@@ -70,13 +70,13 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
     if (customLabelMode && selectedGeneIds && selectedGeneIds.size > 0) {
       return selectedGeneIds;
     }
-    // Default: top 25 by p-value
-    const top25 = [...geneData]
+    // Default: top 10 by p-value
+    const top10 = [...geneData]
       .filter((g) => g.pvalue != null)
       .sort((a, b) => (a.pvalue ?? Infinity) - (b.pvalue ?? Infinity))
-      .slice(0, 25)
+      .slice(0, 10)
       .map((g) => g.gene_id);
-    return new Set(top25);
+    return new Set(top10);
   }, [geneData, selectedGeneIds, customLabelMode]);
 
   // Track container width for responsive canvas resizing

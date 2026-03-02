@@ -115,7 +115,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : 25 // No limit when user-selected
+    customLabelMode ? 500 : 10 // No limit when user-selected
   );
 
   // Memoize sorted peaks for the table (expensive for large datasets)
@@ -170,7 +170,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
 
   const clearSelection = useCallback(() => {
     setSelectedPeakIds(new Set());
-    // Stay in custom mode - no labels shown
+    setCustomLabelMode(true);
   }, []);
 
   const resetToDefault = useCallback(() => {
@@ -449,7 +449,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       {/* Chromosome labels */}
       {imageLoaded && dimensions.width > 0 && (
         <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <ChromosomeLabels width={dimensions.width} contig={contig} />
+          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} />
         </div>
       )}
 
@@ -505,7 +505,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     </span>
                   ) : (
                     <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>
-                      Top 25 labeled
+                      Top 10 labeled
                     </span>
                   )}
                   {!customLabelMode && (
@@ -569,7 +569,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           borderRadius: 3,
                         }}
                       >
-                        Reset to top 25
+                        Reset to top 10
                       </button>
                     </>
                   )}
@@ -588,7 +588,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   {filteredPeaks.slice(0, visibleRowCount).map((peak, index) => {
                     const peakId = `${peak.contig}-${peak.position}`;
                     const isSelected = selectedPeakIds.has(peakId);
-                    const hasLabel = customLabelMode ? isSelected : index < 25;
+                    const hasLabel = customLabelMode ? isSelected : index < 10;
 
                     // Significance threshold for burden tests
                     const SIG_THRESHOLD = 2.5e-6;

@@ -57,21 +57,21 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
   // Stable callbacks for peak selection
   const togglePeak = useCallback((peakId: string, allFilteredLoci?: UnifiedLocus[]) => {
-    // If entering custom mode for the first time, initialize with top 25 peaks
+    // If entering custom mode for the first time, initialize with top 10 peaks
     if (!customLabelMode && allFilteredLoci) {
       const sortedLoci = [...allFilteredLoci].sort((a, b) => {
         const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
         const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
         return bestA - bestB;
       });
-      const top25Ids = new Set(sortedLoci.slice(0, 25).map((l) => `${l.contig}-${l.position}`));
+      const top10Ids = new Set(sortedLoci.slice(0, 10).map((l) => `${l.contig}-${l.position}`));
       // Apply the toggle to the initialized set
-      if (top25Ids.has(peakId)) {
-        top25Ids.delete(peakId);
+      if (top10Ids.has(peakId)) {
+        top10Ids.delete(peakId);
       } else {
-        top25Ids.add(peakId);
+        top10Ids.add(peakId);
       }
-      setSelectedPeakIds(top25Ids);
+      setSelectedPeakIds(top10Ids);
       setCustomLabelMode(true);
       return;
     }
@@ -90,6 +90,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
   const clearSelection = useCallback(() => {
     setSelectedPeakIds(new Set());
+    setCustomLabelMode(true);
   }, []);
 
   const resetToDefault = useCallback(() => {
@@ -109,13 +110,11 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
   const handlePeakClick = useCallback(
     (node: any) => {
-      if (node.peak && node.peak.genes && node.peak.genes.length > 0) {
-        handleGeneClick(node.peak.genes[0].gene_id);
-      } else if (onLocusClick && node.peak) {
+      if (onLocusClick && node.peak) {
         onLocusClick(node.peak.contig, node.peak.position);
       }
     },
-    [handleGeneClick, onLocusClick]
+    [onLocusClick]
   );
 
   const handleLocusClick = useCallback(
@@ -184,6 +183,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         showYAxis={true}
         contig={selectedContig}
         onResetContig={() => setSelectedContig('all')}
+        onContigClick={setSelectedContig}
       />
 
       {filteredLoci.length > 0 && (

@@ -11,6 +11,8 @@ import {
   regionIdAtom,
   variantIdAtom,
   locusMafAtom,
+  geneIdAtom,
+  resultLayoutAtom,
 } from '../sharedState'
 import { TinySpinner } from '../UserInterface'
 import {
@@ -338,6 +340,8 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const [regionId, setRegionId] = useRecoilState(regionIdAtom)
   const [activeTab, setActiveTab] = useState<TableTab>('geneBurden')
   const locusMaf = useRecoilValue(locusMafAtom)
+  const [geneId, setGeneId] = useRecoilState(geneIdAtom)
+  const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
 
   const regionViewerWidth = width
   const geneModel = !regionId ? geneModels[0] : undefined
@@ -471,9 +475,14 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     'show',
   ]
 
+  const handleGeneClick = (geneId: string) => {
+    setGeneId(geneId)
+    setResultLayout('half')
+  }
+
   const geneResultsColumns = getColumns({
     columnList: geneResultsColKeys,
-    onClickGeneId: () => { },
+    onClickGeneId: handleGeneClick,
     burdenSet: "pLoF",
   })
 

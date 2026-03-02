@@ -215,7 +215,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               e.preventDefault();
               onPeakContextMenu?.(node, e.clientX, e.clientY);
             }}
-            style={{ cursor: onLabelDragEnd ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
+            style={{ cursor: onLabelDragEnd ? (isDragging ? 'grabbing' : 'pointer') : 'pointer' }}
           >
             {/* Invisible wider hit area for easier hovering */}
             <path

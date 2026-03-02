@@ -123,8 +123,8 @@ const Tooltip = styled.div`
 `;
 
 const Y_AXIS_WIDTH = 50;
-const PLOT_HEIGHT = 400; // Fixed height like GeneBurdenManhattan
-const PLOT_PADDING = 8; // Padding at top/bottom so extreme points aren't clipped
+const PLOT_HEIGHT = 450; // Increased
+const PLOT_PADDING = 15; // Increased
 const SIG_THRESHOLD = 2.5e-6;
 
 interface GeneAssociationResult {
@@ -257,7 +257,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     // Immediate measurement
     const rect = container.getBoundingClientRect();
     if (rect.width > 0) {
-      const h = Math.min(500, Math.max(350, rect.width / 2.75));
+      const h = Math.min(550, Math.max(400, rect.width / 2.75));
       setDimensions({ width: rect.width, height: h });
     }
 
@@ -265,8 +265,8 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
       const entry = entries[0];
       if (entry && entry.contentRect.width > 0) {
         const w = entry.contentRect.width;
-        // Maintain aspect ratio ~2.75, capped at 500px height
-        const h = Math.min(500, Math.max(350, w / 2.75));
+        // Maintain aspect ratio ~2.75, capped at 550px height
+        const h = Math.min(550, Math.max(400, w / 2.75));
         setDimensions({ width: w, height: h });
       }
     });
@@ -377,11 +377,11 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textBaseline = 'middle';
 
-    // Get top 25 most significant points to label
+    // Get top 10 most significant points to label
     const pointsToLabel = [...points]
       .filter((p) => p.pvalue < SIG_THRESHOLD)
       .sort((a, b) => a.pvalue - b.pvalue)
-      .slice(0, 25);
+      .slice(0, 10);
 
     // Track label positions to avoid overlaps
     const labelRects: Array<{ x: number; y: number; w: number; h: number }> = [];

@@ -91,6 +91,10 @@ export const genericMerge = <T1 extends object, T2 extends object>(
     if (dummyZeroFields.includes(key) && srcValue === 0 && objValue !== undefined && objValue !== null && objValue !== 0) {
       return objValue;
     }
+    // Prevent generic/empty consequence API fields from overwriting specific VEP annotations
+    if (key === 'consequence' && (srcValue === 'unknown' || srcValue === '' || srcValue === null) && objValue) {
+      return objValue;
+    }
     if (srcValue !== null && srcValue !== undefined) {
       return srcValue;
     }

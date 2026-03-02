@@ -22,7 +22,7 @@ export interface UnifiedLocusTableProps {
   customLabelMode: boolean;
   /** Clear all selections */
   onClearSelection: () => void;
-  /** Reset to default (top 25) mode */
+  /** Reset to default (top 10) mode */
   onResetToDefault: () => void;
   /** Select all filtered loci */
   onSelectAllFiltered: (ids: Set<string>) => void;
@@ -221,7 +221,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
               <strong>{selectedPeakIds.size}</strong> labeled
             </span>
           ) : (
-            <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>Top 25 labeled</span>
+            <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>Top 10 labeled</span>
           )}
           {!customLabelMode && (
             <button
@@ -273,7 +273,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 borderRadius: 3,
               }}
             >
-              Reset to top 25
+              Reset to top 10
             </button>
           )}
         </div>
@@ -294,7 +294,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           {filteredLoci.slice(0, visibleRowCount).map((locus, index) => {
             const locusId = `${locus.contig}-${locus.position}`;
             const isSelected = selectedPeakIds.has(locusId);
-            const hasLabel = customLabelMode ? isSelected : index < 25;
+            const hasLabel = customLabelMode ? isSelected : index < 10;
 
             // Partition genes: implicated first, then non-implicated
             const implicatedGenes = locus.genes.filter(geneHasEvidence);

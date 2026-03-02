@@ -1,13 +1,15 @@
 import React from 'react';
 import { getChromosomeLayout } from '../layout';
 
-interface ChromosomeLabelsProps {
+export interface ChromosomeLabelsProps {
   /** Width of the plot area in pixels */
   width: number;
   /** Height of the label strip */
   height?: number;
   /** Current contig view ('all' for genome-wide, or 'chr1'-'chrY') */
   contig?: string;
+  /** Callback when a chromosome label is clicked */
+  onContigClick?: (contig: string) => void;
 }
 
 /**
@@ -19,6 +21,7 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
   width,
   height = 24,
   contig = 'all',
+  onContigClick,
 }) => {
   const layout = getChromosomeLayout(contig);
 
@@ -62,6 +65,12 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
               fontWeight: 500,
               whiteSpace: 'nowrap',
               color: '#666',
+              cursor: onContigClick && contig === 'all' ? 'pointer' : 'default',
+            }}
+            onClick={() => {
+              if (onContigClick && contig === 'all') {
+                onContigClick(`chr${chrom.name}`);
+              }
             }}
           >
             {chrom.name}

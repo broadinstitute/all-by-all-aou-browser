@@ -24,7 +24,7 @@ export interface OverviewManhattanProps {
   unifiedLoci: UnifiedLocus[];
   /** IDs of peaks to label (when in custom selection mode) */
   selectedPeakIds?: Set<string>;
-  /** Whether in custom label mode (true) or default top-25 mode (false) */
+  /** Whether in custom label mode (true) or default top-10 mode (false) */
   customLabelMode?: boolean;
   /** Callback when a peak label is clicked */
   onPeakClick?: (node: PeakLabelNode) => void;
@@ -34,6 +34,8 @@ export interface OverviewManhattanProps {
   contig?: string;
   /** Callback to reset to genome-wide view */
   onResetContig?: () => void;
+  /** Callback when a chromosome label is clicked */
+  onContigClick?: (contig: string) => void;
 }
 
 // Significance threshold for GWAS
@@ -115,6 +117,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   showYAxis = true,
   contig = 'all',
   onResetContig,
+  onContigClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -157,7 +160,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : 25
+    customLabelMode ? 500 : 10
   );
 
   // Observe image size changes for responsive scaling
@@ -489,7 +492,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
       {/* Chromosome labels */}
       {imagesLoaded && dimensions.width > 0 && (
         <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <ChromosomeLabels width={dimensions.width} contig={contig} />
+          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} />
         </div>
       )}
 

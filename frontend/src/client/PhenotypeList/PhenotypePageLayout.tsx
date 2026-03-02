@@ -222,10 +222,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   };
 
   const handlePeakClick = (node: any) => {
-    if (node.peak && node.peak.genes && node.peak.genes.length > 0) {
-      setGeneId(node.peak.genes[0].gene_id);
-      setResultLayout('half');
-    } else {
+    if (node.peak) {
       const windowSize = 500000; // ±500kb
       setRegionId(`${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`);
       setResultLayout('half');
