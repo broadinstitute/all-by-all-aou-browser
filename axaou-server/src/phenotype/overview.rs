@@ -21,17 +21,19 @@ use tracing::debug;
 pub struct OverviewQuery {
     /// Ancestry filter (e.g., "meta", "eur")
     pub ancestry: Option<String>,
+    /// Data version for cache-busting (e.g., "20260202-0942")
+    pub v: Option<String>,
 }
 
 /// Coding variant counts by consequence category
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UnifiedCodingHits {
     pub lof: u32,
     pub missense: u32,
 }
 
 /// A gene with evidence from multiple sources
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedGene {
     pub gene_symbol: String,
     pub gene_id: String,
@@ -43,12 +45,12 @@ pub struct UnifiedGene {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exome_coding_hits: Option<UnifiedCodingHits>,
     /// Burden test results
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
 }
 
 /// A unified locus combining evidence from genome, exome, and burden tests
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedLocus {
     pub contig: String,
     pub position: i32,
@@ -63,7 +65,7 @@ pub struct UnifiedLocus {
 }
 
 /// Response from the overview endpoint
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UnifiedOverviewResponse {
     /// URL to genome Manhattan plot image
     pub genome_image_url: String,
@@ -183,7 +185,7 @@ fn merge_gene(
 /// GET /api/phenotype/:analysis_id/overview
 ///
 /// Returns unified overview data combining genome Manhattan, exome Manhattan,
-/// and gene burden test results.
+/// and gene burden test results with server-side caching.
 pub async fn get_phenotype_overview(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
@@ -192,6 +194,20 @@ pub async fn get_phenotype_overview(
     debug!("Fetching unified overview for phenotype: {}", analysis_id);
 
     let ancestry = params.ancestry.as_deref().unwrap_or("meta");
+    let data_version = params.v.as_deref().unwrap_or("");
+
+    // Construct cache key with data version
+    let cache_key = format!("{}-{}-{}-overview", analysis_id, ancestry, data_version);
+
+    // Check cache first
+    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+        debug!("Cache hit for overview: {}", cache_key);
+        let response: UnifiedOverviewResponse = serde_json::from_slice(&cached_bytes)
+            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overview: {}", e)))?;
+        return Ok(Json(response));
+    }
+
+    debug!("Cache miss for overview: {}", cache_key);
 
     // Fetch genome peaks
     let genome_peaks = fetch_peak_annotations(
@@ -356,9 +372,17 @@ pub async fn get_phenotype_overview(
         analysis_id, ancestry
     );
 
-    Ok(Json(UnifiedOverviewResponse {
+    let response = UnifiedOverviewResponse {
         genome_image_url,
         exome_image_url,
         unified_loci,
-    }))
+    };
+
+    // Cache the response as JSON bytes
+    if let Ok(json_bytes) = serde_json::to_vec(&response) {
+        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        debug!("Cached overview: {}", cache_key);
+    }
+
+    Ok(Json(response))
 }

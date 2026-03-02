@@ -94,7 +94,7 @@ struct BurdenRow {
 }
 
 /// Burden test results for a specific annotation category
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BurdenResult {
     pub annotation: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,7 +106,7 @@ pub struct BurdenResult {
 }
 
 /// A gene in the locus near a GWAS peak
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneInLocus {
     pub gene_symbol: String,
     pub gene_id: String,
@@ -120,12 +120,12 @@ pub struct GeneInLocus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synonymous_count: Option<u32>,
     /// Burden results for each annotation category (pLoF, missenseLC, etc.)
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
 }
 
 /// A GWAS peak with nearby genes
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Peak {
     pub contig: String,
     pub position: i32,
@@ -134,7 +134,7 @@ pub struct Peak {
 }
 
 /// Type of Manhattan plot hit (Variant or Gene)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HitType {
     Variant,
@@ -145,7 +145,7 @@ pub enum HitType {
 /// The frontend computes display coordinates using ChromosomeLayout.
 /// Supports both variant hits (from exome/genome Manhattan plots) and
 /// gene hits (from gene burden Manhattan plots).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SignificantHit {
     /// Type of hit (variant or gene)
     pub hit_type: HitType,
@@ -186,7 +186,7 @@ pub struct SignificantHit {
 }
 
 /// Overlay data with significant hits from ClickHouse
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ManhattanOverlay {
     pub significant_hits: Vec<SignificantHit>,
     pub hit_count: usize,
@@ -945,6 +945,7 @@ pub async fn get_manhattan_data(
             ancestry: params.ancestry.clone(),
             plot_type: params.plot_type.clone(),
             contig: params.contig.clone(),
+            v: params.v.clone(),
         }),
     )
     .await;

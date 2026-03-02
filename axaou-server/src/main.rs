@@ -27,7 +27,7 @@ use api::AppState;
 use axum::{routing::get, Router};
 use clap::{Parser, Subcommand};
 use models::AnalysisAssets;
-use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};

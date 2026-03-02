@@ -1,11 +1,10 @@
 //! API route handlers for the AxAoU server
 
 use crate::error::AppError;
-use crate::gene_models::GeneModelsQuery;
 use crate::gene_queries::GeneQueryEngine;
 use crate::models::{
     AnalysisAsset, AnalysisAssets, AnalysisDetail, AnalysisMetadata, AncestryGroup,
-    GeneAssociationResponse, GeneAssociationResult, GeneModel, GeneQueryParams, LoadedAnalysis,
+    GeneAssociationResponse, GeneModel, GeneQueryParams, LoadedAnalysis,
 };
 use axum::{
     extract::{Path, Query, State},
