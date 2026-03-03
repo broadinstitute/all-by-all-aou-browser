@@ -204,6 +204,14 @@ interface Props {
 }
 
 type ViewMode = 'standard' | 'overlay' | 'heatmap';
+type TestType = 'max' | 'skato' | 'burden' | 'skat';
+
+const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
+  { key: 'max', label: 'Best P' },
+  { key: 'skato', label: 'SKAT-O' },
+  { key: 'burden', label: 'Burden' },
+  { key: 'skat', label: 'SKAT' },
+];
 
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
@@ -219,6 +227,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
 
   // Max MAF State
   const [maxMaf, setMaxMaf] = useState<number>(0.001);
+
+  // Test type state for overlay view
+  const [testType, setTestType] = useState<TestType>('max');
 
   // Label selection state
   const [selectedGeneIds, setSelectedGeneIds] = useState<Set<string>>(new Set());
@@ -391,12 +402,14 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
           >
             Single Annotation
           </ToggleButton>
+          {/* TODO: Fix overlay plot responsiveness - see plans/v8-near-final/51-overlay-manhattan.md
           <ToggleButton
             $active={viewMode === 'overlay'}
             onClick={() => setViewMode('overlay')}
           >
             Overlay Plot
           </ToggleButton>
+          */}
           <ToggleButton
             $active={viewMode === 'heatmap'}
             onClick={() => setViewMode('heatmap')}
@@ -406,23 +419,37 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
         </ToggleGroup>
       </div>
 
-      {/* Overlay View - all annotations on one plot */}
+      {/* TODO: Fix overlay plot responsiveness - see plans/v8-near-final/51-overlay-manhattan.md
       {viewMode === 'overlay' && (
         <>
-          <ToggleGroup style={{ marginBottom: 8 }}>
-            {MAF_OPTIONS.map((maf) => (
-              <ToggleButton
-                key={maf.value}
-                $active={maxMaf === maf.value}
-                onClick={() => setMaxMaf(maf.value)}
-              >
-                MAF ≤ {maf.label}
-              </ToggleButton>
-            ))}
-          </ToggleGroup>
-          <GeneBurdenOverlay analysisId={analysisId} maxMaf={maxMaf} />
+          <div style={{ display: 'flex', gap: '16px', marginBottom: 8 }}>
+            <ToggleGroup>
+              {MAF_OPTIONS.map((maf) => (
+                <ToggleButton
+                  key={maf.value}
+                  $active={maxMaf === maf.value}
+                  onClick={() => setMaxMaf(maf.value)}
+                >
+                  MAF ≤ {maf.label}
+                </ToggleButton>
+              ))}
+            </ToggleGroup>
+            <ToggleGroup>
+              {TEST_OPTIONS.map((opt) => (
+                <ToggleButton
+                  key={opt.key}
+                  $active={testType === opt.key}
+                  onClick={() => setTestType(opt.key)}
+                >
+                  {opt.label}
+                </ToggleButton>
+              ))}
+            </ToggleGroup>
+          </div>
+          <GeneBurdenOverlay analysisId={analysisId} maxMaf={maxMaf} testType={testType} />
         </>
       )}
+      */}
 
       {/* Heatmap View */}
       {viewMode === 'heatmap' && (

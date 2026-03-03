@@ -286,7 +286,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   }, []);
 
   const containerStyle: React.CSSProperties = {
-    minWidth: minWidth,
+    // Removed minWidth to allow responsive scaling like OverviewManhattan
   };
 
   if (imageError) {

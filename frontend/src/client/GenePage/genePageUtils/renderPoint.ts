@@ -2,6 +2,7 @@ import { transparentize } from 'polished'
 
 import { VariantJoined } from '../../types'
 import { GwasCatalogOption } from '../../variantState'
+import { getCategoryFromConsequence } from '../../vepConsequences'
 
 interface Margin {
   top: number
@@ -23,7 +24,7 @@ interface RenderPointArgs {
   betaScale: any
   height: number
   gwasCatalogOption?: GwasCatalogOption
-  theme?: { border?: string }
+  theme?: { border?: string; text?: string; textMuted?: string }
 }
 
 export const renderPoint = ({
@@ -44,7 +45,8 @@ export const renderPoint = ({
   gwasCatalogOption,
   theme,
 }: RenderPointArgs) => {
-  const strokeColor = theme?.border || 'black';
+  // Use textMuted for strokes - provides good contrast in both light and dark modes
+  const strokeColor = theme?.textMuted || '#666666';
   if (selectedVariant && point.data.locus.position == selectedVariant.locus.position) {
     ctx.beginPath()
     ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false)
@@ -52,7 +54,16 @@ export const renderPoint = ({
     ctx.fill()
   }
 
-  if (point.data.annotation == "pLoF" || point.data.annotation == "missense") {
+  // Determine if stroke should be applied based on annotation (gene plot) or consequence (variant plot)
+  const annotation = point.data.annotation;
+  const consequence = point.data.consequence;
+  const category = consequence ? getCategoryFromConsequence(consequence) : null;
+
+  // Apply stroke only for lof/pLoF/missense categories, not for "other" or "non-coding"
+  const shouldStroke = annotation === 'pLoF' || annotation === 'missense' ||
+    category === 'lof' || category === 'missense';
+
+  if (shouldStroke) {
     applyStroke = true
   }
 
@@ -81,24 +92,31 @@ export const renderPoint = ({
   } else if (point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
     ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = pointColor(point.data, betaScale)
-    ctx.strokeStyle = strokeColor
-    ctx.lineWidth = 1
-    ctx.stroke()
+    if (shouldStroke) {
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = 1
+      ctx.stroke()
+    }
   } else if (
     !singleVariantSelected &&
     (point.data.analysis_id === activeAnalysis || point.data.variant_id === activeVariant)
   ) {
     ctx.globalCompositeOperation = 'source-over'
     ctx.fillStyle = pointColor(point.data, betaScale)
-    ctx.strokeStyle = strokeColor
-    ctx.lineWidth = 1.5
-    ctx.stroke()
+    if (shouldStroke) {
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+    }
   } else {
     ctx.globalCompositeOperation = 'destination-over'
     ctx.fillStyle = transparentize(transparency[1], pointColor(point.data, betaScale) || 'black')
-    ctx.strokeStyle = strokeColor
-    ctx.lineWidth = 0.5
-    ctx.stroke()
+    // Only apply stroke for lof/pLoF/missense, not for "other" variant types
+    if (shouldStroke) {
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = 0.5
+      ctx.stroke()
+    }
   }
 
   ctx.fill()

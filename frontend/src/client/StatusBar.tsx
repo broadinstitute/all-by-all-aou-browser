@@ -95,44 +95,45 @@ export const StatusBar: React.FC = () => {
   const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
   const resetResizableWidth = useResetRecoilState(resizableWidthAtom)
 
+  // Build queries conditionally to prevent 404s from null/undefined IDs
+  const queries: Array<{ url: string; name: string }> = []
+  if (analysisId && analysisId !== 'null' && analysisId !== 'undefined') {
+    queries.push({ url: `${axaouDevUrl}/analyses/${analysisId}`, name: 'analysisMetadata' })
+  }
+  if (geneId && geneId !== 'null' && geneId !== 'undefined') {
+    queries.push({ url: `${axaouDevUrl}/genes/model/${geneId}`, name: 'geneModels' })
+  }
+
   const { queryStates } = useQuery<Data>({
     dbName: pouchDbName,
-    queries: [
-      { url: `${axaouDevUrl}/analyses/${analysisId}`, name: 'analysisMetadata' },
-      {
-        url: `${axaouDevUrl}/genes/model/${geneId}`,
-        name: 'geneModels',
-      },
-    ],
+    queries,
     deps: [geneId, analysisId],
     cacheEnabled,
   })
 
-  const isAnyLoading = Object.values(queryStates).some((state) => state.isLoading)
+  const isAnyLoading = Object.values(queryStates).some((state) => state?.isLoading)
   if (isAnyLoading) return <Container />
 
-  const isAnyError = Object.values(queryStates).some((state) => state.error)
+  const isAnyError = Object.values(queryStates).some((state) => state?.error)
   if (isAnyError) {
     const errorMessage = Object.values(queryStates)
-      .filter((state) => state.error)
-      .map((state) => state.error?.message)
+      .filter((state) => state?.error)
+      .map((state) => state?.error?.message)
       .join(', ')
     return <Message message={`An error has occurred: ${errorMessage}`} />
   }
 
-  const { geneModels, analysisMetadata } = queryStates
-
-  if (!geneModels.data) return <Message message='Could not fetch gene model' />
-  if (!analysisMetadata.data) return <Message message='Could not fetch analysis metadata' />
-
-  const geneModel = geneModels.data[0]
+  // Get data if queries were made (queries are conditionally added)
+  const geneModelsData = queryStates.geneModels?.data ?? null
+  const analysisMetadataData = queryStates.analysisMetadata?.data ?? null
+  const geneModel = geneModelsData?.[0] ?? null
 
   // Determine the right-side label based on what's active
   const rightLabel = regionId ? 'Locus' : geneId && geneId !== 'undefined' ? 'Gene' : 'Details';
 
   return (
     <Container>
-      {analysisId && (
+      {analysisId && analysisMetadataData && analysisMetadataData[0] && (
         <div className='status-bar-item'>
           <strong>Phenotype:</strong>
           <Link onClick={() => {
@@ -140,7 +141,7 @@ export const StatusBar: React.FC = () => {
             setResultsLayout('half')
           }
           } style={{ cursor: 'pointer' }}>
-            {getAnalysisDisplayTitle(analysisMetadata.data[0])}
+            {getAnalysisDisplayTitle(analysisMetadataData[0])}
           </Link>
           {selectedAnalyses.length > 1 ? ` + ${selectedAnalyses.length - 1} more selected` : ''}
         </div>

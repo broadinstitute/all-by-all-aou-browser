@@ -7,15 +7,17 @@ import { ChromosomeLabels } from '../Manhattan/components/ChromosomeLabels';
 import { getChromosomeLayout, getYScale } from '../Manhattan/layout';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import '../Manhattan/OverviewManhattan.css';
 
 const Container = styled.div`
   width: 100%;
+  padding-bottom: 200px;
 `;
 
 const ScrollWrapper = styled.div`
   width: 100%;
-  overflow-x: auto;
-  margin-bottom: 16px;
+  overflow: visible;
+  margin-bottom: 24px;
 `;
 
 const ControlBar = styled.div`
@@ -66,41 +68,9 @@ const LegendShape = styled.span<{ $color: string; $shape: 'circle' | 'triangle' 
   `}
 `;
 
-const StatsGroup = styled.div`
-  display: flex;
-  gap: 16px;
-  font-size: 11px;
-  color: var(--theme-text-muted, #666);
-`;
-
-const TestToggleGroup = styled.div`
-  display: flex;
-  gap: 2px;
-  background: var(--theme-border, #e0e0e0);
-  border-radius: 4px;
-  padding: 2px;
-`;
-
-const TestToggleButton = styled.button<{ $active: boolean }>`
-  padding: 4px 10px;
-  font-size: 11px;
-  background: ${({ $active }) => ($active ? 'var(--theme-surface, #fff)' : 'transparent')};
-  color: ${({ $active }) => ($active ? 'var(--theme-text, #333)' : 'var(--theme-text-muted, #666)')};
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-weight: ${({ $active }) => ($active ? 500 : 400)};
-  box-shadow: ${({ $active }) => ($active ? '0 1px 2px rgba(0,0,0,0.1)' : 'none')};
-
-  &:hover {
-    background: ${({ $active }) => ($active ? 'var(--theme-surface, #fff)' : 'var(--theme-surface-alt, rgba(255,255,255,0.5))')};
-  }
-`;
-
 const PlotContainer = styled.div`
   display: flex;
   width: 100%;
-  min-width: 900px; /* Prevent squishing and force scrollbar if container is too small */
 `;
 
 const CanvasWrapper = styled.div`
@@ -123,8 +93,8 @@ const Tooltip = styled.div`
 `;
 
 const Y_AXIS_WIDTH = 50;
-const PLOT_HEIGHT = 450; // Increased
-const PLOT_PADDING = 15; // Increased
+const PLOT_HEIGHT = 380;
+const PLOT_PADDING = 15;
 const SIG_THRESHOLD = 2.5e-6;
 
 interface GeneAssociationResult {
@@ -136,15 +106,6 @@ interface GeneAssociationResult {
   pvalue_burden: number | null;
   pvalue_skat: number | null;
 }
-
-type TestType = 'max' | 'skato' | 'burden' | 'skat';
-
-const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
-  { key: 'max', label: 'Best P' },
-  { key: 'skato', label: 'SKAT-O' },
-  { key: 'burden', label: 'Burden' },
-  { key: 'skat', label: 'SKAT' },
-];
 
 function getPvalueForTest(gene: GeneAssociationResult, testType: TestType): number | null {
   switch (testType) {
@@ -177,12 +138,15 @@ const ANNOTATIONS = [
   { key: 'synonymous', label: 'Synonymous', color: '#2e7d32', shape: 'square' as const }, // Green
 ];
 
+type TestType = 'max' | 'skato' | 'burden' | 'skat';
+
 interface Props {
   analysisId: string;
   maxMaf?: number;
+  testType?: TestType;
 }
 
-export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 }) => {
+export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001, testType = 'max' }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [, setGeneId] = useRecoilState(geneIdAtom);
   const [, setResultLayout] = useRecoilState(resultLayoutAtom);
@@ -190,14 +154,13 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [dimensions, setDimensions] = useState({ width: 800, height: PLOT_HEIGHT }); // Default width, will be updated
+  const [dimensions, setDimensions] = useState({ width: 800, height: PLOT_HEIGHT });
   const [hoveredPoint, setHoveredPoint] = useState<PlottedPoint | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [plottedPoints, setPlottedPoints] = useState<PlottedPoint[]>([]);
   const [visibleAnnotations, setVisibleAnnotations] = useState<Set<string>>(
     new Set(['pLoF', 'missenseLC', 'synonymous'])
   );
-  const [testType, setTestType] = useState<TestType>('max');
 
   // Fetch all three annotation types
   interface Data {
@@ -257,17 +220,16 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     // Immediate measurement
     const rect = container.getBoundingClientRect();
     if (rect.width > 0) {
-      const h = Math.min(550, Math.max(400, rect.width / 2.75));
-      setDimensions({ width: rect.width, height: h });
+      // Fixed height for consistent display
+      setDimensions({ width: rect.width, height: PLOT_HEIGHT });
     }
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry && entry.contentRect.width > 0) {
         const w = entry.contentRect.width;
-        // Maintain aspect ratio ~2.75, capped at 550px height
-        const h = Math.min(550, Math.max(400, w / 2.75));
-        setDimensions({ width: w, height: h });
+        // Fixed height for consistent display
+        setDimensions({ width: w, height: PLOT_HEIGHT });
       }
     });
 
@@ -285,10 +247,10 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = dimensions.width * dpr;
-    canvas.height = dimensions.height * dpr;
+    canvas.height = PLOT_HEIGHT * dpr;
     ctx.scale(dpr, dpr);
 
-    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+    ctx.clearRect(0, 0, dimensions.width, PLOT_HEIGHT);
 
     const layout = getChromosomeLayout('all');
     const yScale = getYScale();
@@ -320,7 +282,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
 
         const x = xNorm * dimensions.width;
         // Apply padding so extreme values aren't clipped
-        const plotAreaHeight = dimensions.height - PLOT_PADDING * 2;
+        const plotAreaHeight = PLOT_HEIGHT - PLOT_PADDING * 2;
         const y = PLOT_PADDING + yNorm * plotAreaHeight;
 
         // Draw shape based on annotation type
@@ -356,8 +318,8 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
     }
 
     // Draw significance threshold line
-    const plotAreaHeight = dimensions.height - PLOT_PADDING * 2;
-    const sigY = PLOT_PADDING + yScale.getY(SIG_THRESHOLD) * plotAreaHeight;
+    const sigPlotAreaHeight = PLOT_HEIGHT - PLOT_PADDING * 2;
+    const sigY = PLOT_PADDING + yScale.getY(SIG_THRESHOLD) * sigPlotAreaHeight;
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = '#999';
     ctx.lineWidth = 1;
@@ -412,7 +374,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
 
         // Check bounds
         if (rect.x < 0 || rect.x + rect.w > dimensions.width) continue;
-        if (rect.y < 0 || rect.y + rect.h > dimensions.height) continue;
+        if (rect.y < 0 || rect.y + rect.h > PLOT_HEIGHT) continue;
 
         // Check overlap
         const overlaps = labelRects.some(
@@ -508,7 +470,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
   }
 
   return (
-    <Container>
+    <div className="manhattan-container" style={{ paddingBottom: 200 }}>
       <ControlBar>
         <LegendGroup>
           {ANNOTATIONS.map((ann) => (
@@ -526,46 +488,32 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
             </LegendItem>
           ))}
         </LegendGroup>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <TestToggleGroup>
-            {TEST_OPTIONS.map((opt) => (
-              <TestToggleButton
-                key={opt.key}
-                $active={testType === opt.key}
-                onClick={() => setTestType(opt.key)}
-              >
-                {opt.label}
-              </TestToggleButton>
-            ))}
-          </TestToggleGroup>
-          <StatsGroup>
-            <span>MAF ≤ {(maxMaf * 100).toFixed(2)}%</span>
-          </StatsGroup>
-        </div>
       </ControlBar>
 
-      <ScrollWrapper>
-        <PlotContainer>
-          <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative', height: dimensions.height }}>
-            <YAxis height={dimensions.height} width={Y_AXIS_WIDTH} />
-          </div>
+      <div className="manhattan-plot-row" style={{ display: 'flex' }}>
+        <div style={{ width: Y_AXIS_WIDTH, flexShrink: 0, position: 'relative' }}>
+          <YAxis height={PLOT_HEIGHT} width={Y_AXIS_WIDTH} />
+        </div>
 
-          <CanvasWrapper ref={containerRef}>
-            <canvas
-              ref={canvasRef}
-              style={{
-                display: 'block',
-                width: dimensions.width,
-                height: dimensions.height,
-                cursor: hoveredPoint ? 'pointer' : 'default',
-              }}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              onClick={handleClick}
-            />
-          </CanvasWrapper>
-        </PlotContainer>
-      </ScrollWrapper>
+        <div
+          className="manhattan-image-wrapper"
+          ref={containerRef}
+          style={{ flex: 1, position: 'relative' }}
+        >
+          <canvas
+            ref={canvasRef}
+            style={{
+              display: 'block',
+              width: '100%',
+              height: PLOT_HEIGHT,
+              cursor: hoveredPoint ? 'pointer' : 'default',
+            }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+          />
+        </div>
+      </div>
 
       {dimensions.width > 0 && (
         <div style={{ marginLeft: Y_AXIS_WIDTH }}>
@@ -595,7 +543,7 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001 
           </div>
         </Tooltip>
       )}
-    </Container>
+    </div>
   );
 };
 

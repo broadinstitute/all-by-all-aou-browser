@@ -275,11 +275,11 @@ export const variantLabelsAtom = atom<Record<string, string>>({
   default: {},
 })
 
-// Feature flag for custom variant labels (enabled by default)
+// Feature flag for custom variant labels (disabled by default)
 // Persisted in localStorage so setting is remembered across sessions
 export const enableVariantLabelsAtom = atom<boolean>({
   key: 'enableVariantLabels',
-  default: true,
+  default: false,
   effects: [
     ({ setSelf, onSet }) => {
       // Load from localStorage on init
@@ -287,7 +287,7 @@ export const enableVariantLabelsAtom = atom<boolean>({
       if (savedValue != null) {
         setSelf(JSON.parse(savedValue))
       } else {
-        setSelf(true)
+        setSelf(false)
       }
 
       // Save to localStorage on change

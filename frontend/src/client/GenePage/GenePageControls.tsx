@@ -481,8 +481,8 @@ const EnableVariantLabels: React.FC = () => {
   }
 
   return (
-    <div className='enable-variant-labels' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+    <div className='enable-variant-labels' style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', gap: '8px', flexWrap: 'wrap' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, flexShrink: 0 }}>
         <span>Enable variant labels</span>
         <Checkbox
           label=''
@@ -501,6 +501,7 @@ const EnableVariantLabels: React.FC = () => {
             fontSize: '10px',
             padding: '3px 8px',
             height: 'auto',
+            flexShrink: 0,
           }}
         >
           Clear

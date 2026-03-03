@@ -5,9 +5,9 @@ import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
-import type { UnifiedOverviewResponse, UnifiedLocus } from './types';
+import type { UnifiedOverviewResponse, UnifiedLocus, UnifiedGene } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom, regionIdAtom } from '../sharedState';
 import { configQuery } from '../queryStates';
 
 const Container = styled.div`
@@ -35,9 +35,10 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const setRegionId = useSetRecoilState(regionIdAtom);
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
-  const dataVersion = process.env.DATA_VERSION || configState.data?.data_version || '';
+  const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
 
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
@@ -108,17 +109,70 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   }, []);
 
   const handleGeneClick = useCallback((geneId: string) => {
+    setRegionId(null);
     setGeneId(geneId);
     setResultLayout('half');
-  }, [setGeneId, setResultLayout]);
+  }, [setRegionId, setGeneId, setResultLayout]);
 
   const handlePeakClick = useCallback(
     (node: any) => {
-      if (onLocusClick && node.peak) {
-        onLocusClick(node.peak.contig, node.peak.position);
+      if (!node.peak) return;
+
+      const peak = node.peak as UnifiedLocus;
+      const SIG_THRESHOLD = 2.5e-6;
+
+      // Helper to get best burden p-value for a gene
+      const getBestBurdenPvalue = (gene: UnifiedGene): number => {
+        if (!gene.burden_results || gene.burden_results.length === 0) return Infinity;
+        const pvalues = gene.burden_results.flatMap(br => [
+          br.pvalue ?? Infinity,
+          br.pvalue_burden ?? Infinity,
+          br.pvalue_skat ?? Infinity,
+        ]);
+        return Math.min(...pvalues);
+      };
+
+      // Helper to get coding variant count (lof + missense)
+      const getCodingCount = (gene: UnifiedGene): number => {
+        const genomeLof = gene.genome_coding_hits?.lof ?? 0;
+        const genomeMissense = gene.genome_coding_hits?.missense ?? 0;
+        const exomeLof = gene.exome_coding_hits?.lof ?? 0;
+        const exomeMissense = gene.exome_coding_hits?.missense ?? 0;
+        return genomeLof + genomeMissense + exomeLof + exomeMissense;
+      };
+
+      // 1. Find top gene with significant burden result
+      const genesWithSigBurden = peak.genes
+        .filter(g => getBestBurdenPvalue(g) < SIG_THRESHOLD)
+        .sort((a, b) => getBestBurdenPvalue(a) - getBestBurdenPvalue(b));
+
+      if (genesWithSigBurden.length > 0) {
+        const topGene = genesWithSigBurden[0];
+        setRegionId(null);
+        setGeneId(topGene.gene_id);
+        setResultLayout('half');
+        return;
+      }
+
+      // 2. Find gene with coding (lof/missense) variants
+      const genesWithCoding = peak.genes
+        .filter(g => getCodingCount(g) > 0)
+        .sort((a, b) => getCodingCount(b) - getCodingCount(a));
+
+      if (genesWithCoding.length > 0) {
+        const topGene = genesWithCoding[0];
+        setRegionId(null);
+        setGeneId(topGene.gene_id);
+        setResultLayout('half');
+        return;
+      }
+
+      // 3. Fall back to locus view
+      if (onLocusClick) {
+        onLocusClick(peak.contig, peak.position);
       }
     },
-    [onLocusClick]
+    [onLocusClick, setRegionId, setGeneId, setResultLayout]
   );
 
   const handleLocusClick = useCallback(
