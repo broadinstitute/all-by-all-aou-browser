@@ -217,8 +217,16 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
+
+  if (imageUrl !== prevImageUrl) {
+    setPrevImageUrl(imageUrl);
+    setImageLoaded(false);
+    setImageError(false);
+  }
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Get the view region boundaries from scalePosition.invert
   // This tells us what genomic coordinates map to [0, centerPanelWidth]
@@ -317,6 +325,14 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
     setImageLoaded(false);
   }, []);
 
+  // If the image is already cached, onLoad might fire before React mounts the component.
+  // Manually check if it is complete to ensure loading state updates.
+  useEffect(() => {
+    if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
+      handleImageLoad();
+    }
+  }, [imageUrl, handleImageLoad]);
+
   // Format tooltip content
   const formatTooltip = (v: SignificantHit): string => {
     const parts = [v.id];
@@ -338,6 +354,7 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
     <PlotContainer ref={containerRef} height={height}>
       {/* PNG image background */}
       <PlotImage
+        ref={imageRef}
         src={imageUrl}
         width={imgWidth}
         height={height}

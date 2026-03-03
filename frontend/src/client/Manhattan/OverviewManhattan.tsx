@@ -121,6 +121,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const exomeImageRef = useRef<HTMLImageElement>(null);
   const exportContainerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredPeakNode, setHoveredPeakNode] = useState<PeakLabelNode | null>(null);
@@ -128,7 +129,15 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [genomeLoaded, setGenomeLoaded] = useState(false);
   const [exomeLoaded, setExomeLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [prevUrls, setPrevUrls] = useState({ genome: genomeImageUrl, exome: exomeImageUrl });
   const [isExporting, setIsExporting] = useState(false);
+
+  if (genomeImageUrl !== prevUrls.genome || exomeImageUrl !== prevUrls.exome) {
+    setPrevUrls({ genome: genomeImageUrl, exome: exomeImageUrl });
+    setGenomeLoaded(false);
+    setExomeLoaded(false);
+    setImageError(false);
+  }
   // Label position overrides from user dragging
   const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
   // Settings menu state
@@ -226,12 +235,16 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     setImageError(true);
   }, []);
 
-  // Clear loaded state when image URLs change to prevent stale overlays
+  // If the images are already cached, onLoad might fire before React mounts the component.
+  // Manually check if they are complete to ensure loading state updates.
   useEffect(() => {
-    setGenomeLoaded(false);
-    setExomeLoaded(false);
-    setImageError(false);
-  }, [genomeImageUrl, exomeImageUrl]);
+    if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
+      handleGenomeLoad();
+    }
+    if (exomeImageRef.current?.complete && exomeImageRef.current.naturalWidth > 0) {
+      handleExomeLoad();
+    }
+  }, [genomeImageUrl, exomeImageUrl, handleGenomeLoad, handleExomeLoad]);
 
   if (imageError) {
     return (
@@ -427,6 +440,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
 
             {/* Overlay image: Exome Manhattan with CSS filter */}
             <img
+              ref={exomeImageRef}
               src={exomeImageUrl}
               alt="Exome Manhattan Plot"
               className="overview-image-overlay"

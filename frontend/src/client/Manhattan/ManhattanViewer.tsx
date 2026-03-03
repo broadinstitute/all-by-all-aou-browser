@@ -84,7 +84,14 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
   // Unified context menu state - can include locus, gene, or multiple genes
+
+  if (imageUrl !== prevImageUrl) {
+    setPrevImageUrl(imageUrl);
+    setImageLoaded(false);
+    setImageError(false);
+  }
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -195,12 +202,6 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     dimensions.height
   );
 
-  // Clear loaded state when image URL changes to prevent stale overlays
-  useEffect(() => {
-    setImageLoaded(false);
-    setImageError(false);
-  }, [imageUrl]);
-
   // Observe image size changes for responsive scaling
   useEffect(() => {
     const image = imageRef.current;
@@ -263,6 +264,14 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     setImageLoaded(true);
     setImageError(false);
   }, []);
+
+  // If the image is already cached, onLoad might fire before React mounts the component.
+  // Manually check if it is complete to ensure loading state updates.
+  useEffect(() => {
+    if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
+      handleImageLoad();
+    }
+  }, [imageUrl, handleImageLoad]);
 
   const handleImageError = useCallback(() => {
     setImageError(true);
