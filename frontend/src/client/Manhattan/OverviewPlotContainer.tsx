@@ -36,14 +36,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
   const configState = useRecoilValue(configQuery);
-
-  // Wait for config to load before rendering to avoid race condition
-  // where dataVersion is empty and queries fire with invalid URLs
-  if (configState.isLoading || !configState.data?.data_version) {
-    return null;
-  }
-
-  const dataVersion = configState.data.data_version;
+  const dataVersion = configState.data?.data_version || '';
 
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
