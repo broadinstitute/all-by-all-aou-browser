@@ -1,5 +1,6 @@
 /* eslint-disable no-shadow */
 /* eslint-disable camelcase */
+//
 
 import { useQuery } from '@axaou/ui'
 import React from 'react'
