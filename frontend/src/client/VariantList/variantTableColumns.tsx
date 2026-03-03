@@ -246,11 +246,21 @@ export const countColumns = (ancestryGroup: AncestryGroupCodes, betaScale?: any)
     key: 'an_cases',
     displayId: 'an_cases',
     heading: 'AN Case',
-    tooltip: 'Allele number cases',
+    tooltip: 'Allele number cases (computed from ac_cases / af_cases)',
     grow: 0,
     isSortable: true,
     minWidth: 80,
-    render: renderCount,
+    render: (row: any) => {
+      // Compute AN from AC/AF if available
+      if (row.ac_cases && row.af_cases && row.af_cases > 0) {
+        return Math.round(row.ac_cases / row.af_cases).toLocaleString();
+      }
+      // Fall back to raw value if present
+      if (row.an_cases !== null && row.an_cases !== undefined) {
+        return row.an_cases.toLocaleString();
+      }
+      return '-';
+    },
     borderBottom,
   },
   {
@@ -268,11 +278,21 @@ export const countColumns = (ancestryGroup: AncestryGroupCodes, betaScale?: any)
     key: 'an_controls',
     displayId: 'an_controls',
     heading: 'AN Cont.',
-    tooltip: 'Allele number controls',
+    tooltip: 'Allele number controls (computed from ac_controls / af_controls)',
     grow: 0,
     isSortable: true,
     minWidth: 80,
-    render: renderCount,
+    render: (row: any) => {
+      // Compute AN from AC/AF if available
+      if (row.ac_controls && row.af_controls && row.af_controls > 0) {
+        return Math.round(row.ac_controls / row.af_controls).toLocaleString();
+      }
+      // Fall back to raw value if present
+      if (row.an_controls !== null && row.an_controls !== undefined) {
+        return row.an_controls.toLocaleString();
+      }
+      return '-';
+    },
     borderBottom,
     background,
   },
@@ -290,11 +310,21 @@ export const countColumns = (ancestryGroup: AncestryGroupCodes, betaScale?: any)
     key: 'association_an',
     displayId: 'association_an',
     heading: 'AN Trait',
-    tooltip: 'Allele number individuals tested for trait',
+    tooltip: 'Allele number individuals tested for trait (computed from association_ac / association_af)',
     grow: 0,
     isSortable: true,
     minWidth: 80,
-    render: renderCount,
+    render: (row: any) => {
+      // Compute AN from AC/AF if available
+      if (row.association_ac && row.association_af && row.association_af > 0) {
+        return Math.round(row.association_ac / row.association_af).toLocaleString();
+      }
+      // Fall back to raw value if present
+      if (row.association_an !== null && row.association_an !== undefined) {
+        return row.association_an.toLocaleString();
+      }
+      return '-';
+    },
     borderBottom,
   },
   {

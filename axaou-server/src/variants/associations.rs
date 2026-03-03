@@ -40,6 +40,12 @@ pub struct GeneVariantRow {
     pub ac: Option<u32>,
     pub an: Option<u32>,
     pub hom: Option<u32>,
+    // Case/control breakdown fields (from loci_variants)
+    pub ac_cases: Option<f64>,
+    pub ac_controls: Option<f64>,
+    pub af_cases: Option<f64>,
+    pub af_controls: Option<f64>,
+    pub association_ac: Option<f64>,
 }
 
 /// Extended API response with all available fields
@@ -66,6 +72,14 @@ pub struct VariantAssociationExtendedApi {
     pub allele_count: Option<u32>,
     pub allele_number: Option<u32>,
     pub homozygote_count: Option<u32>,
+    // Case/control breakdown fields
+    pub ac_cases: Option<f64>,
+    pub ac_controls: Option<f64>,
+    pub af_cases: Option<f64>,
+    pub af_controls: Option<f64>,
+    // Trait-level stats
+    pub association_ac: Option<f64>,
+    pub association_af: Option<f64>,
 }
 
 impl GeneVariantRow {
@@ -93,6 +107,14 @@ impl GeneVariantRow {
             allele_count: self.ac,
             allele_number: self.an,
             homozygote_count: self.hom,
+            // Case/control breakdown
+            ac_cases: self.ac_cases,
+            ac_controls: self.ac_controls,
+            af_cases: self.af_cases,
+            af_controls: self.af_controls,
+            // Trait-level stats (association_af is the same as af)
+            association_ac: self.association_ac,
+            association_af: self.af,
         }
     }
 }
@@ -233,7 +255,12 @@ pub async fn get_variants_by_gene(
             ann.hgvsp as hgvsp,
             ann.ac as ac,
             ann.an as an,
-            ann.hom as hom
+            ann.hom as hom,
+            lv.ac_cases as ac_cases,
+            lv.ac_controls as ac_controls,
+            lv.af_cases as af_cases,
+            lv.af_controls as af_controls,
+            lv.association_ac as association_ac
         FROM loci_variants lv
         LEFT JOIN {} ann
             ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
@@ -381,6 +408,14 @@ async fn get_gene_variants_from_hail(
             allele_count: a.ac.map(|v| v as u32),
             allele_number: None,
             homozygote_count: None,
+            // Case/control breakdown (from Hail Table)
+            ac_cases: a.ac_cases,
+            ac_controls: a.ac_controls,
+            af_cases: a.af_cases,
+            af_controls: a.af_controls,
+            // Trait-level stats
+            association_ac: a.association_ac,
+            association_af: a.af,
         })
         .collect();
 
