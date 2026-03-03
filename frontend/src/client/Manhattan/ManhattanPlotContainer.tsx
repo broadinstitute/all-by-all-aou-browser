@@ -50,7 +50,14 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
   const configState = useRecoilValue(configQuery);
-  const dataVersion = configState.data?.data_version || '';
+
+  // Wait for config to load before rendering to avoid race condition
+  // where dataVersion is empty and queries fire with invalid URLs
+  if (configState.isLoading || !configState.data?.data_version) {
+    return null;
+  }
+
+  const dataVersion = configState.data.data_version;
 
   const handleGeneClick = React.useCallback((geneId: string) => {
     setGeneId(geneId);
