@@ -50,7 +50,8 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setResultLayout = useSetRecoilState(resultLayoutAtom);
   const configState = useRecoilValue(configQuery);
-  const dataVersion = configState.data?.data_version || '';
+  // Prefer build-time env var, fall back to runtime config
+  const dataVersion = process.env.DATA_VERSION || configState.data?.data_version || '';
 
   const handleGeneClick = React.useCallback((geneId: string) => {
     setGeneId(geneId);

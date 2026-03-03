@@ -119,6 +119,7 @@ const getWebpackConfig = async () => {
         BRANCH_NAME: null,
         STATIC_URL: null,
         VERSION: version,
+        DATA_VERSION: process.env.DATA_VERSION || '',
         AUTH0_ENABLE: process.env.AUTH0_ENABLE || 'false',
         AUTH0_DOMAIN: process.env.AUTH0_DOMAIN || '',
         AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID || '',

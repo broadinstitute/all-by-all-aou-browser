@@ -37,6 +37,18 @@ PROJECT_ID="aou-neale-gwas-browser"
 REGION="us-central1"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/axaou"
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# Extract data version from phenotype-data.toml output_dir
+# e.g., "gs://axaou-central/browserv2/analyses/20260202-0942" -> "20260202-0942"
+if [ -f "axaou-server/phenotype-data.toml" ]; then
+    OUTPUT_DIR=$(grep 'output_dir' axaou-server/phenotype-data.toml | sed 's/.*= *"\(.*\)"/\1/' | head -1)
+    DATA_VERSION=$(basename "$OUTPUT_DIR")
+    echo "Extracted DATA_VERSION from phenotype-data.toml: ${DATA_VERSION}"
+else
+    DATA_VERSION="${DATA_VERSION:-unknown}"
+    echo "Warning: phenotype-data.toml not found, using DATA_VERSION=${DATA_VERSION}"
+fi
+export DATA_VERSION
 # Push to :latest - Terraform uses docker provider to detect digest changes
 FRONTEND_IMAGE="${REGISTRY}/axaou-frontend:latest"
 BACKEND_IMAGE="${REGISTRY}/axaou-backend:latest"
@@ -46,6 +58,7 @@ echo "==================================="
 echo "Deploying axaou-rust to Cloud Run"
 echo "Environment: ${ENV}"
 echo "Frontend only: ${FRONTEND_ONLY}"
+echo "Data version: ${DATA_VERSION}"
 echo "Registry: ${REGISTRY}"
 echo "==================================="
 
