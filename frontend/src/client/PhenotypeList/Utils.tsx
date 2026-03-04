@@ -51,10 +51,25 @@ export const renderPvalueCell =
           pvalueKey = pValueTypeToPValueKeyName[pValueType]
         }
         const number = row[pvalueKey]
-        if (number === null || number === undefined || number === '-' || number === 0) {
-          // HACK
+        if (number === null || number === undefined || number === '-') {
           return null
         }
+
+        // Handle underflowed p-values (p === 0): these are extremely significant
+        // and should be displayed as "< 1e-300" with the most significant color
+        if (number === 0) {
+          return (
+            <>
+              <ColorMarker
+                color={greenThresholdColor}
+                border="solid"
+                borderColor="black"
+              />
+              {'< 1e-300'}
+            </>
+          )
+        }
+
         const truncated = Number(number.toPrecision(3))
         if (truncated === 0) {
           return '0'
@@ -151,9 +166,12 @@ export const renderBetaCell = (betaScale?: any) => (row: any, key: any) => {
 
 export const renderExponentialNumberCell = (row: any, key: any) => {
   const number = row[key]
-  if (number === null || number === undefined || number === '-' || number === 0) {
-    // HACK
+  if (number === null || number === undefined || number === '-') {
     return ''
+  }
+  // Handle underflowed p-values (p === 0)
+  if (number === 0) {
+    return '< 1e-300'
   }
   const truncated = Number(number.toPrecision(3))
   if (truncated === 0) {
@@ -164,9 +182,16 @@ export const renderExponentialNumberCell = (row: any, key: any) => {
 
 export const renderExponentialNumberCellColor = (color: any) => (row: any, key: any) => {
   const number = row[key]
-  if (number === null || number === undefined || number === '-' || number === 0) {
-    // HACK
+  if (number === null || number === undefined || number === '-') {
     return ''
+  }
+  // Handle underflowed p-values (p === 0)
+  if (number === 0) {
+    return (
+      <div style={{ backgroundColor: color, width: '100%', height: '100%' }}>
+        {'< 1e-300'}
+      </div>
+    )
   }
   const truncated = Number(number.toPrecision(3))
   if (truncated === 0) {

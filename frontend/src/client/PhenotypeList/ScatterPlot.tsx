@@ -29,16 +29,22 @@ const Tooltip = styled.div`
   transform: translateX(-50%) translateY(calc(-100% - 8px));
 `
 
+const MAX_NEG_LOG_P = 350 // Cap for underflowed p-values (p === 0)
+
 const newPlotPval = (hits: any, width: any, height: any, margin: any, pValueType: any) => {
   // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
   const data = hits
-    .filter((d: any) => d[pValueKeyName] !== 0)
     .filter((d: any) => d.visible)
-    .map((d: any) => ({
-      log10p: -Math.log10(d[pValueKeyName]),
-      ...d,
-    }))
+    .map((d: any) => {
+      const pval = d[pValueKeyName]
+      // Handle underflowed p-values (p === 0): cap at MAX_NEG_LOG_P
+      const log10p = pval <= 0 ? MAX_NEG_LOG_P : -Math.log10(pval)
+      return {
+        log10p,
+        ...d,
+      }
+    })
 
   const xScale = scalePoint()
     .domain(data.map((d: any) => d.phenotype_id))
@@ -64,7 +70,8 @@ const newPlotPval = (hits: any, width: any, height: any, margin: any, pValueType
 const newPlotBeta = (hits: any, width: any, height: any, margin: any, pValueType: any) => {
   // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
-  const data = hits.filter((d: any) => d[pValueKeyName] !== 0).filter((d: any) => d.visible)
+  // Allow p-value === 0 (underflowed values) - these are the most significant associations
+  const data = hits.filter((d: any) => d.visible)
   const xScale = scalePoint()
     .domain(data.map((d: any) => d.phenotype_id))
     .range([margin.left, width - margin.right])

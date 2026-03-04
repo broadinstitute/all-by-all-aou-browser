@@ -26,9 +26,11 @@ const rotateColorByChromosome = (colors: any, chromosomes: any) => {
 
 // @ts-expect-error ts-migrate(2339) FIXME: Property 'variants' does not exist on type '{ chil... Remove this comment to see the full error message
 const VariantManhattanPlot = withSize()(({ variants, size: { width }, ...otherProps }) => {
+  // Allow p-value === 0 (underflowed extremely small p-values)
+  // These represent the most significant associations and should not be filtered out
   const dataPoints = variants.filter(
     (v: VariantAssociations) =>
-      v.allele_count !== 0 && v.pvalue && v.pvalue !== Infinity && v.pvalue !== 0
+      v.allele_count !== 0 && v.pvalue !== undefined && v.pvalue !== null && v.pvalue !== Infinity
   )
   return (
     <Wrapper>
