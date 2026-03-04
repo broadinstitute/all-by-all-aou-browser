@@ -74,8 +74,8 @@ function valueToY(val: number, height: number): number {
  */
 function formatTick(val: number): string {
   if (val === 0) return '0';
-  if (val <= 100) return val.toString();
-  // Use scientific notation for large values
+  if (val <= 300) return val.toString();
+  // Use scientific notation for very large values
   const exp = Math.floor(Math.log10(val));
   const mantissa = val / Math.pow(10, exp);
   if (mantissa === 1) {
