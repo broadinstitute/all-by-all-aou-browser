@@ -26,6 +26,8 @@ export interface SignificantHit {
   position: number;
   /** P-value */
   pvalue: number;
+  /** -log10(pvalue) - preserves precision for extremely small p-values */
+  neg_log10_p?: number;
   /** Effect size (beta coefficient for variants, beta_burden for genes) */
   beta?: number;
   /** Gene symbol from annotations (for variants) or primary gene symbol (for genes) */
@@ -90,6 +92,8 @@ export interface Peak {
   position: number;
   /** P-value of top variant in peak */
   pvalue: number;
+  /** -log10(pvalue) - preserves precision for extremely small p-values */
+  neg_log10_p?: number;
   /** Genes within ±200kb of peak, sorted by distance */
   genes: GeneInLocus[];
   /** Whether this peak is burden-only (no GWAS single-variant signal) */

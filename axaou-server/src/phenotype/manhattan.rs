@@ -47,6 +47,7 @@ struct SignificantVariantRow {
     pub ref_allele: String,
     pub alt: String,
     pub pvalue: f64,
+    pub neg_log10_p: f64,
     pub beta: f64,
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
@@ -130,6 +131,9 @@ pub struct Peak {
     pub contig: String,
     pub position: i32,
     pub pvalue: f64,
+    /// -log10(pvalue) - preserves precision for extremely small p-values
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub neg_log10_p: Option<f64>,
     pub genes: Vec<GeneInLocus>,
 }
 
@@ -159,6 +163,9 @@ pub struct SignificantHit {
     pub position: i32,
     /// P-value
     pub pvalue: f64,
+    /// -log10(pvalue) - preserves precision for extremely small p-values
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub neg_log10_p: Option<f64>,
     /// Effect size (beta coefficient for variants, beta_burden for genes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beta: Option<f64>,
@@ -566,10 +573,17 @@ pub(crate) async fn fetch_peak_annotations(
                 if let Some(peak) = current_peak.take() {
                     peaks.push(peak);
                 }
+                // Compute neg_log10_p from peak_pvalue (cap at 350 for underflowed values)
+                let neg_log10_p = if row.peak_pvalue <= 0.0 {
+                    Some(350.0)
+                } else {
+                    Some(-row.peak_pvalue.log10())
+                };
                 current_peak = Some(Peak {
                     contig: row.contig,
                     position: row.peak_position,
                     pvalue: row.peak_pvalue,
+                    neg_log10_p,
                     genes: vec![GeneInLocus {
                         gene_symbol: row.gene_symbol,
                         gene_id: row.gene_id,
@@ -660,7 +674,7 @@ pub async fn get_manhattan_overlay(
                 WHEN 25 THEN 'chrM'
                 ELSE concat('chr', toString(intDiv(lv.xpos, 1000000000)))
             END as contig,
-            lv.position, lv.ref, lv.alt, lv.pvalue, 0.0 as beta,
+            lv.position, lv.ref, lv.alt, lv.pvalue, lv.neg_log10_p, 0.0 as beta,
             ann.gene_symbol, ann.consequence, ann.hgvsc, ann.hgvsp, ann.ac
         FROM loci_variants lv
         LEFT JOIN (
@@ -728,6 +742,7 @@ pub async fn get_manhattan_overlay(
                     contig: row.contig,
                     position: row.position,
                     pvalue: row.pvalue,
+                    neg_log10_p: Some(row.neg_log10_p),
                     beta: Some(row.beta),
                     gene_symbol: row.gene_symbol,
                     consequence: row.consequence,
@@ -835,23 +850,32 @@ async fn get_gene_manhattan_overlay(
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
     // Convert to SignificantHit for genes
+    // For genes, compute neg_log10_p from pvalue (gene table doesn't have pre-computed values)
     let significant_hits: Vec<SignificantHit> = rows
         .into_iter()
-        .map(|row| SignificantHit {
-            hit_type: HitType::Gene,
-            id: row.gene_id,
-            label: row.gene_symbol.clone(),
-            contig: row.contig,
-            position: row.position,
-            pvalue: row.pvalue,
-            beta: row.beta_burden,
-            gene_symbol: Some(row.gene_symbol),
-            consequence: None,
-            hgvsc: None,
-            hgvsp: None,
-            ac: None,
-            pvalue_burden: row.pvalue_burden,
-            pvalue_skat: row.pvalue_skat,
+        .map(|row| {
+            let neg_log10_p = if row.pvalue <= 0.0 {
+                Some(350.0) // Cap for underflowed p-values
+            } else {
+                Some(-row.pvalue.log10())
+            };
+            SignificantHit {
+                hit_type: HitType::Gene,
+                id: row.gene_id,
+                label: row.gene_symbol.clone(),
+                contig: row.contig,
+                position: row.position,
+                pvalue: row.pvalue,
+                neg_log10_p,
+                beta: row.beta_burden,
+                gene_symbol: Some(row.gene_symbol),
+                consequence: None,
+                hgvsc: None,
+                hgvsp: None,
+                ac: None,
+                pvalue_burden: row.pvalue_burden,
+                pvalue_skat: row.pvalue_skat,
+            }
         })
         .collect();
 
@@ -877,6 +901,7 @@ async fn get_gene_manhattan_overlay(
                 contig: hit.contig.clone(),
                 position: hit.position,
                 pvalue: hit.pvalue,
+                neg_log10_p: hit.neg_log10_p,
                 genes: vec![GeneInLocus {
                     gene_symbol: hit.gene_symbol.clone().unwrap_or_else(|| hit.label.clone()),
                     gene_id: hit.id.clone(),

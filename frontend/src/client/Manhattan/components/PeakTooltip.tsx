@@ -53,9 +53,15 @@ const formatAnnotation = (ann: string): string => {
 
 /**
  * Format p-value for display
+ * @param p - the p-value
+ * @param negLog10P - optional precise -log10(p) for extremely small values
  */
-const formatPvalue = (p: number | undefined): string => {
+const formatPvalue = (p: number | undefined, negLog10P?: number): string => {
   if (p === undefined || p === null) return '—';
+  // Use neg_log10_p for precise display of extremely small p-values
+  if (negLog10P !== undefined && negLog10P > 100) {
+    return `1e-${Math.round(negLog10P)}`;
+  }
   if (p < 1e-100) return '< 1e-100';
   if (p < 0.001) return p.toExponential(2);
   return p.toPrecision(3);
@@ -156,7 +162,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
           {peak.contig}:{peak.position.toLocaleString()}
         </div>
         <div>
-          Peak P = <span style={{ color: '#d32f2f', fontWeight: 700 }}>{formatPvalue(peak.pvalue)}</span>
+          Peak P = <span style={{ color: '#d32f2f', fontWeight: 700 }}>{formatPvalue(peak.pvalue, peak.neg_log10_p)}</span>
         </div>
       </div>
 

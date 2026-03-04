@@ -36,7 +36,12 @@ export const Tooltip: React.FC<TooltipProps> = ({ hit, x, y, containerWidth }) =
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
   };
 
-  const formatPvalue = (p: number): string => {
+  const formatPvalue = (p: number, negLog10P?: number): string => {
+    // Use neg_log10_p for precise display of extremely small p-values
+    if (negLog10P !== undefined && negLog10P > 100) {
+      // For very small p-values, show as 1e-X using the precise neg_log10_p
+      return `1e-${Math.round(negLog10P)}`;
+    }
     if (p < 1e-100) {
       return '< 1e-100';
     }
@@ -55,7 +60,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ hit, x, y, containerWidth }) =
         )}
       </div>
       <div style={{ color: '#aaa' }}>
-        P = <span style={{ color: '#ff6b6b' }}>{formatPvalue(hit.pvalue)}</span>
+        P = <span style={{ color: '#ff6b6b' }}>{formatPvalue(hit.pvalue, hit.neg_log10_p)}</span>
       </div>
       {isGene && hit.id && (
         <div style={{ color: '#888', fontSize: '11px' }}>
