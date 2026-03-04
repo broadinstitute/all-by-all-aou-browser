@@ -3,7 +3,7 @@ import React from 'react';
 // Y-axis scale constants (must match layout.ts)
 const LOG_THRESHOLD = 10;
 const LINEAR_FRACTION = 0.6;
-const MAX_NEG_LOG_P = 300;
+const MAX_NEG_LOG_P = 350;
 
 interface YAxisProps {
   /** Current rendered height of the plot */
