@@ -167,7 +167,7 @@ const LOG_THRESHOLD = 10;
 const LINEAR_FRACTION = 0.6;
 
 /** Maximum -log10(p) value for scaling the log portion */
-const MAX_NEG_LOG_P = 300;
+const MAX_NEG_LOG_P = 350;
 
 /**
  * YScale maps p-values to normalized Y positions (0-1) using a hybrid linear-log scale.
@@ -182,13 +182,23 @@ export class YScale {
    * Convert a p-value to normalized Y position (0-1).
    * Y=0 is top of plot (most significant), Y=1 is bottom (least significant).
    * This matches PNG pixel coordinates where y=0 is the top row.
+   *
+   * @param pvalue - the p-value (can be 0 for underflowed values)
+   * @param negLog10P - optional pre-computed -log10(p) for precision with underflowed values
    */
-  getY(pvalue: number): number {
-    if (pvalue <= 0 || pvalue > 1) {
+  getY(pvalue: number, negLog10P?: number): number {
+    // Use provided neg_log10_p if available (preserves precision for underflowed values)
+    let negLogP: number;
+    if (negLog10P !== undefined && negLog10P > 0) {
+      negLogP = negLog10P;
+    } else if (pvalue <= 0) {
+      // P-value underflowed to 0 - place at top (most significant)
+      negLogP = MAX_NEG_LOG_P;
+    } else if (pvalue > 1) {
       return 1; // Invalid p-value goes to bottom
+    } else {
+      negLogP = -Math.log10(pvalue);
     }
-
-    const negLogP = -Math.log10(pvalue);
 
     // Calculate position from bottom (0 = bottom, 1 = top of plot area)
     let positionFromBottom: number;
@@ -257,7 +267,7 @@ export function computeDisplayHits(hits: SignificantHit[], contig: string = 'all
       continue; // Skip unknown contigs or contigs not in this layout
     }
 
-    const y = scale.getY(hit.pvalue);
+    const y = scale.getY(hit.pvalue, hit.neg_log10_p);
 
     displayHits.push({
       ...hit,

@@ -27,6 +27,7 @@ export interface PeakLabelNode {
   peak: Peak;
   targetX: number;
   targetY: number; // Y position on the plot (normalized, 0-1)
+  isNearestOnly: boolean;
   x: number;
   y: number;
   /** Gene symbol of the top gene */
@@ -66,9 +67,11 @@ function estimateLabelWidth(
   burdenTypes: string[],
   hasCoding: boolean,
   implicatedCount: number,
-  isBurdenOnly: boolean = false
+  isBurdenOnly: boolean = false,
+  isNearestOnly: boolean = false
 ): number {
   let text = label;
+  if (isNearestOnly) text = 'nearest: ' + text;
   // Add space for burden-only indicator
   if (isBurdenOnly) text = '◆ ' + text;
   // Add space for burden dots (2 chars each: dot + space)
@@ -200,7 +203,7 @@ export function usePeakLabelLayout(
 
     for (const peak of topPeaks) {
       const xNorm = layout.getX(peak.contig, peak.position);
-      const yNorm = yScale.getY(peak.pvalue);
+      const yNorm = yScale.getY(peak.pvalue, peak.neg_log10_p);
 
       if (xNorm === null) {
         continue;
@@ -258,7 +261,8 @@ export function usePeakLabelLayout(
       const hasCoding = codingCount > 0;
 
       const isBurdenOnly = peak.isBurdenOnly ?? false;
-      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount, isBurdenOnly);
+      const isNearestOnly = !hasBurden && !hasCoding;
+      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount, isBurdenOnly, isNearestOnly);
 
       // For angled labels, calculate collision radius
       const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
@@ -273,6 +277,7 @@ export function usePeakLabelLayout(
         peak,
         targetX,
         targetY,
+        isNearestOnly,
         x: targetX,
         y: 0, // Will be computed by force simulation
         label: topGene.gene_symbol,
