@@ -271,6 +271,9 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               )}
               {node.burdenTypes.length > 0 && ' '}
               {/* Gene symbol */}
+              {node.isNearestOnly && (
+                <tspan fill="var(--theme-text-muted, #888)" fontStyle="italic">nearest: </tspan>
+              )}
               <tspan>{node.label}</tspan>
               {/* Coding indicator: red if pLoF exists, else yellow/orange for missense */}
               {node.hasCoding && (

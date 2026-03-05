@@ -218,7 +218,20 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
   useResetStateOnLocationChange()
   useMonitorWindowSize()
   const themeMode = useRecoilValue(themeModeAtom)
-  const theme = themeMode === 'light' ? lightTheme : darkTheme
+
+  const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light')
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
+      const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light')
+      mediaQuery.addEventListener('change', handler)
+      return () => mediaQuery.removeEventListener('change', handler)
+    }
+  }, [])
+
+  const effectiveThemeMode = themeMode === 'system' ? systemTheme : themeMode
+  const theme = effectiveThemeMode === 'light' ? lightTheme : darkTheme
   const configState = useRecoilValue(configQuery)
 
   // Monitor data version and wipe PouchDB cache when it changes

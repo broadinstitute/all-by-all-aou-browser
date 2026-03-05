@@ -386,6 +386,8 @@ interface PhewasControlsProps {
   setPlotType: (value: string) => void
   plotSortKey: string
   onTogglePvalueOrder: () => void
+  useDirectionalShapes: boolean
+  onToggleDirectionalShapes: () => void
 
   // Multi-phenotype selection
   analysesCount: number
@@ -418,6 +420,8 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   setPlotType,
   plotSortKey,
   onTogglePvalueOrder,
+  useDirectionalShapes,
+  onToggleDirectionalShapes,
   analysesCount,
   topAnalyses,
   onSelectTop,
@@ -504,6 +508,14 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
               onChange={onTogglePvalueOrder}
             />
             P-value ordered
+          </label>
+          <label>
+            <input
+              type='checkbox'
+              checked={useDirectionalShapes}
+              onChange={onToggleDirectionalShapes}
+            />
+            Directional (▲ risk, ▼ protective)
           </label>
         </PlotOptionCheckboxes>
       </ControlsSection>

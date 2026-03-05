@@ -162,12 +162,12 @@ export const phewasOptsAtom = atom<boolean>({
     }),
   ],
 })
-export const themeModeAtom = atom<'light' | 'dark'>({
+export const themeModeAtom = atom<'light' | 'dark' | 'system'>({
   key: 'themeMode',
-  default: 'light',
+  default: 'system',
   effects: [
     urlSyncEffect({
-      refine: stringLiterals({ light: 'light', dark: 'dark' }),
+      refine: stringLiterals({ light: 'light', dark: 'dark', system: 'system' }),
       history: 'push',
       syncDefault: true,
     }),

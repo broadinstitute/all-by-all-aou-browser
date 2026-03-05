@@ -51,16 +51,18 @@ const RootContainerGene = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 1200px;
+  height: 100%;
   max-width: 100%;
   min-width: 0;
 
   .data-container {
     display: flex;
     width: 100%;
+    height: 100%;
     flex-direction: column;
     padding-right: 10px;
     min-width: 0;
+    overflow: hidden;
   }
 
   .filter-warnings {
@@ -329,6 +331,7 @@ const Phewas = ({
   const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
 
   const [plotType, setPlotType] = useState('Both')
+  const [useDirectionalShapes, setUseDirectionalShapes] = useState(false)
 
   // Calculate individual plot heights based on total and plot type
   const pValuePlotHeight = plotType === 'Both' ? Math.floor(totalPlotHeight * 0.55) : totalPlotHeight
@@ -613,6 +616,8 @@ const Phewas = ({
             setPlotType={setPlotType}
             plotSortKey={plotSortKey}
             onTogglePvalueOrder={handlePvalueOrder}
+            useDirectionalShapes={useDirectionalShapes}
+            onToggleDirectionalShapes={() => setUseDirectionalShapes(!useDirectionalShapes)}
             analysesCount={analyses.length}
             topAnalyses={topAnalyses}
             onSelectTop={() => setSelectedAnalyses(topAnalyses)}
@@ -670,6 +675,7 @@ const Phewas = ({
                   labeledPhenoIds={labeledPhenoIds}
                   labelOverrides={pvalLabelOverrides}
                   onLabelDragEnd={handlePvalDragEnd}
+                  useDirectionalShapes={useDirectionalShapes}
                 />
                 <PhewasBetaPlot
                   analyses={displayPlotPhenotypes}
@@ -706,6 +712,7 @@ const Phewas = ({
                 labeledPhenoIds={labeledPhenoIds}
                 labelOverrides={pvalLabelOverrides}
                 onLabelDragEnd={handlePvalDragEnd}
+                useDirectionalShapes={useDirectionalShapes}
               />
             )}
             {plotType === 'Beta' && (

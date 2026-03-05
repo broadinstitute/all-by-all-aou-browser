@@ -118,7 +118,9 @@ export const HalfPage = styled.div`
   width: 100%;
   min-width: 100%;
   max-width: 100%;
+  height: 100%;
   align-items: center;
+  overflow: hidden;
 `
 
 export const Divider = styled.div`
@@ -648,9 +650,15 @@ const MoonIcon = () => (
   </svg>
 );
 
+const SystemIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8v16z" />
+  </svg>
+);
+
 interface ThemeToggleProps {
-  value: 'light' | 'dark';
-  onChange: (mode: 'light' | 'dark') => void;
+  value: 'light' | 'dark' | 'system';
+  onChange: (mode: 'light' | 'dark' | 'system') => void;
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ value, onChange }) => (
@@ -661,6 +669,13 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ value, onChange }) => 
       title="Light mode"
     >
       <SunIcon />
+    </ThemeOption>
+    <ThemeOption
+      $active={value === 'system'}
+      onClick={() => onChange('system')}
+      title="System default"
+    >
+      <SystemIcon />
     </ThemeOption>
     <ThemeOption
       $active={value === 'dark'}

@@ -7,6 +7,18 @@ import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState'
 
 const Container = styled.div`
   width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+`;
+
+const ScrollableArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 40px;
+  min-height: 0;
 `;
 
 const LoadingMessage = styled.div`
@@ -44,7 +56,7 @@ const ColumnHeader = styled.th<{ $color: string }>`
     white-space: nowrap;
     position: absolute;
     bottom: 8px;
-    left: 50%;
+    left: calc(50% - 11px);
     font-size: 10px;
     font-weight: 500;
     color: var(--theme-text, #333);
@@ -80,7 +92,7 @@ const DataCell = styled.td<{ $intensity: number; $significant: boolean; $color: 
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${$intensity})`;
-  }};
+  }} !important;
 
   &:hover {
     outline: 2px solid var(--theme-text, #333);
@@ -92,10 +104,13 @@ const DataCell = styled.td<{ $intensity: number; $significant: boolean; $color: 
     $significant &&
     `
     &::after {
-      content: '*';
-      font-weight: bold;
-      font-size: 12px;
-      color: var(--theme-text, #000);
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      border-style: solid;
+      border-width: 0 6px 6px 0;
+      border-color: transparent #000 transparent transparent;
     }
   `}
 `;
@@ -206,7 +221,7 @@ interface GeneRow {
   gene_symbol: string;
   contig: string;
   gene_start_position: number;
-  values: Record<ColumnKey, number | null>;
+  values: Record<ColumnKey, { pvalue: number | null; beta: number | null }>;
   minPvalue: number;
   significantCount: number;
 }
@@ -300,14 +315,14 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             gene_symbol: gene.gene_symbol,
             contig: gene.contig,
             gene_start_position: gene.gene_start_position,
-            values: {} as Record<ColumnKey, number | null>,
+            values: {} as Record<ColumnKey, { pvalue: number | null; beta: number | null }>,
             minPvalue: Infinity,
             significantCount: 0,
           });
         }
 
         const row = geneMap.get(gene.gene_id)!;
-        row.values[colKey] = gene.pvalue;
+        row.values[colKey] = { pvalue: gene.pvalue, beta: gene.beta_burden };
 
         if (gene.pvalue != null) {
           row.minPvalue = Math.min(row.minPvalue, gene.pvalue);
@@ -332,7 +347,7 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
       for (const ann of ANNOTATIONS) {
         for (const maf of MAF_VALUES) {
           const key = `${ann}_${maf}` as ColumnKey;
-          const pval = gene.values[key];
+          const pval = gene.values[key]?.pvalue;
           if (pval != null && pval < SIG_THRESHOLD) {
             sigCounts[ann]++;
             allSigGenes.add(gene.gene_id);
@@ -383,6 +398,7 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
 
   return (
     <Container>
+      <ScrollableArea>
       {/* Summary Stats */}
       <SummaryBar>
         <SummaryStat>
@@ -430,7 +446,9 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
                   {gene.gene_symbol}
                 </GeneCell>
                 {columns.map((col) => {
-                  const pvalue = gene.values[col.key];
+                  const cellData = gene.values[col.key];
+                  const pvalue = cellData?.pvalue ?? null;
+                  const beta = cellData?.beta ?? null;
                   const negLogP = pvalue != null ? -Math.log10(pvalue) : 0;
                   const intensity = Math.min(negLogP / 15, 1);
                   const isSignificant = pvalue != null && pvalue < SIG_THRESHOLD;
@@ -444,7 +462,16 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
                       onClick={() => handleGeneClick(gene.gene_id)}
                       onMouseEnter={(e) => handleCellHover(gene, col, e)}
                       onMouseLeave={handleCellLeave}
-                    />
+                    >
+                      {beta !== null && isSignificant && (
+                        <span style={{
+                          fontWeight: 700,
+                          color: intensity > 0.5 ? '#fff' : 'var(--theme-text, #333)',
+                        }}>
+                          {beta > 0 ? '+' : '-'}
+                        </span>
+                      )}
+                    </DataCell>
                   );
                 })}
               </tr>
@@ -470,8 +497,24 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             <span style={{ color: ANNOTATION_COLORS.synonymous }}>Syn</span>
           </div>
         </div>
-        <span style={{ marginLeft: 16 }}>* = significant (P &lt; 2.5e-6)</span>
+        <div style={{ display: 'flex', gap: 12, marginLeft: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 14, height: 14, position: 'relative', border: '1px solid var(--theme-border, #ddd)', background: 'var(--theme-surface, #fff)' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, borderStyle: 'solid', borderWidth: '0 6px 6px 0', borderColor: 'transparent #000 transparent transparent' }} />
+            </div>
+            <span>significant</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>+</span>
+            <span>risk</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>−</span>
+            <span>protective</span>
+          </div>
+        </div>
       </Legend>
+      </ScrollableArea>
 
       {/* Tooltip */}
       {hoveredCell && (
@@ -483,9 +526,17 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
           <div>
             <span style={{ color: 'var(--theme-text-muted, #666)' }}>P-value: </span>
             <span style={{ fontFamily: 'monospace' }}>
-              {hoveredCell.gene.values[hoveredCell.column.key]?.toExponential(2) ?? 'N/A'}
+              {hoveredCell.gene.values[hoveredCell.column.key]?.pvalue?.toExponential(2) ?? 'N/A'}
             </span>
           </div>
+          {hoveredCell.gene.values[hoveredCell.column.key]?.beta != null && (
+            <div>
+              <span style={{ color: 'var(--theme-text-muted, #666)' }}>Beta: </span>
+              <span style={{ fontFamily: 'monospace' }}>
+                {hoveredCell.gene.values[hoveredCell.column.key]?.beta?.toFixed(3)}
+              </span>
+            </div>
+          )}
         </Tooltip>
       )}
     </Container>

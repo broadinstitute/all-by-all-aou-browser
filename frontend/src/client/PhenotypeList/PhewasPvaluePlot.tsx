@@ -41,6 +41,7 @@ interface Props {
   labeledPhenoIds?: Set<string>
   labelOverrides?: Record<string, { x: number; y: number }>
   onLabelDragEnd?: (id: string, x: number, y: number) => void
+  useDirectionalShapes?: boolean
 }
 
 const PlotWrapper = styled.div`
@@ -72,6 +73,7 @@ const PhewasPvaluePlot = ({
   labeledPhenoIds,
   labelOverrides,
   onLabelDragEnd,
+  useDirectionalShapes = false,
 }: Props) => {
   const theme = useTheme() as any;
   const pValueKeyName = pValueTypeToPValueKeyName[pValueType]
@@ -289,7 +291,28 @@ const PhewasPvaluePlot = ({
 
       ctx.beginPath()
 
-      ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false)
+      if (useDirectionalShapes) {
+        const beta = point.data.BETA_Burden ?? point.data.BETA ?? 0;
+        const r = pointRadius * 1.5; // Slightly larger visually to match circle area
+
+        if (beta > 0) {
+          // Upward pointing triangle (Risk)
+          ctx.moveTo(point.x, point.y - r);
+          ctx.lineTo(point.x - r, point.y + r);
+          ctx.lineTo(point.x + r, point.y + r);
+        } else if (beta < 0) {
+          // Downward pointing triangle (Protective)
+          ctx.moveTo(point.x - r, point.y - r);
+          ctx.lineTo(point.x + r, point.y - r);
+          ctx.lineTo(point.x, point.y + r);
+        } else {
+          ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false);
+        }
+        ctx.closePath();
+      } else {
+        ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false);
+      }
+
       ctx.fillStyle = pointColor(point.data)
       ctx.fill()
 
@@ -322,6 +345,7 @@ const PhewasPvaluePlot = ({
 
       if (isActiveGene && activeAnalyses && activeAnalyses.includes(point.data.analysis_id)) {
         ctx.beginPath()
+        // Keep the circle outline around the active selection regardless of shape inside
         ctx.arc(point.x, point.y, 10, 0, 2 * Math.PI, false)
         ctx.strokeStyle = 'blue'
         ctx.lineWidth = 1.5
