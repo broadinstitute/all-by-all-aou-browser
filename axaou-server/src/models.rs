@@ -93,8 +93,14 @@ pub struct GeneAssociationApi {
     /// ancestry_group (aliased from ancestry in ClickHouse)
     pub ancestry_group: String,
     pub pvalue: Option<f64>,
+    /// -log10(pvalue) for precise display of extremely small p-values
+    pub neg_log10_p: Option<f64>,
     pub pvalue_burden: Option<f64>,
+    /// -log10(pvalue_burden) for precise display
+    pub neg_log10_p_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
+    /// -log10(pvalue_skat) for precise display
+    pub neg_log10_p_skat: Option<f64>,
     pub beta_burden: Option<f64>,
     pub mac: Option<i64>,
     /// Chromosome (e.g., "chr14")

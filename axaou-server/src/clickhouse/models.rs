@@ -287,6 +287,17 @@ pub struct GeneAssociationRow {
 }
 
 impl GeneAssociationRow {
+    /// Compute -log10(p) with cap for underflowed values
+    fn compute_neg_log10_p(p: Option<f64>) -> Option<f64> {
+        p.map(|v| {
+            if v <= 0.0 {
+                350.0 // Cap for underflowed p-values
+            } else {
+                -v.log10()
+            }
+        })
+    }
+
     /// Convert to API model with field names matching frontend types
     pub fn to_api(&self) -> GeneAssociationApi {
         GeneAssociationApi {
@@ -297,8 +308,11 @@ impl GeneAssociationRow {
             analysis_id: self.phenotype.clone(),
             ancestry_group: self.ancestry.clone(),
             pvalue: self.pvalue,
+            neg_log10_p: Self::compute_neg_log10_p(self.pvalue),
             pvalue_burden: self.pvalue_burden,
+            neg_log10_p_burden: Self::compute_neg_log10_p(self.pvalue_burden),
             pvalue_skat: self.pvalue_skat,
+            neg_log10_p_skat: Self::compute_neg_log10_p(self.pvalue_skat),
             beta_burden: self.beta_burden,
             mac: self.mac,
             contig: self.contig.clone(),
