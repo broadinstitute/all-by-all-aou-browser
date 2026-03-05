@@ -147,8 +147,8 @@ export const YAxis: React.FC<YAxisProps> = ({ height, width = 50 }) => {
       {/* Tick marks and labels */}
       {ticks.map((val) => {
         const y = valueToY(val, height);
-        // Skip ticks that would be too close to edges
-        if (y < 5 || y > height - 5) return null;
+        // Skip ticks too close to bottom edge, but allow top ticks (they're important for showing scale)
+        if (y < 0 || y > height - 5) return null;
 
         return (
           <div
