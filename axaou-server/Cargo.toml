@@ -39,8 +39,8 @@ clap = { version = "4.4", features = ["derive"] }
 rand = "0.9"
 
 # Hail Data Access (update rev after pushing hail-decoder changes)
-# For production: hail-decoder = { git = "https://github.com/broadinstitute/hail-rust-decoder.git", rev = "9d883bb", features = ["genomic"] }
-hail-decoder = { package = "genohype-cli", path = "../../genohype/cli", features = ["genomic"] }
+# For local dev: hail-decoder = { package = "genohype-cli", path = "../../genohype/cli", features = ["genomic"] }
+hail-decoder = { package = "genohype-cli", git = "https://github.com/broadinstitute/genohype.git", features = ["genomic"] }
 
 # Unix resource limits
 rlimit = "0.10"
