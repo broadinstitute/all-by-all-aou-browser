@@ -7,7 +7,7 @@ import {
   // isRsId,
 } from '@gnomad/identifiers'
 
-import { minBy } from 'lodash'
+import minBy from 'lodash/minBy'
 
 import axios from 'axios'
 

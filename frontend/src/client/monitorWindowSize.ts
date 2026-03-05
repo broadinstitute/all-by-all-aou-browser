@@ -1,4 +1,4 @@
-import { debounce } from 'lodash'
+import debounce from 'lodash/debounce'
 import { useEffect } from 'react'
 import { useSetRecoilState } from 'recoil'
 import { windowSizeAtom } from './sharedState'

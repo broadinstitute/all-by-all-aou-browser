@@ -1,5 +1,5 @@
 import { BaseTable } from '@gnomad/ui'
-import { flatten } from 'lodash'
+import flatten from 'lodash/flatten'
 import React from 'react'
 import { useRecoilValue } from 'recoil'
 import styled from 'styled-components'

@@ -5,7 +5,7 @@ import { extent } from 'd3-array'
 import { scaleLinear, scaleLog } from 'd3-scale'
 import React, { Component, PureComponent } from 'react'
 import { transparentize } from 'polished'
-import { throttle } from 'lodash'
+import throttle from 'lodash/throttle'
 import { getCategoryFromConsequence } from '../vepConsequences'
 
 import { Track } from '@axaou/ui'

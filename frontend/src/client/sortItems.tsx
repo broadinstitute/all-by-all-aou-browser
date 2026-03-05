@@ -1,5 +1,5 @@
-import { orderBy } from 'lodash'
-import { isObject } from 'lodash'
+import orderBy from 'lodash/orderBy'
+import isObject from 'lodash/isObject'
 
 const getValue = (isAscending: boolean) => (value: any) => {
   if (isObject(value)) {

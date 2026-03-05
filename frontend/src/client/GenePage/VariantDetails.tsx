@@ -2,7 +2,7 @@ import React from 'react'
 import styled from 'styled-components'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import { hoveredVariantAtom, multiAnalysisVariantDetailsAtom } from '../variantState'
-import { sortBy } from 'lodash'
+import sortBy from 'lodash/sortBy'
 import { hoveredAnalysisAtom } from '../sharedState'
 import { renderPvalueCell } from '../PhenotypeList/Utils'
 

@@ -37,7 +37,7 @@ const getWebpackConfig = async () => {
       historyApiFallback: true,
       port: 8008,
     },
-    devtool: 'inline-source-map',
+    devtool: isDev ? 'inline-source-map' : 'source-map',
     entry: './src/client/index.tsx',
     mode: isDev ? 'development' : 'production',
     module: {
@@ -112,6 +112,18 @@ const getWebpackConfig = async () => {
       path: path.resolve(__dirname, './dist/public'),
       publicPath: '/',
       filename: isDev ? '[name].js' : '[name]-[contenthash].js',
+    },
+    optimization: {
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      },
     },
     plugins: [
       new webpack.EnvironmentPlugin({

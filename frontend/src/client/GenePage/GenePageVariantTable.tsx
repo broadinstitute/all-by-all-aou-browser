@@ -1,5 +1,8 @@
 /* eslint-disable camelcase */
-import { flatten, keyBy, mergeWith, values } from 'lodash'
+import flatten from 'lodash/flatten'
+import keyBy from 'lodash/keyBy'
+import mergeWith from 'lodash/mergeWith'
+import values from 'lodash/values'
 import memoizeOne from 'memoize-one'
 import React from 'react'
 import { useHistory } from 'react-router-dom'

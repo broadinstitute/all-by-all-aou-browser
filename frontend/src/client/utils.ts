@@ -1,4 +1,4 @@
-import { mergeWith as lodashMergeWith } from 'lodash'
+import lodashMergeWith from 'lodash/mergeWith'
 import {
   Locus,
   WorstCsqByGeneCanonical,
