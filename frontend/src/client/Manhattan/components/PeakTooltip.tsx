@@ -70,9 +70,9 @@ const formatPvalue = (p: number | undefined, negLog10P?: number): string => {
 /**
  * P-value cell with color-coded indicator (red for pLoF sig, yellow for missense sig)
  */
-const PvalueCell: React.FC<{ value: number | undefined; annotation?: string }> = ({ value, annotation }) => {
+const PvalueCell: React.FC<{ value: number | undefined; negLog10P?: number; annotation?: string }> = ({ value, negLog10P, annotation }) => {
   const isSignificant = value !== undefined && value < SIG_THRESHOLD;
-  const formatted = formatPvalue(value);
+  const formatted = formatPvalue(value, negLog10P);
 
   // Color based on annotation type when significant
   const dotColor = isSignificant
@@ -274,9 +274,9 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                         }}>
                           {formatAnnotation(result.annotation)}
                         </td>
-                        <PvalueCell value={result.pvalue} annotation={result.annotation} />
-                        <PvalueCell value={result.pvalue_burden} annotation={result.annotation} />
-                        <PvalueCell value={result.pvalue_skat} annotation={result.annotation} />
+                        <PvalueCell value={result.pvalue} negLog10P={result.pvalue_neg_log10} annotation={result.annotation} />
+                        <PvalueCell value={result.pvalue_burden} negLog10P={result.pvalue_burden_neg_log10} annotation={result.annotation} />
+                        <PvalueCell value={result.pvalue_skat} negLog10P={result.pvalue_skat_neg_log10} annotation={result.annotation} />
                       </tr>
                     );
                   })}

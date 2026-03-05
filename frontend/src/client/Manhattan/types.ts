@@ -54,10 +54,16 @@ export interface BurdenResult {
   annotation: string;
   /** SKAT-O p-value (combined test) */
   pvalue?: number;
+  /** -log10(pvalue) for SKAT-O */
+  pvalue_neg_log10?: number;
   /** Burden-only p-value */
   pvalue_burden?: number;
+  /** -log10(pvalue_burden) */
+  pvalue_burden_neg_log10?: number;
   /** SKAT-only p-value */
   pvalue_skat?: number;
+  /** -log10(pvalue_skat) */
+  pvalue_skat_neg_log10?: number;
 }
 
 /**
