@@ -94,6 +94,17 @@ struct BurdenRow {
     pub pvalue_skat: Option<f64>,
 }
 
+/// Compute -log10(p) with cap for underflowed values
+pub fn compute_neg_log10_p(p: Option<f64>) -> Option<f64> {
+    p.map(|v| {
+        if v <= 0.0 {
+            350.0 // Cap for underflowed p-values
+        } else {
+            -v.log10()
+        }
+    })
+}
+
 /// Burden test results for a specific annotation category
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BurdenResult {
@@ -101,9 +112,15 @@ pub struct BurdenResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvalue: Option<f64>,  // SKAT-O p-value
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_neg_log10: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pvalue_burden: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_burden_neg_log10: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pvalue_skat: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pvalue_skat_neg_log10: Option<f64>,
 }
 
 /// A gene in the locus near a GWAS peak
@@ -534,8 +551,11 @@ pub(crate) async fn fetch_peak_annotations(
             map.entry(row.gene_id.clone()).or_default().push(BurdenResult {
                 annotation: row.annotation,
                 pvalue: row.pvalue,
+                pvalue_neg_log10: compute_neg_log10_p(row.pvalue),
                 pvalue_burden: row.pvalue_burden,
+                pvalue_burden_neg_log10: compute_neg_log10_p(row.pvalue_burden),
                 pvalue_skat: row.pvalue_skat,
+                pvalue_skat_neg_log10: compute_neg_log10_p(row.pvalue_skat),
             });
         }
         map
@@ -892,8 +912,11 @@ async fn get_gene_manhattan_overlay(
                 burden_results.push(BurdenResult {
                     annotation: "Overall".to_string(),
                     pvalue: Some(hit.pvalue),
+                    pvalue_neg_log10: hit.neg_log10_p,
                     pvalue_burden: hit.pvalue_burden,
+                    pvalue_burden_neg_log10: compute_neg_log10_p(hit.pvalue_burden),
                     pvalue_skat: hit.pvalue_skat,
+                    pvalue_skat_neg_log10: compute_neg_log10_p(hit.pvalue_skat),
                 });
             }
 

@@ -5,7 +5,7 @@
 
 use crate::api::AppState;
 use crate::error::AppError;
-use crate::phenotype::manhattan::{fetch_peak_annotations, BurdenResult, GeneInLocus, Peak};
+use crate::phenotype::manhattan::{compute_neg_log10_p, fetch_peak_annotations, BurdenResult, GeneInLocus, Peak};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -307,8 +307,11 @@ pub async fn get_phenotype_overview(
             .map(|r| BurdenResult {
                 annotation: r.annotation.clone(),
                 pvalue: r.pvalue,
+                pvalue_neg_log10: compute_neg_log10_p(r.pvalue),
                 pvalue_burden: r.pvalue_burden,
+                pvalue_burden_neg_log10: compute_neg_log10_p(r.pvalue_burden),
                 pvalue_skat: r.pvalue_skat,
+                pvalue_skat_neg_log10: compute_neg_log10_p(r.pvalue_skat),
             })
             .collect();
 
