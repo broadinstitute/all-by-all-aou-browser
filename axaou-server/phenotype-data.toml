@@ -15,7 +15,7 @@
 assets_json = "/Users/msolomon/data/axaou-local/v8-assets.json"
 
 # Required: Output directory for generated plots
-output_dir = "gs://axaou-central/browserv2/analyses/20260202-0942"
+output_dir = "gs://axaou-central/browserv2/analyses/20260204-1704"
 
 # Filter to specific ancestries (empty = all)
 ancestries = ["meta"]
