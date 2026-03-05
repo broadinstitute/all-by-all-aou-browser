@@ -33,7 +33,6 @@ const PageContainer = styled.div`
   min-width: 97%;
   max-width: 97%;
   align-items: center;
-  height: 100%;
   gap: 10px;
   position: relative;
 `;

@@ -51,18 +51,16 @@ const RootContainerGene = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  height: 100%;
+  min-height: 1300px;
   max-width: 100%;
   min-width: 0;
 
   .data-container {
     display: flex;
     width: 100%;
-    height: 100%;
     flex-direction: column;
     padding-right: 10px;
     min-width: 0;
-    overflow: hidden;
   }
 
   .filter-warnings {

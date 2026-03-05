@@ -7,18 +7,10 @@ import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState'
 
 const Container = styled.div`
   width: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
 `;
 
 const ScrollableArea = styled.div`
-  flex: 1;
-  overflow-y: auto;
   padding-bottom: 40px;
-  min-height: 0;
 `;
 
 const LoadingMessage = styled.div`

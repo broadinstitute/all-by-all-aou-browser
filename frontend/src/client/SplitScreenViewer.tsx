@@ -45,7 +45,9 @@ const ResizableItems = withSize({
     const windowSize = useRecoilValue(windowSizeAtom)
     const setResizableWidth = useSetRecoilState(resizableWidthAtom)
 
-    const leftPanelSize = { width: defaultWidth, height: size.height }
+    // Use size.height from withSize when available, fall back to windowSize.height
+    const containerHeight = size.height || windowSize.height
+    const leftPanelSize = { width: defaultWidth, height: containerHeight }
 
     let borderStyles = {}
 
@@ -102,8 +104,8 @@ const ResizableItems = withSize({
       return (
         <div
           style={{
-            height: '100vh',
-            overflow: 'scroll',
+            height: '100%',
+            overflow: 'auto',
             paddingRight: 100,
             paddingLeft: 100,
             paddingTop: 10,
@@ -120,9 +122,9 @@ const ResizableItems = withSize({
         <Resizable
           defaultSize={{
             width: defaultWidth,
-            height: windowSize.height,
+            height: containerHeight,
           }}
-          size={{ width: defaultWidth, height: windowSize.height }}
+          size={{ width: defaultWidth, height: containerHeight }}
           minWidth={item1MinSize}
           maxWidth={size.width - item2MinSize}
           style={resizableStyles}
