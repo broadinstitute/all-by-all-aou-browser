@@ -67,7 +67,7 @@ const HeadingContainer = styled.div`
     line-height: 45.36px;
     letter-spacing: normal;
     text-align: center;
-    color: rgb(38, 34, 98);
+    color: ${(props) => props.theme.text};
     margin: 0px;
     padding: 16px;
   }

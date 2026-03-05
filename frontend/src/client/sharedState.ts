@@ -166,11 +166,31 @@ export const themeModeAtom = atom<'light' | 'dark' | 'system'>({
   key: 'themeMode',
   default: 'system',
   effects: [
-    urlSyncEffect({
-      refine: stringLiterals({ light: 'light', dark: 'dark', system: 'system' }),
-      history: 'push',
-      syncDefault: true,
-    }),
+    ({ setSelf, onSet }) => {
+      // Load from localStorage on initialization
+      if (typeof window !== 'undefined') {
+        const savedValue = localStorage.getItem('themeMode')
+        if (savedValue != null) {
+          try {
+            const parsed = JSON.parse(savedValue)
+            if (['light', 'dark', 'system'].includes(parsed)) {
+              setSelf(parsed as 'light' | 'dark' | 'system')
+            }
+          } catch (e) {
+            // Ignore parse errors and fall back to default
+          }
+        }
+      }
+
+      // Save to localStorage whenever the state changes
+      onSet((newValue, _, isReset) => {
+        if (typeof window !== 'undefined') {
+          isReset
+            ? localStorage.removeItem('themeMode')
+            : localStorage.setItem('themeMode', JSON.stringify(newValue))
+        }
+      })
+    },
   ],
 })
 
