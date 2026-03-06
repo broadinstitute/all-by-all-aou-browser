@@ -178,6 +178,7 @@ cargo run -- ingest genome-annotations \
 
 # Exome variant annotations (~142M rows) - requires high memory
 cargo run -- ingest exome-annotations \
+    --batch-size 100 \
     --pool memheavy \
     --force \
     --clickhouse-url http://localhost:8123 \
