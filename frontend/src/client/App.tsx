@@ -21,6 +21,7 @@ import { StatusBar } from './StatusBar'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
 import PrivacyPolicy from './PrivacyPolicy'
 import Link from './Link'
+import PipelineDashboard from './Admin/PipelineDashboard'
 
 import './App.css'
 import LogoutButton from './Logout'
@@ -283,6 +284,9 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
             </Route>
             <Route exact path='/analyses'>
               <AvailableAnalyses />
+            </Route>
+            <Route exact path='/admin/pipeline'>
+              <PipelineDashboard />
             </Route>
             <Route exact path="/walkthrough">
               <Walkthrough />

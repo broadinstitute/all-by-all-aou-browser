@@ -9,6 +9,7 @@
 //! - `discover` - Discover analysis assets from GCS and save to JSON
 //! - `analyze` - Analyze/summarize discovered assets
 
+mod admin;
 mod analysis_assets;
 mod api;
 mod cli;
@@ -383,6 +384,11 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/phenotype/:analysis_id/qq",
                     get(phenotype::qq::get_qq_plot),
+                )
+                // --- Admin Routes ---
+                .route(
+                    "/admin/pipeline/stats",
+                    get(admin::pipeline::get_pipeline_stats),
                 ),
         )
         .layer(CompressionLayer::new())
