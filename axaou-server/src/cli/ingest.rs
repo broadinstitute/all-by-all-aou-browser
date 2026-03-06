@@ -138,8 +138,8 @@ pub struct IngestArgs {
     #[arg(long)]
     pub keep_staging: bool,
 
-    /// Path to hail-decoder binary
-    #[arg(long, default_value = "hail-decoder")]
+    /// Path to genohype binary (for distributed pool operations)
+    #[arg(long, default_value = "genohype")]
     pub hail_decoder: String,
 
     /// ClickHouse database name
