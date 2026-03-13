@@ -377,11 +377,42 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
       sortOrder: sortState.sortOrder,
     })
 
+  // Compute AN and AF fields from metadata where source data is missing
+  const enrichVariantWithMetadata = (variant: VariantJoined): VariantJoined => {
+    const v = { ...variant } as any
+    const nCases = analysisMetadata?.n_cases
+    const nControls = analysisMetadata?.n_controls
+
+    // AN Case = n_cases * 2 (diploid)
+    if ((v.an_cases === null || v.an_cases === undefined) && nCases) {
+      v.an_cases = nCases * 2
+    }
+    // AN Controls = n_controls * 2
+    if ((v.an_controls === null || v.an_controls === undefined) && nControls) {
+      v.an_controls = nControls * 2
+    }
+    // AF Case = ac_cases / an_cases
+    if ((v.af_cases === null || v.af_cases === undefined) && v.ac_cases != null && nCases) {
+      const anCases = nCases * 2
+      if (anCases > 0) v.af_cases = v.ac_cases / anCases
+    }
+    // AF Controls = ac_controls / an_controls
+    if ((v.af_controls === null || v.af_controls === undefined) && v.ac_controls != null && nControls) {
+      const anControls = nControls * 2
+      if (anControls > 0) v.af_controls = v.ac_controls / anControls
+    }
+    // AN Trait = association_ac / association_af
+    if ((v.association_an === null || v.association_an === undefined) && v.association_ac != null && v.association_af != null && v.association_af > 0) {
+      v.association_an = Math.round(v.association_ac / v.association_af)
+    }
+    return v as VariantJoined
+  }
+
   const datasets: VariantJoined[][] = variantDatasets
     ? variantDatasets
       .filter((vds) => vds.ancestryGroup === ancestryGroup)
       .map((vds) => {
-        let filtered = filterVariants(vds.data, { ...filter, searchText }, membershipFilters)
+        let filtered = filterVariants(vds.data, { ...filter, searchText }, membershipFilters).map(enrichVariantWithMetadata)
 
         if (regionId) {
           const { start, stop } = parseRegionId(regionId);

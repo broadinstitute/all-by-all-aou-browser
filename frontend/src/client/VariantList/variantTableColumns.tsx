@@ -819,11 +819,9 @@ export function getCountColumns(
     'homozygote_count',
   ]
 
-  // Note: an_cases/an_controls are not available in source Hail tables
-  // and cannot be computed (we don't have both AC and AF for cases/controls simultaneously)
   const nonContinuousTraitColumns =
     trait_type !== 'continuous'
-      ? ['ac_cases', 'ac_controls', 'af_cases', 'af_controls']
+      ? ['ac_cases', 'an_cases', 'ac_controls', 'an_controls', 'af_cases', 'af_controls']
       : []
 
   const countColumns = [...baseCountColumns, ...nonContinuousTraitColumns]
@@ -838,24 +836,25 @@ export function getCountColumns(
       return cols.includes(col)
     }
     if (variantColumnGroup === 'counts') {
-      // Note: an_cases/an_controls are not available in source Hail tables
       const cols = [
         'ac_cases',
+        'an_cases',
         'ac_controls',
+        'an_controls',
         'association_ac',
         'association_an',
       ]
       return cols.includes(col)
     }
     if (variantColumnGroup === 'categorical_default') {
-      // Note: an_cases/an_controls are not available in source Hail tables
-      // and cannot be computed (we don't have both AC and AF for cases/controls)
       const cols = [
         'pvalue',
         'beta',
         'homozygote_count',
         'ac_cases',
+        'an_cases',
         'ac_controls',
+        'an_controls',
         'af_cases',
         'af_controls',
         'association_ac',
