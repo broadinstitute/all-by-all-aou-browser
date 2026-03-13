@@ -36,6 +36,10 @@ const getWebpackConfig = async () => {
     devServer: {
       historyApiFallback: true,
       port: 8008,
+      static: {
+        directory: path.resolve(__dirname, 'src/server/public'),
+        publicPath: '/',
+      },
     },
     devtool: isDev ? 'inline-source-map' : 'source-map',
     entry: './src/client/index.tsx',
