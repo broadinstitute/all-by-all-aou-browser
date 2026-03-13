@@ -88,17 +88,24 @@ const MarkdownContentWrapper = styled.div`
   }
 
   code {
+    font-family: monospace;
+    border-radius: 0.25em;
+    padding: 0.15em 0.4em;
+    background: rgba(51, 51, 51, 0.1);
+    font-size: 0.9em;
+  }
+
+  pre code {
     display: inline-block;
     overflow-x: scroll;
     box-sizing: border-box;
     max-width: 90vw;
     padding: 0.5em 1em;
-    border-radius: 0.25em;
     background: rgb(51, 51, 51) none repeat scroll 0% 0%;
     color: rgb(250, 250, 250);
-    font-family: monospace;
     line-height: 1.6;
     white-space: nowrap;
+    font-size: 1em;
   }
 
   .video-container {
