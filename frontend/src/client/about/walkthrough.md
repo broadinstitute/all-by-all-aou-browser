@@ -2,11 +2,11 @@
 
 ## **Summary**
 
-The All by All browser maps associations between genotypes and phenotypes using data contributed by *All of Us* Research Program participants as of July 1, 2022\. 
+The All by All browser maps associations between genotypes and phenotypes using data contributed by *All of Us* Research Program participants.
 
-Using data from the Curated Data Repository (CDR) v7 data release, All by All encompasses 3,417 phenotypes with gene-based and single-variant testing across 214,216 participants with exome and genome sequence data from the *All of Us* Research Program.
+Using data from the Curated Data Repository (CDR) version 8 data release, All by All encompasses over 3,500 phenotypes with gene-based and single-variant testing across nearly 400,000 participants with exome and genome sequence data from the *All of Us* Research Program.
 
-With All by All, researchers can more easily uncover novel associations, dig deeper into understudied conditions, or validate other studies. We created the All by All browser to help researchers quickly visualize many phenotypes and genes simultaneously. 
+With All by All, researchers and others can more easily uncover novel associations, dig deeper into understudied conditions, or validate other studies. We created the All by All browser to help researchers quickly visualize many phenotypes and genes simultaneously.
 
 Researchers can quickly navigate between genes, single variants, and phenotypes as well as actively explore data by mutation class (predicted loss-of-function, missense, synonymous).
 
@@ -131,4 +131,41 @@ Under the plot, a table provides gene burden statistics for all genes within the
 Researchers can refine the region displayed with the zoom in/out buttons.
 
 <img src="/SVG/walkthrough-region.svg" />
+
+## Results
+
+Brief descriptions about each of the results included in the All by All browser are listed below.
+
+### Gene level associations
+
+* **Description**: Description of the phenotype
+* **Info**:
+  * **Phenotype ID**: The phenotype ID is unique to the phenotype of interest.
+  * **Category**: Assigned phenotype category
+  * **N cases**: Cases were defined as participants who have the phenotype of interest. For continuous traits, this number reflects the total sample size.
+  * **Trait type**: Binary or continuous variable
+  * **Phenocode**: The phenocode is unique to the phenotype of interest.
+  * **Sex**: Sex specific or both sexes included
+  * **Coding**:
+  * **Modifier**:
+  * **N cases**: Cases were defined as participants who have the phenotype of interest. For continuous traits, this number reflects the total sample size.
+  * **N controls**: Controls were defined as participants who did not have the phenotype of interest. For continuous traits, this number should be 0.
+* **Gene**: Gene of interest used for association testing with the selected phenotype.
+* **P-value (Burden, SKAT, SKAT-O)**: Output p-value from three types of gene-based statistical tests.
+  * **Burden**: A traditional test that aggregates the effects of variants within a gene.
+  * **SKAT**: A sequence kernel association test, which is often used for rare variant analysis.
+  * **SKAT-O**: An optimized version of SKAT that combines burden and SKAT tests for greater power.
+* **Beta**: Only available for burden tests; represents the direction of association between the gene and phenotype of interest. The magnitude of association is not readily interpretable from the Beta given the weights applied in association testing.
+
+### Single variant associations
+
+* **Variant ID**: Unique string for identifying a variant
+* **CSQ**: Variant Effect Predictor most severe consequence, based on a subjective pre-defined ranking of possible impacts on a gene.
+* **HGVS**: Human Genome Variation Society nomenclature for standardized annotation of genetic variants (coding or protein level)
+* **P-value**: Output p-value from statistical test.
+* **Beta**: Only available for burden tests; represents the direction of association between the gene and phenotype of interest. The magnitude of association is not readily interpretable from the Beta given the weights applied in association testing.
+* **AC META**: Allele count in the meta-analysis population (regardless of trait measured)
+* **Hom META**: Homozygote count in the meta-analysis population (regardless of trait measured)
+* **AN META**: Allele number in the meta-analysis population (regardless of trait measured)
+* **AF META**: Allele frequency in the meta-analysis population (regardless of trait measured)
 

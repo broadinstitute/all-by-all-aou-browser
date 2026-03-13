@@ -119,7 +119,7 @@ export default function HomePageComponent() {
         <HeadingContainer>
           <h1>All by All</h1>
           <p>
-            The All by All results map known and novel associations between genotypes and phenotypes using data contributed by <em>All of Us</em> Research Program participants as of July 1, 2022.
+            The All by All results map known and novel associations between genotypes and phenotypes using data contributed by <em>All of Us</em> Research Program participants.
           </p>
           {isBrowser ? (
             <>
@@ -144,17 +144,19 @@ export default function HomePageComponent() {
           <p style={{ marginTop: 25 }}>
             <a href="https://www.researchallofus.org/register/?utm_source=nih&utm_medium=referral&utm_campaign=All-by-All-Browser&utm_term=Intro-text&utm_content=Register">
               Register for or log in
-            </a> to the Researcher Workbench to find more details about novel associations, dig deeper into understudied conditions, study potential drug targets, or validate findings from other studies by combining associations with individual-level data.
+            </a> to the <em>All of Us</em> Researcher Workbench to find more details about novel associations, dig deeper into understudied conditions, study potential drug targets, validate findings from other studies by combining associations with individual-level data, and more.
           </p>
           <p>Questions? Contact <a href="mailto:support@researchallofus.org">support@researchallofus.org</a>.</p>
 
-          <p>This is a test launch of the All by All browser. Additional features will be added in the coming months.</p>
           <Version>
             <li>
               <strong>Dataset:</strong>{" "}
               {Number(datasetCounts["n_samples"]).toLocaleString()} samples,
               {' '}
               {Number(datasetCounts["n_phenotypes"]).toLocaleString()} phenotypes
+            </li>
+            <li>
+              <strong>AoU data release:</strong> CDR v8 (February 2025)
             </li>
             <li>
               <strong>Reference genome:</strong> GRCh38
@@ -166,6 +168,9 @@ export default function HomePageComponent() {
           <div style={{ display: 'flex', width: '100%' }}>
             <div style={{ flex: 1 }}>
               <h2>Updates:</h2>
+              <p>
+                <strong><em>Friday, March 13, 2026</em></strong>: The All by All browser has been updated with data from the Curated Data Repository (CDR) version 8 data release (February 2025), expanding to over 3,500 phenotypes across nearly 400,000 whole genome sequences.
+              </p>
               <p>
                 <strong><em>Friday, January 31, 2025</em></strong>: The <em>All of Us</em> Researcher Workbench team
                 released an incremental update for the All by All tables related to the

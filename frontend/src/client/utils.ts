@@ -238,8 +238,8 @@ export function getAvailableAnalysisIds(data: LoadedAnalysis[] | undefined): str
 }
 
 export const datasetCounts = {
-  n_samples: 250_000,
-  n_phenotypes: 3_400,
+  n_samples: 400_000,
+  n_phenotypes: 3_500,
 }
 
 
