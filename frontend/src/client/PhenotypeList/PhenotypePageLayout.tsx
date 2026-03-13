@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery } from '@axaou/ui';
 import styled from 'styled-components';
-import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { ManhattanPlotContainer } from '../Manhattan';
 import { OverviewPlotContainer } from '../Manhattan/OverviewPlotContainer';
 import { PhenotypeGeneBurdenTab } from './PhenotypeGeneBurdenTab';
+import { VariantQQContainer } from '../VariantResults/VariantQQContainer';
+import { PrecomputedQQMini } from '../VariantResults/PrecomputedQQMini';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
-import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom } from '../sharedState';
+import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom, showQQOverlayAtom } from '../sharedState';
 import { AnalysisMetadata } from '../types';
 import {
   AttributeCards,
@@ -60,6 +62,28 @@ const Tab = styled.button<{ $active: boolean }>`
 
   &:hover {
     background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f0f0f0)')};
+  }
+`;
+
+const PlotViewToggle = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+`;
+
+const PlotViewButton = styled.button<{ $active: boolean }>`
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: GothamBook, sans-serif;
+  background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  border: 1px solid ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #ddd)')};
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #e8e8e8)')};
   }
 `;
 
@@ -135,6 +159,7 @@ const PhenotypeHeader: React.FC<PhenotypeHeaderProps> = ({ phenotype }) => {
   );
 };
 
+type PlotView = 'manhattan' | 'qq';
 type TabKey = 'overview' | 'gene-burden' | 'exome-variants' | 'genome-variants';
 
 interface TabConfig {
@@ -161,6 +186,8 @@ interface PhenotypePageLayoutProps {
 
 export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [plotView, setPlotView] = useState<PlotView>('manhattan');
+  const [showQQOverlay, setShowQQOverlay] = useRecoilState(showQQOverlayAtom);
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const analysisId = useRecoilValue(analysisIdAtom);
   const setGeneId = useSetRecoilState(geneIdAtom);
@@ -259,13 +286,46 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
     }
 
     if (tabConfig?.plotType) {
+      const seqType = activeTab === 'exome-variants' ? 'exomes' : 'genomes';
       return (
-        <ManhattanPlotContainer
-          analysisId={analysisMetadataPrepared.analysis_id}
-          plotType={tabConfig.plotType}
-          onHitClick={handleHitClick}
-          onPeakClick={handlePeakClick}
-        />
+        <>
+          <PlotViewToggle>
+            <PlotViewButton $active={plotView === 'manhattan'} onClick={() => setPlotView('manhattan')}>
+              Manhattan
+            </PlotViewButton>
+            <PlotViewButton $active={plotView === 'qq'} onClick={() => setPlotView('qq')}>
+              QQ Plot
+            </PlotViewButton>
+            {plotView === 'manhattan' && (
+              <PlotViewButton
+                $active={showQQOverlay}
+                onClick={() => setShowQQOverlay(!showQQOverlay)}
+                title={showQQOverlay ? 'Hide QQ overlay' : 'Show QQ overlay'}
+              >
+                QQ Overlay
+              </PlotViewButton>
+            )}
+          </PlotViewToggle>
+          {plotView === 'qq' ? (
+            <VariantQQContainer
+              analysisId={analysisMetadataPrepared.analysis_id}
+              sequencingType={seqType}
+            />
+          ) : (
+            <ManhattanPlotContainer
+              analysisId={analysisMetadataPrepared.analysis_id}
+              plotType={tabConfig.plotType}
+              onHitClick={handleHitClick}
+              onPeakClick={handlePeakClick}
+              inset={showQQOverlay ? (
+                <PrecomputedQQMini
+                  analysisId={analysisMetadataPrepared.analysis_id}
+                  sequencingType={seqType}
+                />
+              ) : undefined}
+            />
+          )}
+        </>
       );
     }
 

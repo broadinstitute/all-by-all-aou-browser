@@ -4,7 +4,7 @@ import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { Tooltip } from './components/Tooltip';
 import { PeakTooltip } from './components/PeakTooltip';
 import { YAxis } from './components/YAxis';
-import { PeakLabels } from './components/PeakLabels';
+import { PeakLabels, LabelPositionOverride } from './components/PeakLabels';
 import { ChromosomeLabels } from './components/ChromosomeLabels';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { computeDisplayHits, getChromosomeLayout } from './layout';
@@ -42,6 +42,8 @@ export interface ManhattanViewerProps {
   onLocusClick?: (contig: string, position: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
+  /** Optional draggable inset node (e.g., QQ plot) */
+  inset?: React.ReactNode;
 }
 
 /**
@@ -65,6 +67,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   onContigClick,
   onLocusClick,
   onGeneClick,
+  inset,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -84,8 +87,59 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
   const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
   // Unified context menu state - can include locus, gene, or multiple genes
+
+  // --- Inset Dragging Logic ---
+  const [insetPos, setInsetPos] = useState<{ x: number, y: number } | null>(null);
+  const [isDraggingInset, setIsDraggingInset] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, insetX: 0, insetY: 0 });
+
+  // Reset position when image/context changes
+  useEffect(() => {
+    setInsetPos(null);
+  }, [contig, imageUrl]);
+
+  // Handlers for dragging the inset
+  const handleInsetMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!insetPos) return;
+    e.stopPropagation();
+    setIsDraggingInset(true);
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      insetX: insetPos.x,
+      insetY: insetPos.y
+    };
+  }, [insetPos]);
+
+  useEffect(() => {
+    if (!isDraggingInset) return;
+
+    const handleMouseMoveWindow = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setInsetPos({
+        x: Math.max(0, Math.min(dimensions.width - 220, dragStart.current.insetX + dx)),
+        y: Math.max(0, dragStart.current.insetY + dy)
+      });
+    };
+
+    const handleMouseUpWindow = () => {
+      setIsDraggingInset(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMoveWindow);
+    window.addEventListener('mouseup', handleMouseUpWindow);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMoveWindow);
+      window.removeEventListener('mouseup', handleMouseUpWindow);
+    };
+  }, [isDraggingInset, dimensions.width]);
+
+  // --- End Inset Logic (position & exclusion zone sync after usePeakLabelLayout) ---
 
   if (imageUrl !== prevImageUrl) {
     setPrevImageUrl(imageUrl);
@@ -122,8 +176,18 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : 10 // No limit when user-selected
+    customLabelMode ? 500 : 10, // No limit when user-selected
   );
+
+  // Default inset to top-right corner of the plot image
+  useEffect(() => {
+    if (insetPos === null && dimensions.width > 0) {
+      setInsetPos({
+        x: dimensions.width - 236,
+        y: labelAreaHeight + 16,
+      });
+    }
+  }, [dimensions.width, insetPos, labelAreaHeight]);
 
   // Memoize sorted peaks for the table (expensive for large datasets)
   // Filter by current chromosome when zoomed in
@@ -285,6 +349,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     }
   }, []);
 
+  const handleLabelDragEnd = useCallback((id: string, x: number, y: number) => {
+    setLabelOverrides((prev) => ({
+      ...prev,
+      [id]: { x, y },
+    }));
+  }, []);
+
   const containerStyle: React.CSSProperties = {
     // Removed minWidth to allow responsive scaling like OverviewManhattan
   };
@@ -416,6 +487,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                labelOverrides={labelOverrides}
+                onLabelDragEnd={handleLabelDragEnd}
                 onPeakContextMenu={(node, clientX, clientY) => {
                   setContextMenu({
                     x: clientX,
@@ -451,6 +524,40 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
               y={peakCursor.y}
               containerWidth={dimensions.width}
             />
+          )}
+
+          {/* Draggable Inset (e.g. QQ Plot) */}
+          {inset && insetPos && (
+            <div
+              onMouseDown={handleInsetMouseDown}
+              style={{
+                position: 'absolute',
+                left: Math.max(0, Math.min(insetPos.x, dimensions.width - 220)),
+                top: insetPos.y,
+                zIndex: 100,
+                background: 'rgba(255, 255, 255, 0.95)',
+                border: '1px solid var(--theme-border, #ccc)',
+                borderRadius: '6px',
+                padding: '8px',
+                boxShadow: isDraggingInset ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
+                cursor: isDraggingInset ? 'grabbing' : 'grab',
+                pointerEvents: 'auto',
+                userSelect: isDraggingInset ? 'none' : 'auto',
+              }}
+            >
+              <div style={{
+                width: '100%',
+                height: '12px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: '4px',
+                opacity: 0.5
+              }}>
+                <div style={{ width: '30px', height: '4px', borderRadius: '2px', background: '#999' }} />
+              </div>
+              {inset}
+            </div>
           )}
         </div>
       </div>

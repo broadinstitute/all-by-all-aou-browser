@@ -150,12 +150,24 @@ function getBestGeneForPeak(peak: Peak): PeakGene | undefined {
  * @param height Container height in pixels
  * @param contig Layout contig - 'all' for genome-wide, or specific chromosome
  */
+export interface ExclusionZone {
+  /** X coordinate of left edge */
+  x: number;
+  /** Y coordinate of top edge */
+  y: number;
+  /** Width of the zone */
+  width: number;
+  /** Height of the zone */
+  height: number;
+}
+
 export function usePeakLabelLayout(
   peaks: Peak[] | undefined,
   width: number,
   height: number,
   contig: string = 'all',
-  maxLabels: number = 25
+  maxLabels: number = 25,
+  exclusionZone?: ExclusionZone
 ): PeakLabelLayout {
   const layout = getChromosomeLayout(contig);
   const yScale = getYScale();
@@ -328,6 +340,30 @@ export function usePeakLabelLayout(
     // Resolve any remaining overlaps
     resolveOverlaps(nodes);
 
+    // Push labels out of the exclusion zone (e.g., QQ inset area)
+    if (exclusionZone) {
+      const ez = exclusionZone;
+      for (const node of nodes) {
+        const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
+        const labelRight = node.x + node.labelWidth * Math.cos(angleRad);
+        const labelTop = node.y - node.labelWidth * Math.sin(angleRad);
+        const labelBottom = node.y + LABEL_HEIGHT * Math.cos(angleRad);
+
+        // Check if label overlaps with the exclusion zone
+        if (labelRight > ez.x && node.x < ez.x + ez.width &&
+            labelBottom > ez.y && labelTop < ez.y + ez.height) {
+          // If exclusion zone is on the left side of the screen, push right. Otherwise push left.
+          if (ez.x < width / 2) {
+             node.x = ez.x + ez.width + MIN_LABEL_SPACING;
+          } else {
+             node.x = ez.x - node.labelWidth * Math.cos(angleRad) - MIN_LABEL_SPACING;
+          }
+        }
+      }
+      // Re-resolve overlaps after pushing
+      resolveOverlaps(nodes);
+    }
+
     // Find the vertical extent of labels, accounting for angled text
     // For -45 degree rotation, text extends up-left from anchor point
     const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
@@ -360,7 +396,7 @@ export function usePeakLabelLayout(
     }
 
     return { nodes, labelAreaHeight };
-  }, [peaks, width, height, layout, yScale, contig, maxLabels]);
+  }, [peaks, width, height, layout, yScale, contig, maxLabels, exclusionZone]);
 }
 
 /**

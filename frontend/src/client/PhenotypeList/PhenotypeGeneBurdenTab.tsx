@@ -6,8 +6,10 @@ import styled from 'styled-components';
 import { GeneBurdenManhattan } from '../Manhattan/GeneBurdenManhattan';
 import { GeneBurdenComposite } from './GeneBurdenComposite';
 import { GeneBurdenOverlay } from './GeneBurdenOverlay';
+import { PrecomputedQQPlot } from '../VariantResults/PrecomputedQQPlot';
+import type { QQPoint } from '../VariantResults/PrecomputedQQPlot';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom, showQQOverlayAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -203,7 +205,7 @@ interface Props {
   analysisId: string;
 }
 
-type ViewMode = 'standard' | 'overlay' | 'heatmap';
+type ViewMode = 'standard' | 'overlay' | 'heatmap' | 'qqplot';
 type TestType = 'max' | 'skato' | 'burden' | 'skat';
 
 const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
@@ -390,6 +392,23 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   }, [customLabelMode, selectedGeneIds, queryStates.geneData?.data]);
 
   const geneData = queryStates.geneData?.data ?? [];
+  const [showQQOverlay, setShowQQOverlay] = useRecoilState(showQQOverlayAtom);
+
+  // Compute mini QQ plot points from gene burden p-values
+  const qqMiniInset = useMemo(() => {
+    if (!showQQOverlay) return undefined;
+    const validGenes = geneData
+      .filter((g): g is GeneAssociationResult & { pvalue: number } =>
+        g.pvalue != null && g.pvalue > 0
+      )
+      .sort((a, b) => a.pvalue - b.pvalue);
+    if (validGenes.length === 0) return undefined;
+    const qqPoints: QQPoint[] = validGenes.map((g, i) => ({
+      x: -Math.log10((i + 1) / (validGenes.length + 1)),
+      y: -Math.log10(g.pvalue),
+    }));
+    return <PrecomputedQQPlot points={qqPoints} width={200} height={180} />;
+  }, [geneData, showQQOverlay]);
 
   return (
     <Container>
@@ -416,6 +435,21 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
           >
             Heatmap
           </ToggleButton>
+          <ToggleButton
+            $active={viewMode === 'qqplot'}
+            onClick={() => setViewMode('qqplot')}
+          >
+            QQ Plot
+          </ToggleButton>
+          {viewMode === 'standard' && (
+            <ToggleButton
+              $active={showQQOverlay}
+              onClick={() => setShowQQOverlay(!showQQOverlay)}
+              title={showQQOverlay ? 'Hide QQ overlay' : 'Show QQ overlay'}
+            >
+              QQ Overlay
+            </ToggleButton>
+          )}
         </ToggleGroup>
       </div>
 
@@ -450,6 +484,33 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
         </>
       )}
       */}
+
+      {/* QQ Plot View */}
+      {viewMode === 'qqplot' && (
+        (() => {
+          const validGenes = (queryStates.geneData?.data ?? [])
+            .filter((g): g is GeneAssociationResult & { pvalue: number } =>
+              g.pvalue != null && g.pvalue > 0
+            )
+            .sort((a, b) => a.pvalue - b.pvalue);
+
+          const qqPoints: QQPoint[] = validGenes.map((g, i) => ({
+            x: -Math.log10((i + 1) / (validGenes.length + 1)),
+            y: -Math.log10(g.pvalue),
+            label: g.gene_symbol,
+          }));
+
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <PrecomputedQQPlot
+                points={qqPoints}
+                width={700}
+                height={500}
+              />
+            </div>
+          );
+        })()
+      )}
 
       {/* Heatmap View */}
       {viewMode === 'heatmap' && (
@@ -498,6 +559,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
         selectedGeneIds={selectedGeneIds}
         customLabelMode={customLabelMode}
         onGeneClick={handleGeneClickFromPlot}
+        inset={qqMiniInset}
       />
 
       {/* Control Panel */}

@@ -33,6 +33,8 @@ export interface GeneBurdenManhattanProps {
   customLabelMode?: boolean;
   /** Callback when a gene label is clicked */
   onGeneClick?: (geneId: string) => void;
+  /** Optional inset node (e.g., QQ plot overlay) */
+  inset?: React.ReactNode;
 }
 
 interface PlottedGene {
@@ -53,6 +55,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
   selectedGeneIds,
   customLabelMode = false,
   onGeneClick,
+  inset,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -63,6 +66,41 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [plottedGenes, setPlottedGenes] = useState<PlottedGene[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; gene: GeneAssociationResult } | null>(null);
+
+  // Inset drag state
+  const [insetPos, setInsetPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDraggingInset, setIsDraggingInset] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, insetX: 0, insetY: 0 });
+
+  // Default inset to top-right
+  useEffect(() => {
+    if (inset && insetPos === null && dimensions.width > 0) {
+      setInsetPos({ x: dimensions.width - 230, y: 8 });
+    } else if (!inset) {
+      setInsetPos(null);
+    }
+  }, [inset, dimensions.width, insetPos]);
+
+  const handleInsetMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!insetPos) return;
+    e.stopPropagation();
+    setIsDraggingInset(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, insetX: insetPos.x, insetY: insetPos.y };
+  }, [insetPos]);
+
+  useEffect(() => {
+    if (!isDraggingInset) return;
+    const onMove = (e: MouseEvent) => {
+      setInsetPos({
+        x: Math.max(0, Math.min(dimensions.width - 220, dragStart.current.insetX + e.clientX - dragStart.current.x)),
+        y: Math.max(0, dragStart.current.insetY + e.clientY - dragStart.current.y),
+      });
+    };
+    const onUp = () => setIsDraggingInset(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [isDraggingInset, dimensions.width]);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
 
   // Determine which genes should be labeled
@@ -345,6 +383,40 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
                   </span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Draggable Inset overlay (e.g. QQ Plot) */}
+          {inset && insetPos && (
+            <div
+              onMouseDown={handleInsetMouseDown}
+              style={{
+                position: 'absolute',
+                left: insetPos.x,
+                top: insetPos.y,
+                zIndex: 100,
+                background: 'rgba(255, 255, 255, 0.95)',
+                border: '1px solid var(--theme-border, #ccc)',
+                borderRadius: '6px',
+                padding: '8px',
+                boxShadow: isDraggingInset ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
+                cursor: isDraggingInset ? 'grabbing' : 'grab',
+                pointerEvents: 'auto',
+                userSelect: isDraggingInset ? 'none' : 'auto',
+              }}
+            >
+              <div style={{
+                width: '100%',
+                height: '12px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: '4px',
+                opacity: 0.5,
+              }}>
+                <div style={{ width: '30px', height: '4px', borderRadius: '2px', background: '#999' }} />
+              </div>
+              {inset}
             </div>
           )}
         </div>

@@ -75,9 +75,21 @@ export const variantIdAtom = atom<string | null | undefined>({
 
 export type TopResultsTab = 'gene-burden' | 'single-variants'
 
+const topResultsTabChecker = stringLiterals<TopResultsTab>({
+  'gene-burden': 'gene-burden',
+  'single-variants': 'single-variants',
+})
+
 export const topResultsTabAtom = atom<TopResultsTab>({
   key: 'topResultsTab',
   default: 'gene-burden',
+  effects: [
+    urlSyncEffect({
+      refine: topResultsTabChecker,
+      history: 'push',
+      syncDefault: true,
+    }),
+  ],
 })
 
 type BurdenSetOptions = 'pLoF' | 'missenseLC' | 'synonymous' | 'other'
@@ -328,6 +340,28 @@ export const selectedAnalysesColorsSelector = selector({
 export const hoveredAnalysisAtom = atom<string | null>({
   key: 'hoveredAnalysis',
   default: null,
+})
+
+export const showQQOverlayAtom = atom<boolean>({
+  key: 'showQQOverlay',
+  default: false,
+  effects: [
+    ({ setSelf, onSet }) => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('showQQOverlay')
+        if (saved != null) {
+          setSelf(saved === 'true')
+        }
+      }
+      onSet((newValue, _, isReset) => {
+        if (typeof window !== 'undefined') {
+          isReset
+            ? localStorage.removeItem('showQQOverlay')
+            : localStorage.setItem('showQQOverlay', String(newValue))
+        }
+      })
+    },
+  ],
 })
 
 export type ResultLayout = 'hidden' | 'smallest' | 'small' | 'half' | 'large' | 'full'

@@ -25,6 +25,8 @@ interface ManhattanPlotContainerProps {
   onHitClick?: (hit: SignificantHit) => void;
   /** Callback when a peak label is clicked */
   onPeakClick?: (peak: any) => void;
+  /** Optional draggable inset node (e.g., QQ plot) */
+  inset?: React.ReactNode;
 }
 
 interface ManhattanApiResponse {
@@ -44,6 +46,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   plotType = 'genome_manhattan',
   onHitClick,
   onPeakClick,
+  inset,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [contig, setContig] = useRecoilState(selectedContigAtom);
@@ -135,6 +138,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
         showStats={data.has_overlay}
         contig={contig}
         onContigClick={setContig}
+        inset={inset}
       />
     </Container>
   );
