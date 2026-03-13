@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery } from '@axaou/ui'
 import { useRecoilValue } from 'recoil'
 import styled from 'styled-components'
@@ -100,7 +100,10 @@ interface Data {
 
 const TopVariantsPhewas = () => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
-  const [searchText, setSearchText] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  const [debouncedSearchText, setDebouncedSearchText] = useState('')
+  const [limit, setLimit] = useState<number | 'All'>(5000)
+
   const [activeCategories, setActiveCategories] = useState<Record<ConsequenceCategory, boolean>>({
     lof: true,
     missense: true,
@@ -108,16 +111,29 @@ const TopVariantsPhewas = () => {
     other: true,
   })
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(inputValue)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [inputValue])
+
   const toggleCategory = (key: ConsequenceCategory) => {
     setActiveCategories((prev) => ({ ...prev, [key]: !prev[key] }))
   }
+
+  const activeCategoryKeys = CONSEQUENCE_FILTERS.filter(f => activeCategories[f.key]).map(f => f.key).join(',')
+  const limitParam = limit === 'All' ? 0 : limit
+
+  const searchParam = debouncedSearchText ? `&search=${encodeURIComponent(debouncedSearchText)}` : ''
+  const catParam = activeCategoryKeys ? `&categories=${activeCategoryKeys}` : ''
 
   const { queryStates, anyLoading } = useQuery<Data>({
     dbName: pouchDbName,
     queries: [
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
       {
-        url: `${axaouDevUrl}/variants/associations/top-aggregated?ancestry=${ancestryGroup}&limit=5000`,
+        url: `${axaouDevUrl}/variants/associations/top-aggregated?ancestry=${ancestryGroup}&limit=${limitParam}${searchParam}${catParam}`,
         name: 'topVariants',
       },
       {
@@ -125,11 +141,13 @@ const TopVariantsPhewas = () => {
         name: 'availableAnalyses',
       },
     ],
-    deps: [ancestryGroup],
+    deps: [ancestryGroup, limitParam, debouncedSearchText, activeCategoryKeys],
     cacheEnabled,
   })
 
-  if (anyLoading()) {
+  const isFirstLoad = anyLoading() && !queryStates.topVariants?.data;
+
+  if (isFirstLoad) {
     return (
       <Container>
         <Spinner />
@@ -177,25 +195,6 @@ const TopVariantsPhewas = () => {
       validMetadata.some((m: AnalysisMetadata) => m.analysis_id === v.top_phenotype)
     )
 
-  // Apply consequence category filter
-  const categoryFiltered = annotatedVariants.filter((v: any) => {
-    const cat: string = v.consequence_category
-    // Map non-coding/unknown to 'other' bucket
-    if (cat === 'non-coding' || cat === 'unknown') return activeCategories.other
-    return activeCategories[cat as ConsequenceCategory] ?? activeCategories.other
-  })
-
-  // Apply search filter
-  const search = searchText.toLowerCase()
-  const filteredVariants = search
-    ? categoryFiltered.filter(
-        (v: any) =>
-          v.variant_id?.toLowerCase().includes(search) ||
-          v.gene_symbol?.toLowerCase().includes(search) ||
-          v.top_phenotype_description?.toLowerCase().includes(search)
-      )
-    : categoryFiltered
-
   const onVariantClick = (variant: any) => {
     const params = new URLSearchParams(window.location.search)
     const stateStr = params.get('state')
@@ -232,15 +231,38 @@ const TopVariantsPhewas = () => {
         </FilterGroup>
         <SearchInput
           placeholder="Search variant, gene, or phenotype..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
         />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--theme-text)' }}>Limit:</span>
+          <select
+            value={limit}
+            onChange={(e) => setLimit(e.target.value === 'All' ? 'All' : Number(e.target.value))}
+            style={{
+              padding: '4px 8px',
+              border: '1px solid var(--theme-border, #ddd)',
+              borderRadius: '4px',
+              fontSize: '13px',
+              background: 'var(--theme-surface)',
+              color: 'var(--theme-text)'
+            }}
+          >
+            <option value={1000}>1,000</option>
+            <option value={5000}>5,000</option>
+            <option value={10000}>10,000</option>
+            <option value="All">All</option>
+          </select>
+        </div>
         <CountBadge>
-          {filteredVariants.length.toLocaleString()} of{' '}
-          {annotatedVariants.length.toLocaleString()} variants
+          {anyLoading() ? (
+            <span>Loading...</span>
+          ) : (
+            `${annotatedVariants.length.toLocaleString()} variants`
+          )}
         </CountBadge>
       </ControlsRow>
-      <TopVariantsTable variants={filteredVariants} onVariantClick={onVariantClick} />
+      <TopVariantsTable variants={annotatedVariants} onVariantClick={onVariantClick} />
     </Container>
   )
 }

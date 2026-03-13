@@ -160,8 +160,12 @@ pub struct TopAggregatedVariantsQuery {
     pub min_p: Option<f64>,
     /// Maximum p-value (default: 1e-6)
     pub max_p: Option<f64>,
-    /// Maximum number of results (default: 1000)
+    /// Maximum number of results (default: 1000, 0 for all)
     pub limit: Option<u64>,
+    /// Optional search text (variant ID, gene symbol, or phenotype)
+    pub search: Option<String>,
+    /// Optional consequence categories (comma-separated: lof,missense,synonymous,other)
+    pub categories: Option<String>,
 }
 
 /// GET /api/variants/associations/top-aggregated
@@ -177,23 +181,125 @@ pub async fn get_top_variants_aggregated(
     let max_p = params.max_p.unwrap_or(1e-6);
     let limit = params.limit.unwrap_or(1000);
 
-    let query = r#"
-        SELECT xpos, contig, position, ref, alt,
-               top_pvalue, top_phenotype, num_associations,
-               gene_id, gene_symbol, consequence
-        FROM top_variants_aggregated
-        WHERE ancestry = ? AND top_pvalue >= ? AND top_pvalue <= ?
-        ORDER BY num_associations DESC, top_pvalue ASC
-        LIMIT ?
-    "#;
+    let mut query_string = r#"
+        SELECT tva.xpos, tva.contig, tva.position, tva.ref, tva.alt,
+               tva.top_pvalue, tva.top_phenotype, tva.num_associations,
+               tva.gene_id, tva.gene_symbol, tva.consequence
+        FROM top_variants_aggregated tva
+    "#.to_string();
 
-    let rows = state
-        .clickhouse
-        .query(query)
-        .bind(&params.ancestry)
-        .bind(min_p)
-        .bind(max_p)
-        .bind(limit)
+    let mut join_sql = "".to_string();
+    let mut where_sql = r#"
+        WHERE tva.ancestry = ?
+          AND tva.top_pvalue >= ?
+          AND tva.top_pvalue <= ?
+    "#.to_string();
+
+    let mut search_variant_binds = None;
+    let mut search_gene_binds = None;
+    let mut search_pheno_bind = None;
+
+    // Handle search parameter heuristics
+    if let Some(ref s) = params.search {
+        let s_trim = s.trim();
+        if !s_trim.is_empty() {
+            if let Ok((xpos, ref_allele, alt_allele)) = parse_variant_id(s_trim) {
+                where_sql.push_str(" AND tva.xpos = ? AND tva.ref = ? AND tva.alt = ?");
+                search_variant_binds = Some((xpos, ref_allele, alt_allele));
+            } else {
+                #[derive(Debug, Deserialize, clickhouse::Row)]
+                struct GeneXCoords {
+                    xstart: i64,
+                    xstop: i64,
+                }
+
+                let gene_query = "SELECT xstart, xstop FROM gene_models WHERE symbol_upper_case = ? LIMIT 1";
+                let gene_coords = state.clickhouse.query(gene_query)
+                    .bind(s_trim.to_uppercase())
+                    .fetch_optional::<GeneXCoords>()
+                    .await
+                    .map_err(|e| AppError::DataTransformError(format!("Gene lookup error: {}", e)))?;
+
+                if let Some(coords) = gene_coords {
+                    where_sql.push_str(" AND tva.xpos >= ? AND tva.xpos <= ?");
+                    search_gene_binds = Some((coords.xstart, coords.xstop));
+                } else {
+                    join_sql = r#"
+                        INNER JOIN (
+                            SELECT DISTINCT xpos, ref, alt
+                            FROM significant_variants sv
+                            JOIN analysis_metadata am ON sv.phenotype = am.analysis_id
+                            WHERE am.description ILIKE ? OR am.analysis_id ILIKE ?
+                        ) AS sq ON tva.xpos = sq.xpos AND tva.ref = sq.ref AND tva.alt = sq.alt
+                    "#.to_string();
+                    search_pheno_bind = Some(format!("%{}%", s_trim));
+                }
+            }
+        }
+    }
+
+    // Handle consequence categories
+    if let Some(ref cats) = params.categories {
+        let all_lof = ["transcript_ablation", "splice_acceptor_variant", "splice_donor_variant", "stop_gained", "frameshift_variant", "pLoF"];
+        let all_missense = ["missense", "stop_lost", "start_lost", "inframe_insertion", "inframe_deletion", "missense_variant"];
+        let all_synonymous = ["synonymous_variant", "synonymous"];
+
+        let cats_list: Vec<&str> = cats.split(',').map(|s| s.trim()).collect();
+        let mut selected_terms = Vec::new();
+        let mut unselected_terms = Vec::new();
+        let mut has_other = false;
+
+        if cats_list.contains(&"lof") { selected_terms.extend_from_slice(&all_lof); } else { unselected_terms.extend_from_slice(&all_lof); }
+        if cats_list.contains(&"missense") { selected_terms.extend_from_slice(&all_missense); } else { unselected_terms.extend_from_slice(&all_missense); }
+        if cats_list.contains(&"synonymous") { selected_terms.extend_from_slice(&all_synonymous); } else { unselected_terms.extend_from_slice(&all_synonymous); }
+        if cats_list.contains(&"other") { has_other = true; }
+
+        let category_sql = if has_other {
+            if unselected_terms.is_empty() {
+                "".to_string()
+            } else {
+                let list = unselected_terms.iter().map(|s| format!("'{}'", s)).collect::<Vec<_>>().join(", ");
+                format!(" AND (tva.consequence NOT IN ({}) OR tva.consequence IS NULL)", list)
+            }
+        } else {
+            if selected_terms.is_empty() {
+                " AND 1=0".to_string()
+            } else {
+                let list = selected_terms.iter().map(|s| format!("'{}'", s)).collect::<Vec<_>>().join(", ");
+                format!(" AND tva.consequence IN ({})", list)
+            }
+        };
+        where_sql.push_str(&category_sql);
+    }
+
+    query_string.push_str(&join_sql);
+    query_string.push_str(&where_sql);
+    query_string.push_str(" ORDER BY tva.num_associations DESC, tva.top_pvalue ASC");
+
+    if limit > 0 {
+        query_string.push_str(" LIMIT ?");
+    }
+
+    let mut query = state.clickhouse.query(&query_string);
+
+    // Bindings must strictly match positional placeholders (?)
+    if let Some(ref search_str) = search_pheno_bind {
+        query = query.bind(search_str.clone()).bind(search_str.clone());
+    }
+
+    query = query.bind(&params.ancestry).bind(min_p).bind(max_p);
+
+    if let Some((xpos, ref_a, alt_a)) = search_variant_binds {
+        query = query.bind(xpos).bind(ref_a).bind(alt_a);
+    } else if let Some((xstart, xstop)) = search_gene_binds {
+        query = query.bind(xstart).bind(xstop);
+    }
+
+    if limit > 0 {
+        query = query.bind(limit);
+    }
+
+    let rows = query
         .fetch_all::<crate::clickhouse::models::AggregatedVariantRow>()
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
