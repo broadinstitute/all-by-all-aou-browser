@@ -328,6 +328,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 )
                 // --- Variant Annotation Routes (ClickHouse-backed) ---
                 .route(
+                    "/variants/search",
+                    get(variants::annotations::search_variants),
+                )
+                .route(
                     "/variants/annotations/:variant_id",
                     get(variants::annotations::get_annotation_by_id),
                 )

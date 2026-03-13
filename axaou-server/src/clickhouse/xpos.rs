@@ -94,7 +94,50 @@ pub fn make_variant_id_from_xpos(xpos: i64, ref_allele: &str, alt_allele: &str) 
     make_variant_id(&contig, position, ref_allele, alt_allele)
 }
 
-/// Parse interval "chr1:100-200" or "1:100-200" -> (xpos_start, xpos_end)
+/// Parsed partial variant ID for search queries.
+pub struct PartialVariantId {
+    pub contig: String,
+    pub position_prefix: String,
+    pub ref_allele: String,
+    pub alt_allele: String,
+}
+
+/// Parse a partial variant ID string for autocomplete search.
+/// Returns the contig and position prefix (as a string for LIKE matching),
+/// plus optional ref/alt alleles.
+///
+/// e.g. "chr13-32400"  -> contig="chr13", position_prefix="32400"
+/// e.g. "1-12345-A-T"  -> contig="1", position_prefix="12345", ref="A", alt="T"
+pub fn parse_partial_variant_id(query: &str) -> Option<PartialVariantId> {
+    let parts: Vec<&str> = query.split(|c| c == '-' || c == ':').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let contig = parts[0];
+    let pos_str = parts[1];
+
+    // Position must be non-empty digits
+    if pos_str.is_empty() || !pos_str.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+
+    // Validate contig is real
+    if compute_xpos(contig, 1) == 0 {
+        return None;
+    }
+
+    let ref_allele = parts.get(2).unwrap_or(&"").to_uppercase();
+    let alt_allele = parts.get(3).unwrap_or(&"").to_uppercase();
+
+    Some(PartialVariantId {
+        contig: contig.to_string(),
+        position_prefix: pos_str.to_string(),
+        ref_allele,
+        alt_allele,
+    })
+}
+
 pub fn parse_interval_to_xpos(interval: &str) -> Result<(i64, i64), AppError> {
     let parts: Vec<&str> = interval.split(':').collect();
     if parts.len() != 2 {
@@ -187,6 +230,30 @@ mod tests {
             make_variant_id("chr22", 1000, "ACGT", "G"),
             "chr22-1000-ACGT-G"
         );
+    }
+
+    #[test]
+    fn test_parse_partial_variant_id() {
+        let p = parse_partial_variant_id("chr1-123").unwrap();
+        assert_eq!(p.contig, "chr1");
+        assert_eq!(p.position_prefix, "123");
+        assert_eq!(p.ref_allele, "");
+        assert_eq!(p.alt_allele, "");
+
+        let p = parse_partial_variant_id("chr13-32400").unwrap();
+        assert_eq!(p.contig, "chr13");
+        assert_eq!(p.position_prefix, "32400");
+
+        let p = parse_partial_variant_id("1-12345-A-T").unwrap();
+        assert_eq!(p.contig, "1");
+        assert_eq!(p.position_prefix, "12345");
+        assert_eq!(p.ref_allele, "A");
+        assert_eq!(p.alt_allele, "T");
+
+        // Invalid contig returns None
+        assert!(parse_partial_variant_id("chrZ-123").is_none());
+        // Need at least chr + pos
+        assert!(parse_partial_variant_id("chr1").is_none());
     }
 
     #[test]

@@ -31,9 +31,188 @@ pub enum SequencingTypeParam {
     Genome,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct VariantSearchQuery {
+    pub q: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Deserialize, clickhouse::Row)]
+pub struct VariantSearchResultRow {
+    pub xpos: i64,
+    pub contig: String,
+    pub position: u32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub gene_id: Option<String>,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Deserialize, clickhouse::Row)]
+pub struct TopVariantSearchRow {
+    pub xpos: i64,
+    pub contig: String,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub gene_id: Option<String>,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+    pub top_pvalue: f64,
+    pub top_phenotype: String,
+    pub num_associations: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VariantSearchResultApi {
+    pub variant_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gene_id: Option<String>,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_pvalue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_phenotype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub num_associations: Option<u64>,
+}
+
+impl VariantSearchResultRow {
+    pub fn to_api(&self) -> VariantSearchResultApi {
+        VariantSearchResultApi {
+            variant_id: crate::clickhouse::xpos::make_variant_id(&self.contig, self.position, &self.ref_allele, &self.alt),
+            gene_id: self.gene_id.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            consequence: self.consequence.clone(),
+            top_pvalue: None,
+            top_phenotype: None,
+            num_associations: None,
+        }
+    }
+}
+
+impl TopVariantSearchRow {
+    pub fn to_api(&self) -> VariantSearchResultApi {
+        VariantSearchResultApi {
+            variant_id: crate::clickhouse::xpos::make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
+            gene_id: self.gene_id.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            consequence: self.consequence.clone(),
+            top_pvalue: Some(self.top_pvalue),
+            top_phenotype: Some(self.top_phenotype.clone()),
+            num_associations: Some(self.num_associations),
+        }
+    }
+}
+
 // ============================================================================
 // Variant Annotations
 // ============================================================================
+
+/// GET /api/variants/search
+///
+/// Autocomplete search for variants by partial ID (e.g. "chr1-12345" or "1-12345-A")
+pub async fn search_variants(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<VariantSearchQuery>,
+) -> Result<Json<Vec<VariantSearchResultApi>>, AppError> {
+    let query_str = params.q.trim();
+    if query_str.is_empty() {
+        return Ok(Json(vec![]));
+    }
+
+    let Some(parsed) = crate::clickhouse::xpos::parse_partial_variant_id(query_str) else {
+        return Ok(Json(vec![]));
+    };
+
+    // Both contig formats: "chr19" and "19" (tables may differ)
+    let raw_contig = parsed.contig.trim_start_matches("chr");
+    let chr_contig = format!("chr{}", raw_contig);
+    let pos_pattern = format!("{}%", parsed.position_prefix);
+
+    // Build WHERE clause using contig + position prefix (LIKE-based)
+    let mut conditions = vec![
+        "contig IN (?, ?)".to_string(),
+        "toString(position) LIKE ?".to_string(),
+    ];
+    if !parsed.ref_allele.is_empty() {
+        conditions.push("ref LIKE ?".to_string());
+    }
+    if !parsed.alt_allele.is_empty() {
+        conditions.push("alt LIKE ?".to_string());
+    }
+    let where_clause = conditions.join(" AND ");
+
+    let bind_common = |q: &str| -> clickhouse::query::Query {
+        let mut query = state.clickhouse.query(q)
+            .bind(raw_contig).bind(&chr_contig).bind(&pos_pattern);
+        if !parsed.ref_allele.is_empty() { query = query.bind(format!("{}%", parsed.ref_allele)); }
+        if !parsed.alt_allele.is_empty() { query = query.bind(format!("{}%", parsed.alt_allele)); }
+        query
+    };
+
+    let annotation_cols = "xpos, contig, position, ref, alt, gene_id, gene_symbol, consequence";
+    let query_exome = format!("SELECT {} FROM exome_annotations WHERE {} LIMIT 15", annotation_cols, where_clause);
+    let query_genome = format!("SELECT {} FROM genome_annotations WHERE {} LIMIT 15", annotation_cols, where_clause);
+
+    let exome_q = bind_common(&query_exome);
+    let genome_q = bind_common(&query_genome);
+
+    // Also query top_variants_aggregated for significant associations
+    let top_cols = "xpos, contig, position, ref, alt, gene_id, gene_symbol, consequence, top_pvalue, top_phenotype, num_associations";
+    let top_where = format!("ancestry = 'meta' AND {}", where_clause);
+    let query_top = format!(
+        "SELECT {} FROM top_variants_aggregated WHERE {} ORDER BY num_associations DESC",
+        top_cols, top_where
+    );
+    let top_q = bind_common(&query_top);
+
+    let (exome_res, genome_res, top_res) = tokio::join!(
+        exome_q.fetch_all::<VariantSearchResultRow>(),
+        genome_q.fetch_all::<VariantSearchResultRow>(),
+        top_q.fetch_all::<TopVariantSearchRow>()
+    );
+
+    // Start with ALL top_variants results (already sorted by num_associations desc)
+    let mut seen = std::collections::HashSet::new();
+    let mut api_rows = Vec::new();
+
+    if let Ok(rows) = top_res {
+        for row in rows {
+            let api_row = row.to_api();
+            seen.insert(api_row.variant_id.clone());
+            api_rows.push(api_row);
+        }
+    }
+
+    // Then add annotation-only results, enriching with any top_variant data
+    // These fill remaining slots with variants that aren't significant but match the position
+    let mut annotation_rows = Vec::new();
+    if let Ok(rows) = exome_res { annotation_rows.extend(rows); }
+    if let Ok(rows) = genome_res { annotation_rows.extend(rows); }
+    for row in annotation_rows {
+        let api_row = row.to_api();
+        if seen.insert(api_row.variant_id.clone()) {
+            api_rows.push(api_row);
+        }
+    }
+
+    // Sort: variants with associations bubble up, then by num_associations desc
+    api_rows.sort_by(|a, b| {
+        match (&a.num_associations, &b.num_associations) {
+            (Some(an), Some(bn)) => bn.cmp(an),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    });
+
+    api_rows.truncate(15);
+    Ok(Json(api_rows))
+}
 
 /// Query parameters for single variant annotation endpoint
 #[derive(Debug, Deserialize)]

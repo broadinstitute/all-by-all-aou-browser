@@ -2,17 +2,24 @@ import { useHistory } from 'react-router-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import styled from 'styled-components';
+import axios from 'axios';
 import { filteredAnalysesQuery, geneSymbolsQuery } from './queryStates';
+import { axaouDevUrl } from './Query';
 import { v4 as uuidv4 } from 'uuid';
 import {
   analysisIdAtom,
   geneIdAtom,
   regionIdAtom,
+  variantIdAtom,
   resultIndexAtom,
   resultLayoutAtom,
   selectedAnalyses,
 } from './sharedState';
 import { AnalysisMetadata, GeneSymbol } from './types';
+import { ColorMarker } from './UserInterface';
+import { getCategoryFromConsequence, getLabelForConsequenceTerm } from './vepConsequences';
+import { getConsequenceColor } from './VariantList/variantTableColumns';
+import { variantGreenThreshold, variantYellowThreshold, greenThresholdColor, yellowThresholdColor } from './PhenotypeList/Utils';
 
 export const SearchBarContainer = styled.div`
   display: flex;
@@ -94,19 +101,47 @@ const Magnifier = styled.span`
   color: ${(props) => props.theme.text};
 `;
 
+const VariantId = styled.span`
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 13px;
+`;
+
+const GeneSymbolLabel = styled.span`
+  font-style: italic;
+  font-weight: 600;
+  color: #3279b7;
+`;
+
+const ConsequenceLabel = styled.span`
+  font-size: 13px;
+`;
+
+const AssocInfo = styled.span`
+  font-size: 12px;
+  opacity: 0.75;
+`;
+
+const Separator = styled.span`
+  margin: 0 6px;
+  opacity: 0.4;
+`;
+
 interface SearchChoice {
   resultType: string;
   id: string;
   render_id: string;
+  gene_id?: string;
 }
 
 interface SearchResult {
-  label: string;
+  label: React.ReactNode;
   value: SearchChoice;
 }
 
 export const NewSearchBar: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
+  const [debouncedValue, setDebouncedValue] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
@@ -115,6 +150,7 @@ export const NewSearchBar: React.FC = () => {
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setRegionId = useSetRecoilState(regionIdAtom);
   const setAnalysisId = useSetRecoilState(analysisIdAtom);
+  const setVariantId = useSetRecoilState(variantIdAtom);
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
   const setResultIndex = useSetRecoilState(resultIndexAtom);
   const setResultsLayout = useSetRecoilState(resultLayoutAtom);
@@ -130,6 +166,106 @@ export const NewSearchBar: React.FC = () => {
     },
     [inputRef]
   );
+
+  // Debounce input value for async search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(inputValue);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
+
+  // Fetch results when debounced value changes
+  useEffect(() => {
+    let active = true;
+
+    const fetchResults = async () => {
+      const query = debouncedValue.trim();
+      if (!query) {
+        if (active) {
+          setShowModal(false);
+          setSearchResults([]);
+        }
+        return;
+      }
+
+      const geneResults = searchGeneSymbols(query, geneSymbols.data || []);
+      const analysisResults = searchAnalysisMetadata(query, analysisMetadata || []);
+      let varResults: SearchResult[] = [];
+
+      // Check if query looks like a variant coordinate
+      if (/^(chr)?(\d+|x|y|m|mt)[-:]\d+/i.test(query)) {
+        try {
+          const res = await axios.get(`${axaouDevUrl}/variants/search`, { params: { q: query } });
+          if (active && res.data) {
+             varResults = res.data.map((v: any) => {
+               const sep = <Separator>·</Separator>;
+               const elements: React.ReactNode[] = [];
+
+               // Variant ID in monospace
+               elements.push(<VariantId key="vid">{v.variant_id}</VariantId>);
+
+               // Gene symbol (italic, blue) + consequence (with color dot)
+               if (v.gene_symbol) {
+                 elements.push(sep);
+                 elements.push(<GeneSymbolLabel key="gene">{v.gene_symbol}</GeneSymbolLabel>);
+               }
+               if (v.consequence) {
+                 elements.push(sep);
+                 elements.push(
+                   <ConsequenceLabel key="csq">
+                     <ColorMarker color={getConsequenceColor(v.consequence)} />
+                     {getLabelForConsequenceTerm(v.consequence)}
+                   </ConsequenceLabel>
+                 );
+               }
+
+               // Association info: phenotype + colored p-value
+               if (v.top_phenotype) {
+                 elements.push(sep);
+                 const pColor = v.top_pvalue != null
+                   ? v.top_pvalue < variantGreenThreshold ? greenThresholdColor
+                     : v.top_pvalue < variantYellowThreshold ? yellowThresholdColor
+                     : undefined
+                   : undefined;
+                 elements.push(
+                   <AssocInfo key="assoc">
+                     {v.top_phenotype}
+                     {v.top_pvalue != null && (
+                       <>
+                         {' '}
+                         <ColorMarker color={pColor || 'white'} border="solid" borderColor="black" />
+                         {v.top_pvalue === 0 ? '< 1e-300' : Number(v.top_pvalue.toPrecision(2)).toExponential()}
+                       </>
+                     )}
+                     {v.num_associations > 1 && ` + ${v.num_associations - 1} more`}
+                   </AssocInfo>
+                 );
+               }
+
+               return {
+                 label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>{elements}</span>,
+                 value: { resultType: 'variant', id: v.variant_id, render_id: v.variant_id, gene_id: v.gene_id }
+               };
+             });
+          }
+        } catch (e) {
+          console.error('Failed to fetch variants for search:', e);
+        }
+      }
+
+      if (active) {
+        setSearchResults([...geneResults, ...analysisResults, ...varResults]);
+        setShowModal(true);
+      }
+    };
+
+    fetchResults();
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedValue, geneSymbols.data, analysisMetadata]);
 
   useEffect(() => {
     window.addEventListener('keydown', focusSearchBar);
@@ -196,39 +332,31 @@ export const NewSearchBar: React.FC = () => {
       }));
   };
 
-  const fetchSearchResults = (query: string) => {
-    const geneResults = searchGeneSymbols(query, geneSymbols.data || []);
-    const analysisResults = searchAnalysisMetadata(query, analysisMetadata || []);
-    setSearchResults([...geneResults, ...analysisResults]);
-    setShowModal(true);
-  };
-
   const onSelect = (searchChoice: SearchChoice) => {
     if (searchChoice.resultType === 'gene') {
       setRegionId(null);
       setGeneId(searchChoice.id);
       setResultIndex('gene-phewas');
-    }
-    if (searchChoice.resultType === 'analysis') {
+      setResultsLayout("full");
+    } else if (searchChoice.resultType === 'analysis') {
       setAnalysisId(searchChoice.id);
       setSelectedAnalyses([]);
       setResultIndex('pheno-info');
+      setResultsLayout("full");
+    } else if (searchChoice.resultType === 'variant') {
+      setVariantId(searchChoice.id);
+      setGeneId(searchChoice.gene_id || null);
+      setRegionId(null);
+      setResultIndex('variant-phewas');
+      setResultsLayout(searchChoice.gene_id ? "half" : "full");
     }
-    setResultsLayout("full")
     setShowModal(false);
     setInputValue('');
     history.push('/app');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setInputValue(query);
-    if (query) {
-      fetchSearchResults(query);
-    } else {
-      setShowModal(false);
-      setSearchResults([]);
-    }
+    setInputValue(e.target.value);
   };
 
   const handleClearInput = () => {
@@ -305,6 +433,9 @@ export const NewSearchBar: React.FC = () => {
   const analysisResults = searchResults.filter(
     (result) => result.value.resultType === 'analysis'
   );
+  const variantResults = searchResults.filter(
+    (result) => result.value.resultType === 'variant'
+  );
 
   return (
     <>
@@ -313,7 +444,7 @@ export const NewSearchBar: React.FC = () => {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search by gene or phenotype"
+          placeholder="Search by gene, phenotype, or variant"
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
@@ -323,7 +454,7 @@ export const NewSearchBar: React.FC = () => {
         />
         {inputValue && <CloseIcon onClick={handleClearInput}>✖</CloseIcon>}
       </SearchBarContainer>
-      {showModal && (geneResults.length > 0 || analysisResults.length > 0) && (
+      {showModal && searchResults.length > 0 && (
         <ModalContainer role="dialog" aria-modal="true" id="search-results">
           <CloseModalButton onClick={() => setShowModal(false)}>✖</CloseModalButton>
           <QueryBox>
@@ -363,6 +494,31 @@ export const NewSearchBar: React.FC = () => {
                 return (
                   <div
                     key={`analysis-${result.value.render_id}`}
+                    style={{
+                      padding: '10px',
+                      cursor: 'pointer',
+                      backgroundColor:
+                        highlightedIndex === globalIndex ? 'var(--theme-border)' : 'transparent',
+                    }}
+                    onClick={() => onSelect(result.value)}
+                    onMouseEnter={() => setHighlightedIndex(globalIndex)}
+                    role="option"
+                    aria-selected={highlightedIndex === globalIndex}
+                  >
+                    {result.label}
+                  </div>
+                );
+              })}
+            </>
+          )}
+          {variantResults.length > 0 && (
+            <>
+              <SectionTitle>Variants</SectionTitle>
+              {variantResults.map((result) => {
+                const globalIndex = searchResults.indexOf(result);
+                return (
+                  <div
+                    key={`variant-${result.value.render_id}`}
                     style={{
                       padding: '10px',
                       cursor: 'pointer',

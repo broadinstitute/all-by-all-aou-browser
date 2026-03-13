@@ -258,7 +258,7 @@ export const LocusPageDataContainer = () => {
 
   if (regionId) {
     queries = [...queries, ...regionQueries]
-  } else {
+  } else if (geneIdOrName) {
     queries = [...queries, ...geneQueries]
   }
 
@@ -272,7 +272,7 @@ export const LocusPageDataContainer = () => {
   const queryStates = allQueryState
 
 
-  const analysesMetadata = queryStates.analysesMetadata.data
+  const analysesMetadata = queryStates.analysesMetadata?.data
 
   const variantDatasets = useMemo(() => {
     let datasets: VariantDataset[] = []
@@ -286,7 +286,7 @@ export const LocusPageDataContainer = () => {
     return datasets
   }, [geneId, regionId, selectedAnalysesList, analysisId, analysesMetadata, queryStates, ancestryGroup]);
 
-  const geneModels = queryStates.geneModels.data || []
+  const geneModels = queryStates.geneModels?.data || []
 
   if (!geneModels) {
     return <>Couldn't fetch gene models</>
