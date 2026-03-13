@@ -187,10 +187,6 @@ const Phewas = ({
   const analysisId = useRecoilValue(analysisIdAtom)
   const geneIdOrName = useRecoilValue(geneIdAtom)
 
-  if (!analysisId || !geneIdOrName) {
-    throw new Error('Both analysisId and geneIdOrName must be defined.')
-  }
-
   const setSelectedAnalyses = useSetManySelectedAnalyses()
 
   const [showSelectAnalysesOnly, setShowSelectAnalysesOnly] = useRecoilState(
@@ -322,7 +318,7 @@ const Phewas = ({
 
   const analysesColors = useRecoilValue(selectedAnalysesColorsSelector)
 
-  const selected = analyses.length > 0 ? analyses : [analysisId]
+  const selected = analyses.length > 0 ? analyses : (analysisId ? [analysisId] : [])
 
   const [pValueType, setPValueType] = useRecoilState(pValueTypeAtom)
 
@@ -619,7 +615,7 @@ const Phewas = ({
             analysesCount={analyses.length}
             topAnalyses={topAnalyses}
             onSelectTop={() => setSelectedAnalyses(topAnalyses)}
-            onClearSelected={() => setSelectedAnalyses([analysisId])}
+            onClearSelected={() => setSelectedAnalyses(analysisId ? [analysisId] : [])}
             showSelectAnalysesOnly={showSelectAnalysesOnly}
             onToggleShowSelectOnly={() => setShowSelectAnalysesOnly(!showSelectAnalysesOnly)}
             phewasType={phewasType}
