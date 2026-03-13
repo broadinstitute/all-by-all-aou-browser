@@ -1,8 +1,8 @@
 import React from 'react'
 import styled from 'styled-components'
-import { useRecoilState } from 'recoil'
+import { useRecoilState, useSetRecoilState } from 'recoil'
 import { HalfPage } from './UserInterface'
-import { topResultsTabAtom, TopResultsTab } from './sharedState'
+import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedState'
 
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopVariantsPhewas from './VariantResults/TopVariantsPhewas'
@@ -53,6 +53,14 @@ const TABS: { key: TopResultsTab; label: string }[] = [
 
 export const TopResultsLayout = ({ size }: any) => {
   const [activeTab, setActiveTab] = useRecoilState(topResultsTabAtom)
+  const setResultLayout = useSetRecoilState(resultLayoutAtom)
+
+  const handleTabClick = (tab: TopResultsTab) => {
+    setActiveTab(tab)
+    if (tab === 'single-variants') {
+      setResultLayout('full')
+    }
+  }
 
   return (
     <PageContainer>
@@ -61,7 +69,7 @@ export const TopResultsLayout = ({ size }: any) => {
           <Tab
             key={tab.key}
             $active={activeTab === tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabClick(tab.key)}
           >
             {tab.label}
           </Tab>

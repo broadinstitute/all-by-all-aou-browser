@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@axaou/ui';
 import styled from 'styled-components';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
@@ -11,7 +11,7 @@ import { PrecomputedQQMini } from '../VariantResults/PrecomputedQQMini';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
-import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom, showQQOverlayAtom } from '../sharedState';
+import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom, showQQOverlayAtom, phenotypeTabAtom, phenotypePlotViewAtom } from '../sharedState';
 import { AnalysisMetadata } from '../types';
 import {
   AttributeCards,
@@ -185,8 +185,8 @@ interface PhenotypePageLayoutProps {
 }
 
 export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }) => {
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  const [plotView, setPlotView] = useState<PlotView>('manhattan');
+  const [activeTab, setActiveTab] = useRecoilState<any>(phenotypeTabAtom);
+  const [plotView, setPlotView] = useRecoilState<any>(phenotypePlotViewAtom);
   const [showQQOverlay, setShowQQOverlay] = useRecoilState(showQQOverlayAtom);
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const analysisId = useRecoilValue(analysisIdAtom);

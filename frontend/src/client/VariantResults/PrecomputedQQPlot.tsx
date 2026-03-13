@@ -1,5 +1,6 @@
 import { scaleLinear } from 'd3-scale';
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useTheme } from 'styled-components';
 
 export interface QQPoint {
   x: number; // expected -log10(p)
@@ -28,6 +29,7 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
   yLabel = 'Observed -log10(p)',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useTheme() as any;
   const scale = window.devicePixelRatio || 1;
 
   const mini = width <= 250;
@@ -91,19 +93,19 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
       ctx.beginPath();
       ctx.moveTo(-5, y);
       ctx.lineTo(0, y);
-      ctx.strokeStyle = '#333';
+      ctx.strokeStyle = theme.border || '#333';
       ctx.stroke();
       ctx.font = tickFont;
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = theme.text || '#000';
       const { width: tw } = ctx.measureText(`${t}`);
       ctx.fillText(`${t}`, -(9 + tw), y + 3);
     }
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, h);
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = theme.border || '#333';
     ctx.stroke();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = theme.text || '#000';
     ctx.font = labelFont;
     const { width: ylw } = ctx.measureText(yLabel);
     ctx.rotate(-Math.PI / 2);
@@ -120,19 +122,20 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, 3);
-      ctx.strokeStyle = '#333';
+      ctx.strokeStyle = theme.border || '#333';
       ctx.stroke();
       ctx.font = tickFont;
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = theme.text || '#000';
       const { width: tw } = ctx.measureText(`${t}`);
       ctx.fillText(`${t}`, x - tw / 2, 13);
     }
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(w, 0);
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = theme.border || '#333';
     ctx.stroke();
     ctx.font = labelFont;
+    ctx.fillStyle = theme.text || '#000';
     const { width: xlw } = ctx.measureText(xLabel);
     ctx.fillText(xLabel, (w - xlw) / 2, mini ? 26 : 50);
     ctx.restore();
@@ -145,7 +148,7 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
     ctx.beginPath();
     ctx.moveTo(xScale(p1) || 0, yScale(p1) || 0);
     ctx.lineTo(xScale(p2) || 0, yScale(p2) || 0);
-    ctx.strokeStyle = '#888';
+    ctx.strokeStyle = theme.textMuted || '#888';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
@@ -160,7 +163,7 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
     for (const pt of mappedPoints) {
       ctx.beginPath();
       ctx.arc(pt.px, pt.py, pointRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = pt.data.y >= sigThreshold ? '#c62828' : '#000';
+      ctx.fillStyle = pt.data.y >= sigThreshold ? '#c62828' : (theme.text || '#000');
       ctx.fill();
     }
     ctx.restore();
@@ -176,16 +179,16 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
       ctx.lineTo(w, sy);
       ctx.setLineDash([3, 3]);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = '#999';
+      ctx.strokeStyle = theme.textMuted || '#999';
       ctx.stroke();
       ctx.font = tickFont;
-      ctx.fillStyle = '#999';
+      ctx.fillStyle = theme.textMuted || '#999';
       ctx.fillText('5×10⁻⁸', 2, sy - 4);
       ctx.restore();
     }
 
     return canvas;
-  }, [mappedPoints, height, width, xScale, yScale, xLabel, yLabel, mini]);
+  }, [mappedPoints, height, width, xScale, yScale, xLabel, yLabel, mini, theme]);
 
   const drawPlot = () => {
     const canvas = canvasRef.current;
@@ -228,9 +231,9 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
       const ly = my < 30 ? nearest.py + 4 : nearest.py - 20;
       ctx.beginPath();
       ctx.rect(lx, ly, tw + 8, 18);
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = theme.text || '#000';
       ctx.fill();
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = theme.surface || '#fff';
       ctx.fillText(label, lx + 4, ly + 13);
       ctx.restore();
     }

@@ -73,6 +73,72 @@ export const variantIdAtom = atom<string | null | undefined>({
   ],
 })
 
+export type PhenotypeTab = 'overview' | 'gene-burden' | 'exome-variants' | 'genome-variants'
+const phenotypeTabChecker = stringLiterals<PhenotypeTab>({
+  overview: 'overview',
+  'gene-burden': 'gene-burden',
+  'exome-variants': 'exome-variants',
+  'genome-variants': 'genome-variants',
+})
+
+export const phenotypeTabAtom = atom<PhenotypeTab>({
+  key: 'phenotypeTab',
+  default: 'overview',
+  effects: [
+    urlSyncEffect({
+      refine: phenotypeTabChecker,
+      history: 'push',
+    }),
+  ],
+})
+
+export type PhenotypePlotView = 'manhattan' | 'qq'
+const phenotypePlotViewChecker = stringLiterals<PhenotypePlotView>({
+  manhattan: 'manhattan',
+  qq: 'qq',
+})
+
+export const phenotypePlotViewAtom = atom<PhenotypePlotView>({
+  key: 'phenotypePlotView',
+  default: 'manhattan',
+  effects: [
+    urlSyncEffect({
+      refine: phenotypePlotViewChecker,
+      history: 'push',
+    }),
+  ],
+})
+
+export type GeneBurdenViewMode = 'standard' | 'overlay' | 'heatmap' | 'qqplot'
+const geneBurdenViewModeChecker = stringLiterals<GeneBurdenViewMode>({
+  standard: 'standard',
+  overlay: 'overlay',
+  heatmap: 'heatmap',
+  qqplot: 'qqplot',
+})
+
+export const geneBurdenViewModeAtom = atom<GeneBurdenViewMode>({
+  key: 'geneBurdenViewMode',
+  default: 'standard',
+  effects: [
+    urlSyncEffect({
+      refine: geneBurdenViewModeChecker,
+      history: 'push',
+    }),
+  ],
+})
+
+export const geneBurdenShowSigAtom = atom<boolean>({
+  key: 'geneBurdenShowSig',
+  default: false,
+  effects: [
+    urlSyncEffect({
+      refine: bool(),
+      history: 'push',
+    }),
+  ],
+})
+
 export type TopResultsTab = 'gene-burden' | 'single-variants'
 
 const topResultsTabChecker = stringLiterals<TopResultsTab>({

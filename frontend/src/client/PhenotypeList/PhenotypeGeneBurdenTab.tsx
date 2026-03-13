@@ -9,7 +9,7 @@ import { GeneBurdenOverlay } from './GeneBurdenOverlay';
 import { PrecomputedQQPlot } from '../VariantResults/PrecomputedQQPlot';
 import type { QQPoint } from '../VariantResults/PrecomputedQQPlot';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom, showQQOverlayAtom } from '../sharedState';
+import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
 
 const Container = styled.div`
   width: 100%;
@@ -221,14 +221,14 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const [, setGeneId] = useRecoilState(geneIdAtom);
   const [, setResultLayout] = useRecoilState(resultLayoutAtom);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('standard');
+  const [viewMode, setViewMode] = useRecoilState<any>(geneBurdenViewModeAtom);
   const [sortKey, setSortKey] = useState<SortKey>('pvalue');
   const [sortDesc, setSortDesc] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showOnlySignificant, setShowOnlySignificant] = useState(false);
+  const [showOnlySignificant, setShowOnlySignificant] = useRecoilState(geneBurdenShowSigAtom);
 
   // Max MAF State
-  const [maxMaf, setMaxMaf] = useState<number>(0.001);
+  const [maxMaf, setMaxMaf] = useRecoilState<any>(locusMafAtom);
 
   // Test type state for overlay view
   const [testType, setTestType] = useState<TestType>('max');

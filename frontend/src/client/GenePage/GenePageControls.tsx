@@ -801,12 +801,13 @@ const UnselectVariant: React.FC = () => {
 
   return (
     <Button
+      style={{ backgroundColor: 'var(--theme-primary)', color: 'white', fontWeight: 'bold', width: '100%' }}
       onClick={() => {
         setVariantSearchText('')
         setVariantId(null)
       }}
     >
-      Unselect variant
+      Clear Selected Variant
     </Button>
   )
 }

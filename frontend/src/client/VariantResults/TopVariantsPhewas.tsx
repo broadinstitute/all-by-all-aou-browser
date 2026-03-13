@@ -117,6 +117,9 @@ const TopVariantsPhewas = () => {
     other: true,
   })
 
+  // Phenotype category filter state
+  const [activePhenoCategories, setActivePhenoCategories] = useState<Record<string, boolean> | null>(null)
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(inputValue)
@@ -202,7 +205,7 @@ const TopVariantsPhewas = () => {
   const availableIds = getAvailableAnalysisIds(availableAnalyses.data)
   const validMetadata = filterValidAnalyses(analysesMetadata.data, availableIds)
 
-  const annotatedVariants = topVariants.data
+  const allAnnotatedVariants = topVariants.data
     .map((v: AggregatedVariantAssociation) => {
       const meta = validMetadata.find((m: AnalysisMetadata) => m.analysis_id === v.top_phenotype)
       const category = v.consequence
@@ -225,6 +228,26 @@ const TopVariantsPhewas = () => {
       validMetadata.some((m: AnalysisMetadata) => m.analysis_id === v.top_phenotype)
     )
 
+  // Compute phenotype category counts from all variants (before pheno category filter)
+  const phenoCategoryCounts: Record<string, number> = {}
+  allAnnotatedVariants.forEach((v: any) => {
+    const cat = v.top_phenotype_category || 'Unknown'
+    phenoCategoryCounts[cat] = (phenoCategoryCounts[cat] || 0) + 1
+  })
+
+  // Initialize pheno category filter to all-on when categories first appear
+  const phenoCategoryNames = Object.keys(phenoCategoryCounts).sort()
+  if (activePhenoCategories === null && phenoCategoryNames.length > 0) {
+    const init: Record<string, boolean> = {}
+    phenoCategoryNames.forEach((c) => { init[c] = true })
+    setActivePhenoCategories(init)
+  }
+
+  // Filter by active phenotype categories
+  const annotatedVariants = activePhenoCategories
+    ? allAnnotatedVariants.filter((v: any) => activePhenoCategories[v.top_phenotype_category || 'Unknown'] !== false)
+    : allAnnotatedVariants
+
   const onVariantClick = (variant: any) => {
     const params = new URLSearchParams(window.location.search)
     const stateStr = params.get('state')
@@ -243,7 +266,7 @@ const TopVariantsPhewas = () => {
     <Container>
       <DocumentTitle title={`Top Variants`} />
       <h3 className="app-section-title" style={{ width: '100%', marginTop: 20 }}>
-        <strong>Top single variant associations</strong> (P-value &lt; 1e-6)
+        <strong>Top single variant associations across all by all dataset</strong>
       </h3>
       <ControlsRow>
         <FilterGroup>
@@ -341,6 +364,72 @@ const TopVariantsPhewas = () => {
           />
         </div>
       ) : null}
+
+      {/* Phenotype category filters */}
+      {phenoCategoryNames.length > 0 && activePhenoCategories && (() => {
+        const activeCount = Object.values(activePhenoCategories).filter(Boolean).length
+        const totalCount = phenoCategoryNames.length
+        return (
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 0', fontSize: 12 }}>
+            <span style={{ color: 'var(--theme-text-muted, #666)', whiteSpace: 'nowrap' }}>
+              <strong>{activeCount}</strong> of {totalCount} categories
+            </span>
+            <button
+              onClick={() => {
+                const next: Record<string, boolean> = {}
+                phenoCategoryNames.forEach((c) => { next[c] = true })
+                setActivePhenoCategories(next)
+              }}
+              style={{
+                padding: '2px 8px', fontSize: 11, cursor: 'pointer',
+                background: activeCount === totalCount ? 'var(--theme-surface-alt, #f5f5f5)' : 'var(--theme-surface, #fff)',
+                border: '1px solid var(--theme-border, #ccc)', borderRadius: 3,
+                color: 'var(--theme-text, #333)',
+              }}
+            >
+              All
+            </button>
+            <button
+              onClick={() => {
+                const next: Record<string, boolean> = {}
+                phenoCategoryNames.forEach((c) => { next[c] = false })
+                setActivePhenoCategories(next)
+              }}
+              style={{
+                padding: '2px 8px', fontSize: 11, cursor: 'pointer',
+                background: activeCount === 0 ? 'var(--theme-surface-alt, #f5f5f5)' : 'var(--theme-surface, #fff)',
+                border: '1px solid var(--theme-border, #ccc)', borderRadius: 3,
+                color: 'var(--theme-text, #333)',
+              }}
+            >
+              None
+            </button>
+            {phenoCategoryNames.map((cat) => {
+              const isActive = activePhenoCategories[cat] !== false
+              const color = categoryColorMap.get(cat) || '#999'
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActivePhenoCategories((prev) => ({ ...prev!, [cat]: !isActive }))}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '3px 8px', fontSize: 11, cursor: 'pointer',
+                    background: isActive ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)',
+                    color: isActive ? 'white' : 'var(--theme-text, #333)',
+                    border: '1px solid ' + (isActive ? '#262262' : 'var(--theme-border, #ccc)'),
+                    borderRadius: 3, whiteSpace: 'nowrap',
+                    opacity: isActive ? 1 : 0.6,
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+                  {cat}
+                  <span style={{ opacity: 0.7 }}>({phenoCategoryCounts[cat]?.toLocaleString()})</span>
+                </button>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       <TopVariantsTable
         variants={annotatedVariants}
