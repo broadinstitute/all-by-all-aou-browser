@@ -139,16 +139,18 @@ export const geneBurdenShowSigAtom = atom<boolean>({
   ],
 })
 
-export type TopResultsTab = 'gene-burden' | 'single-variants'
+export type TopResultsTab = 'all-phenotypes' | 'all-genes' | 'gene-burden' | 'single-variants'
 
 const topResultsTabChecker = stringLiterals<TopResultsTab>({
+  'all-phenotypes': 'all-phenotypes',
+  'all-genes': 'all-genes',
   'gene-burden': 'gene-burden',
   'single-variants': 'single-variants',
 })
 
 export const topResultsTabAtom = atom<TopResultsTab>({
   key: 'topResultsTab',
-  default: 'gene-burden',
+  default: 'all-phenotypes',
   effects: [
     urlSyncEffect({
       refine: topResultsTabChecker,

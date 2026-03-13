@@ -179,7 +179,7 @@ export const LocusPageDataContainer = () => {
   const analysisId = useRecoilValue(analysisIdAtom)
 
   if (!analysisId) {
-    throw Error('kjsdlkfj')
+    return null
   }
 
   const selectedAnalysesList = useRecoilValue(selectedAnalyses)

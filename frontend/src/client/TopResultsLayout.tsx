@@ -6,6 +6,8 @@ import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedStat
 
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopVariantsPhewas from './VariantResults/TopVariantsPhewas'
+import AllPhenotypesTab from './PhenotypeList/AllPhenotypesTab'
+import AllGenesTab from './GeneResults/AllGenesTab'
 
 const PageContainer = styled(HalfPage)`
   display: flex;
@@ -47,6 +49,8 @@ const ContentSection = styled.div`
 `
 
 const TABS: { key: TopResultsTab; label: string }[] = [
+  { key: 'all-phenotypes', label: 'All Phenotypes' },
+  { key: 'all-genes', label: 'All Genes' },
   { key: 'gene-burden', label: 'Top Gene Burden' },
   { key: 'single-variants', label: 'Top Single Variants' },
 ]
@@ -57,7 +61,7 @@ export const TopResultsLayout = ({ size }: any) => {
 
   const handleTabClick = (tab: TopResultsTab) => {
     setActiveTab(tab)
-    if (tab === 'single-variants') {
+    if (tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes') {
       setResultLayout('full')
     }
   }
@@ -76,6 +80,8 @@ export const TopResultsLayout = ({ size }: any) => {
         ))}
       </TabContainer>
       <ContentSection>
+        {activeTab === 'all-phenotypes' && <AllPhenotypesTab />}
+        {activeTab === 'all-genes' && <AllGenesTab />}
         {activeTab === 'gene-burden' && <TopHitPhewas />}
         {activeTab === 'single-variants' && <TopVariantsPhewas />}
       </ContentSection>

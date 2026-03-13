@@ -643,6 +643,33 @@ impl AggregatedVariantRow {
     }
 }
 
+/// Phenotype summary from the `phenotype_summary` derived table
+///
+/// Contains aggregate counts of significant variants, loci, and genes per phenotype.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct PhenotypeSummaryRow {
+    pub analysis_id: String,
+    pub description: String,
+    pub category: String,
+    pub n_cases: i32,
+    pub n_controls: i32,
+    pub sig_variants_count: u32,
+    pub sig_loci_count: u32,
+    pub sig_genes_count: u32,
+}
+
+/// Gene summary from the `gene_summary` derived table
+///
+/// Contains counts of significant phenotype associations per gene.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct GeneSummaryRow {
+    pub gene_id: String,
+    pub gene_symbol: String,
+    pub chrom: String,
+    pub sig_phenos_variant_count: u32,
+    pub sig_phenos_burden_count: u32,
+}
+
 /// Analysis metadata from the `analysis_metadata` table
 ///
 /// Contains phenotype/analysis information loaded from ClickHouse

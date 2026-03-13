@@ -3,7 +3,7 @@
 //! Provides endpoints for cross-phenotype gene queries backed by ClickHouse.
 
 use crate::api::AppState;
-use crate::clickhouse::models::GeneAssociationRow;
+use crate::clickhouse::models::{GeneAssociationRow, GeneSummaryRow};
 use crate::error::AppError;
 use crate::models::GeneAssociationApi;
 use crate::response::{LookupResult, QueryTimer};
@@ -292,4 +292,25 @@ pub async fn get_genes_in_interval(
 
     let api_rows: Vec<GeneAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
+}
+
+/// GET /api/genes/summary
+///
+/// Returns all rows from the gene_summary derived table,
+/// ordered by significant phenotype count descending.
+pub async fn get_genes_summary(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<LookupResult<GeneSummaryRow>>, AppError> {
+    let timer = QueryTimer::start();
+    let query =
+        "SELECT * FROM gene_summary ORDER BY sig_phenos_variant_count DESC, gene_symbol ASC";
+
+    let rows = state
+        .clickhouse
+        .query(query)
+        .fetch_all::<GeneSummaryRow>()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    Ok(Json(LookupResult::new(rows, timer.elapsed())))
 }

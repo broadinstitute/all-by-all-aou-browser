@@ -12,6 +12,10 @@ use tracing::info;
 const TOP_VARIANTS_AGGREGATED_DDL: &str = include_str!("../sql/top_variants_aggregated.sql");
 const TOP_VARIANTS_AGGREGATED_POPULATE: &str =
     include_str!("../sql/top_variants_aggregated_populate.sql");
+const PHENOTYPE_SUMMARY_DDL: &str = include_str!("../sql/phenotype_summary.sql");
+const PHENOTYPE_SUMMARY_POPULATE: &str = include_str!("../sql/phenotype_summary_populate.sql");
+const GENE_SUMMARY_DDL: &str = include_str!("../sql/gene_summary.sql");
+const GENE_SUMMARY_POPULATE: &str = include_str!("../sql/gene_summary_populate.sql");
 
 /// Configuration for a derived table
 #[derive(Debug, Clone)]
@@ -30,8 +34,28 @@ impl DerivedTableConfig {
         }
     }
 
+    fn phenotype_summary() -> Self {
+        Self {
+            name: "phenotype_summary",
+            ddl_sql: PHENOTYPE_SUMMARY_DDL,
+            populate_sql: PHENOTYPE_SUMMARY_POPULATE,
+        }
+    }
+
+    fn gene_summary() -> Self {
+        Self {
+            name: "gene_summary",
+            ddl_sql: GENE_SUMMARY_DDL,
+            populate_sql: GENE_SUMMARY_POPULATE,
+        }
+    }
+
     fn all() -> Vec<Self> {
-        vec![Self::top_variants_aggregated()]
+        vec![
+            Self::top_variants_aggregated(),
+            Self::phenotype_summary(),
+            Self::gene_summary(),
+        ]
     }
 }
 
@@ -40,6 +64,12 @@ impl DerivedTableConfig {
 pub enum DeriveCommand {
     /// Build the top_variants_aggregated table (variant-level PheWAS summary)
     TopVariantsAggregated(DeriveArgs),
+
+    /// Build the phenotype_summary table (phenotype index with counts)
+    PhenotypeSummary(DeriveArgs),
+
+    /// Build the gene_summary table (gene index with counts)
+    GeneSummary(DeriveArgs),
 
     /// Build all derived tables
     All(DeriveArgs),
@@ -73,6 +103,14 @@ pub async fn run_derive(command: DeriveCommand) -> Result<()> {
     match command {
         DeriveCommand::TopVariantsAggregated(args) => {
             let config = DerivedTableConfig::top_variants_aggregated();
+            build_derived_table(&config, &args).await?;
+        }
+        DeriveCommand::PhenotypeSummary(args) => {
+            let config = DerivedTableConfig::phenotype_summary();
+            build_derived_table(&config, &args).await?;
+        }
+        DeriveCommand::GeneSummary(args) => {
+            let config = DerivedTableConfig::gene_summary();
             build_derived_table(&config, &args).await?;
         }
         DeriveCommand::All(args) => {

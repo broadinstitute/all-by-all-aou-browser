@@ -283,6 +283,15 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     "/phenotype/:analysis_id/genes/:gene_id",
                     get(api::get_gene_associations),
                 )
+                // --- Phenotype / Gene Summary Routes (derived tables) ---
+                .route(
+                    "/phenotypes/summary",
+                    get(phenotype::summary::get_phenotypes_summary),
+                )
+                .route(
+                    "/genes/summary",
+                    get(genes::routes::get_genes_summary),
+                )
                 // --- Phenotype / Manhattan Routes (ClickHouse-backed) ---
                 .route(
                     "/phenotype/:analysis_id/loci",
