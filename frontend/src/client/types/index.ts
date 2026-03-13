@@ -81,11 +81,14 @@ export interface AggregatedVariantAssociation {
   ref: string;
   alt: string;
   top_pvalue: number;
+  top_neg_log10_p: number;
   top_phenotype: string;
   num_associations: number;
   gene_id?: string | null;
   gene_symbol?: string | null;
   consequence?: string | null;
+  matched_phenotype?: string | null;
+  matched_pvalue?: number | null;
 }
 
 interface VariantAssociationManhattan extends VariantAssociations {

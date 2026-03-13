@@ -90,11 +90,16 @@ pub struct AggregatedVariantApi {
     pub ref_allele: String,
     pub alt: String,
     pub top_pvalue: f64,
+    pub top_neg_log10_p: f32,
     pub top_phenotype: String,
     pub num_associations: u64,
     pub gene_id: Option<String>,
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matched_phenotype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matched_pvalue: Option<f64>,
 }
 
 /// Gene association data for API responses.

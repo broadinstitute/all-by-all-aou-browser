@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS top_variants_aggregated (
     alt String,
     ancestry LowCardinality(String),
     top_pvalue Float64,
+    top_neg_log10_p Float32,
     top_phenotype String,
     num_associations UInt64,
     gene_id Nullable(String),

@@ -179,20 +179,30 @@ pub async fn get_top_variants_aggregated(
     let timer = QueryTimer::start();
     let min_p = params.min_p.unwrap_or(0.0);
     let max_p = params.max_p.unwrap_or(1e-6);
-    let limit = params.limit.unwrap_or(1000);
+    const MAX_LIMIT: u64 = 50_000;
+    let limit = match params.limit.unwrap_or(1000) {
+        0 => MAX_LIMIT,
+        n => n.min(MAX_LIMIT),
+    };
 
-    let mut query_string = r#"
+    let select_cols = r#"
         SELECT tva.xpos, tva.contig, tva.position, tva.ref, tva.alt,
-               tva.top_pvalue, tva.top_phenotype, tva.num_associations,
+               tva.top_pvalue, tva.top_neg_log10_p, tva.top_phenotype, tva.num_associations,
                tva.gene_id, tva.gene_symbol, tva.consequence
-        FROM top_variants_aggregated tva
-    "#.to_string();
+    "#;
 
+    let mut query_string = String::new();
     let mut join_sql = "".to_string();
+    let mut is_pheno_search = false;
     let mut where_sql = r#"
         WHERE tva.ancestry = ?
           AND tva.top_pvalue >= ?
           AND tva.top_pvalue <= ?
+          AND tva.top_phenotype NOT IN (
+              SELECT analysis_id FROM analysis_metadata
+              WHERE category = 'random_phenotype'
+                 OR description LIKE '%random%'
+          )
     "#.to_string();
 
     let mut search_variant_binds = None;
@@ -226,13 +236,17 @@ pub async fn get_top_variants_aggregated(
                 } else {
                     join_sql = r#"
                         INNER JOIN (
-                            SELECT DISTINCT xpos, ref, alt
+                            SELECT xpos, ref, alt,
+                                   argMin(phenotype, pvalue) AS matched_phenotype,
+                                   min(pvalue) AS matched_pvalue
                             FROM significant_variants sv
                             JOIN analysis_metadata am ON sv.phenotype = am.analysis_id
                             WHERE am.description ILIKE ? OR am.analysis_id ILIKE ?
+                            GROUP BY xpos, ref, alt
                         ) AS sq ON tva.xpos = sq.xpos AND tva.ref = sq.ref AND tva.alt = sq.alt
                     "#.to_string();
                     search_pheno_bind = Some(format!("%{}%", s_trim));
+                    is_pheno_search = true;
                 }
             }
         }
@@ -272,6 +286,11 @@ pub async fn get_top_variants_aggregated(
         where_sql.push_str(&category_sql);
     }
 
+    if is_pheno_search {
+        query_string.push_str(&format!("{}, sq.matched_phenotype, sq.matched_pvalue FROM top_variants_aggregated tva\n", select_cols));
+    } else {
+        query_string.push_str(&format!("{}, '' AS matched_phenotype, 0.0 AS matched_pvalue FROM top_variants_aggregated tva\n", select_cols));
+    }
     query_string.push_str(&join_sql);
     query_string.push_str(&where_sql);
     query_string.push_str(" ORDER BY tva.num_associations DESC, tva.top_pvalue ASC");

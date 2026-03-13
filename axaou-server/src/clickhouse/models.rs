@@ -602,27 +602,43 @@ pub struct AggregatedVariantRow {
     pub ref_allele: String,
     pub alt: String,
     pub top_pvalue: f64,
+    pub top_neg_log10_p: f32,
     pub top_phenotype: String,
     pub num_associations: u64,
     pub gene_id: Option<String>,
     pub gene_symbol: Option<String>,
     pub consequence: Option<String>,
+    pub matched_phenotype: String,
+    pub matched_pvalue: f64,
 }
 
 impl AggregatedVariantRow {
     /// Convert to API model with nested locus and variant_id
     pub fn to_api(&self) -> crate::models::AggregatedVariantApi {
+        let matched_phenotype = if self.matched_phenotype.is_empty() {
+            None
+        } else {
+            Some(self.matched_phenotype.clone())
+        };
+        let matched_pvalue = if self.matched_phenotype.is_empty() {
+            None
+        } else {
+            Some(self.matched_pvalue)
+        };
         crate::models::AggregatedVariantApi {
             variant_id: make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
             locus: Locus::new(self.contig.clone(), self.position as u32),
             ref_allele: self.ref_allele.clone(),
             alt: self.alt.clone(),
             top_pvalue: self.top_pvalue,
+            top_neg_log10_p: self.top_neg_log10_p,
             top_phenotype: self.top_phenotype.clone(),
             num_associations: self.num_associations,
             gene_id: self.gene_id.clone(),
             gene_symbol: self.gene_symbol.clone(),
             consequence: self.consequence.clone(),
+            matched_phenotype,
+            matched_pvalue,
         }
     }
 }

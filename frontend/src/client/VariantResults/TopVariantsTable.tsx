@@ -68,7 +68,7 @@ const VariantLinkRenderer = ({ row }: any) => {
   )
 }
 
-export const TopVariantsTable = ({ variants, onVariantClick }: any) => {
+export const TopVariantsTable = ({ variants, onVariantClick, categoryColors }: any) => {
   const [sortKey, setSortKey] = useState('num_associations')
   const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>('descending')
 
@@ -103,16 +103,43 @@ export const TopVariantsTable = ({ variants, onVariantClick }: any) => {
       ),
     },
     {
+      key: 'top_phenotype_category',
+      heading: 'Category',
+      isSortable: true,
+      minWidth: 130,
+      grow: 0,
+      render: (row: any) => {
+        const cat = row.top_phenotype_category || 'Unknown'
+        const color = categoryColors?.get(cat) || '#999'
+        return (
+          <span className="grid-cell-content">
+            <ColorMarker color={color} />
+            <DescriptionContainer title={cat}>{cat}</DescriptionContainer>
+          </span>
+        )
+      },
+    },
+    {
       key: 'top_phenotype_description',
       heading: 'Top Phenotype',
       isSortable: true,
       minWidth: 250,
       grow: 1,
-      render: (row: any) => (
-        <DescriptionContainer title={row.top_phenotype_description}>
-          {row.top_phenotype_description}
-        </DescriptionContainer>
-      ),
+      render: (row: any) => {
+        if (row.matched_phenotype_description && row.matched_phenotype !== row.top_phenotype) {
+          return (
+            <DescriptionContainer title={`Matched: ${row.matched_phenotype_description}\nTop: ${row.top_phenotype_description}`}>
+              <span style={{ fontWeight: 500 }}>{row.matched_phenotype_description}</span>
+              <span style={{ color: 'var(--theme-text-muted, #999)', fontSize: '11px' }}>{' '}(top: {row.top_phenotype_description})</span>
+            </DescriptionContainer>
+          )
+        }
+        return (
+          <DescriptionContainer title={row.top_phenotype_description}>
+            {row.top_phenotype_description}
+          </DescriptionContainer>
+        )
+      },
     },
     {
       key: 'top_pvalue',
