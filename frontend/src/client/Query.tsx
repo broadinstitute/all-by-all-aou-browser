@@ -7,4 +7,4 @@ export const pouchDbName = `axaou-${version}`
 const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
 export const axaouDevUrl = isLocalDev ? 'http://localhost:3001/api' : '/api'
 
-export const cacheEnabled = true
+export const cacheEnabled = false
