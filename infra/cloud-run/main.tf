@@ -53,9 +53,9 @@ data "google_compute_network" "vpc_network" {
   project = var.project_id
 }
 
-# Get ClickHouse VM internal IP
+# Get ClickHouse VM internal IP (full dataset instance)
 data "google_compute_instance" "clickhouse_vm" {
-  name    = "clickhouse-vm"
+  name    = "axaou-clickhouse-1"
   zone    = "us-central1-a"
   project = var.project_id
 }
