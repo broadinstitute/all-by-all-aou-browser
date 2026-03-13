@@ -77,6 +77,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
     initialY: number;
   } | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const justDraggedRef = useRef(false);
   const svgRef = useRef<SVGGElement>(null);
 
   // Handle mouse move during drag (attached to window)
@@ -100,6 +101,9 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
       if (dragPos && onLabelDragEnd) {
         onLabelDragEnd(dragState.id, dragPos.x, dragPos.y);
       }
+      // Flag that a drag just ended so the click handler can suppress
+      justDraggedRef.current = true;
+      requestAnimationFrame(() => { justDraggedRef.current = false; });
       setDragState(null);
       setDragPos(null);
     };
@@ -210,7 +214,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             onMouseEnter={(e) => handleMouseEnter(e, peakId, node)}
             onMouseMove={(e) => handleMouseMoveLabel(e, node)}
             onMouseLeave={handleMouseLeave}
-            onClick={() => !isDragging && onPeakClick?.(node)}
+            onClick={() => !isDragging && !justDraggedRef.current && onPeakClick?.(node)}
             onContextMenu={(e) => {
               e.preventDefault();
               onPeakContextMenu?.(node, e.clientX, e.clientY);
