@@ -32,7 +32,13 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs
 # Build dependencies only (this layer will be cached)
 # Use git CLI for fetching (avoids SSH auth issues with cargo's native fetcher)
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
-RUN cargo build --release && rm -rf src target/release/deps/axaou_server*
+# genohype-cli embeds dashboard assets via RustEmbed at compile time;
+# create the expected directory so the build succeeds (axaou-server doesn't serve the dashboard)
+RUN cargo fetch && \
+    CLI_DIR=$(find /usr/local/cargo/git/checkouts/genohype-* -maxdepth 2 -name "cli" -type d | head -1) && \
+    mkdir -p "$CLI_DIR/static/dist" && \
+    echo '<html></html>' > "$CLI_DIR/static/dist/index.html" && \
+    cargo build --release && rm -rf src target/release/deps/axaou_server*
 
 # Copy the actual source code
 COPY src ./src
