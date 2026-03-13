@@ -317,10 +317,12 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
               plotType={tabConfig.plotType}
               onHitClick={handleHitClick}
               onPeakClick={handlePeakClick}
-              inset={showQQOverlay ? (
+              inset={showQQOverlay ? (w, h) => (
                 <PrecomputedQQMini
                   analysisId={analysisMetadataPrepared.analysis_id}
                   sequencingType={seqType}
+                  width={w}
+                  height={h}
                 />
               ) : undefined}
             />

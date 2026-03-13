@@ -84,7 +84,8 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
     // Y axis
     ctx.save();
     ctx.transform(1, 0, 0, 1, margin.left, margin.top);
-    const yTicks = yScale.ticks().filter((t) => t < yCap);
+    const yTickCount = Math.max(2, Math.floor(h / 40));
+    const yTicks = yScale.ticks(yTickCount).filter((t) => t < yCap);
     for (const t of yTicks) {
       const y = yScale(t) || 0;
       ctx.beginPath();
@@ -112,7 +113,8 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
     // X axis
     ctx.save();
     ctx.transform(1, 0, 0, 1, margin.left, height - margin.bottom);
-    const xTicks = xScale.ticks();
+    const xTickCount = Math.max(2, Math.floor(w / 50));
+    const xTicks = xScale.ticks(xTickCount);
     for (const t of xTicks) {
       const x = xScale(t) || 0;
       ctx.beginPath();

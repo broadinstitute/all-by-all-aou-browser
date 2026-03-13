@@ -17,11 +17,15 @@ interface QQRow {
 interface Props {
   analysisId: string;
   sequencingType: 'exomes' | 'genomes';
+  width?: number;
+  height?: number;
 }
 
 export const PrecomputedQQMini: React.FC<Props> = ({
   analysisId,
   sequencingType,
+  width = 200,
+  height = 180,
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
 
@@ -43,7 +47,7 @@ export const PrecomputedQQMini: React.FC<Props> = ({
 
   if (anyLoading()) {
     return (
-      <div style={{ width: 200, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 11 }}>
+      <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 11 }}>
         Loading QQ...
       </div>
     );
@@ -61,8 +65,8 @@ export const PrecomputedQQMini: React.FC<Props> = ({
   return (
     <PrecomputedQQPlot
       points={points}
-      width={200}
-      height={180}
+      width={width}
+      height={height}
     />
   );
 };

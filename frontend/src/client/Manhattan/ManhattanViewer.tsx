@@ -42,8 +42,8 @@ export interface ManhattanViewerProps {
   onLocusClick?: (contig: string, position: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
-  /** Optional draggable inset node (e.g., QQ plot) */
-  inset?: React.ReactNode;
+  /** Optional draggable inset render function — receives container (width, height) */
+  inset?: (width: number, height: number) => React.ReactNode;
 }
 
 /**
@@ -91,17 +91,20 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
   // Unified context menu state - can include locus, gene, or multiple genes
 
-  // --- Inset Dragging Logic ---
+  // --- Inset Dragging & Resize Logic ---
   const [insetPos, setInsetPos] = useState<{ x: number, y: number } | null>(null);
+  const [insetSize, setInsetSize] = useState({ width: 216, height: 196 });
   const [isDraggingInset, setIsDraggingInset] = useState(false);
+  const [isResizingInset, setIsResizingInset] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, insetX: 0, insetY: 0 });
+  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   // Reset position when image/context changes
   useEffect(() => {
     setInsetPos(null);
   }, [contig, imageUrl]);
 
-  // Handlers for dragging the inset
+  // Handlers for dragging the inset (via top handle)
   const handleInsetMouseDown = useCallback((e: React.MouseEvent) => {
     if (!insetPos) return;
     e.stopPropagation();
@@ -114,30 +117,47 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     };
   }, [insetPos]);
 
+  // Handlers for resizing the inset (via corner handle)
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizingInset(true);
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: insetSize.width, h: insetSize.height };
+  }, [insetSize]);
+
   useEffect(() => {
-    if (!isDraggingInset) return;
+    if (!isDraggingInset && !isResizingInset) return;
 
-    const handleMouseMoveWindow = (e: MouseEvent) => {
-      const dx = e.clientX - dragStart.current.x;
-      const dy = e.clientY - dragStart.current.y;
-      setInsetPos({
-        x: Math.max(0, Math.min(dimensions.width - 220, dragStart.current.insetX + dx)),
-        y: Math.max(0, dragStart.current.insetY + dy)
-      });
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingInset) {
+        const dx = e.clientX - dragStart.current.x;
+        const dy = e.clientY - dragStart.current.y;
+        setInsetPos({
+          x: Math.max(0, Math.min(dimensions.width - insetSize.width, dragStart.current.insetX + dx)),
+          y: Math.max(0, dragStart.current.insetY + dy)
+        });
+      } else if (isResizingInset) {
+        const dx = e.clientX - resizeStart.current.x;
+        const dy = e.clientY - resizeStart.current.y;
+        setInsetSize({
+          width: Math.max(150, resizeStart.current.w + dx),
+          height: Math.max(130, resizeStart.current.h + dy),
+        });
+      }
     };
 
-    const handleMouseUpWindow = () => {
+    const handleMouseUp = () => {
       setIsDraggingInset(false);
+      setIsResizingInset(false);
     };
 
-    window.addEventListener('mousemove', handleMouseMoveWindow);
-    window.addEventListener('mouseup', handleMouseUpWindow);
-
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMoveWindow);
-      window.removeEventListener('mouseup', handleMouseUpWindow);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDraggingInset, dimensions.width]);
+  }, [isDraggingInset, isResizingInset, dimensions.width, insetSize.width]);
 
   // --- End Inset Logic (position & exclusion zone sync after usePeakLabelLayout) ---
 
@@ -529,34 +549,58 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
           {/* Draggable Inset (e.g. QQ Plot) */}
           {inset && insetPos && (
             <div
-              onMouseDown={handleInsetMouseDown}
               style={{
                 position: 'absolute',
-                left: Math.max(0, Math.min(insetPos.x, dimensions.width - 220)),
+                left: Math.max(0, Math.min(insetPos.x, dimensions.width - insetSize.width)),
                 top: insetPos.y,
+                width: insetSize.width + 16,
                 zIndex: 100,
                 background: 'rgba(255, 255, 255, 0.95)',
                 border: '1px solid var(--theme-border, #ccc)',
                 borderRadius: '6px',
                 padding: '8px',
-                boxShadow: isDraggingInset ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
-                cursor: isDraggingInset ? 'grabbing' : 'grab',
+                boxShadow: (isDraggingInset || isResizingInset) ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
                 pointerEvents: 'auto',
-                userSelect: isDraggingInset ? 'none' : 'auto',
+                userSelect: (isDraggingInset || isResizingInset) ? 'none' : 'auto',
               }}
             >
-              <div style={{
-                width: '100%',
-                height: '12px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: '4px',
-                opacity: 0.5
-              }}>
+              {/* Drag handle */}
+              <div
+                onMouseDown={handleInsetMouseDown}
+                style={{
+                  width: '100%',
+                  height: '12px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: '4px',
+                  opacity: 0.5,
+                  cursor: isDraggingInset ? 'grabbing' : 'grab',
+                }}
+              >
                 <div style={{ width: '30px', height: '4px', borderRadius: '2px', background: '#999' }} />
               </div>
-              {inset}
+              {inset(insetSize.width, insetSize.height)}
+              {/* Resize handle */}
+              <div
+                onMouseDown={handleResizeMouseDown}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                  width: 16,
+                  height: 16,
+                  cursor: 'nwse-resize',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.4,
+                  fontSize: 10,
+                  color: '#666',
+                }}
+              >
+                ◢
+              </div>
             </div>
           )}
         </div>

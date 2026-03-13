@@ -25,8 +25,8 @@ interface ManhattanPlotContainerProps {
   onHitClick?: (hit: SignificantHit) => void;
   /** Callback when a peak label is clicked */
   onPeakClick?: (peak: any) => void;
-  /** Optional draggable inset node (e.g., QQ plot) */
-  inset?: React.ReactNode;
+  /** Optional draggable inset render function — receives container (width, height) */
+  inset?: (width: number, height: number) => React.ReactNode;
 }
 
 interface ManhattanApiResponse {

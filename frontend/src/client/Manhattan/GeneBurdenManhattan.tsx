@@ -33,8 +33,8 @@ export interface GeneBurdenManhattanProps {
   customLabelMode?: boolean;
   /** Callback when a gene label is clicked */
   onGeneClick?: (geneId: string) => void;
-  /** Optional inset node (e.g., QQ plot overlay) */
-  inset?: React.ReactNode;
+  /** Optional draggable inset render function — receives container (width, height) */
+  inset?: (width: number, height: number) => React.ReactNode;
 }
 
 interface PlottedGene {
@@ -67,10 +67,13 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
   const [plottedGenes, setPlottedGenes] = useState<PlottedGene[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; gene: GeneAssociationResult } | null>(null);
 
-  // Inset drag state
+  // Inset drag & resize state
   const [insetPos, setInsetPos] = useState<{ x: number; y: number } | null>(null);
+  const [insetSize, setInsetSize] = useState({ width: 216, height: 196 });
   const [isDraggingInset, setIsDraggingInset] = useState(false);
+  const [isResizingInset, setIsResizingInset] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, insetX: 0, insetY: 0 });
+  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   // Default inset to top-right
   useEffect(() => {
@@ -88,19 +91,33 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
     dragStart.current = { x: e.clientX, y: e.clientY, insetX: insetPos.x, insetY: insetPos.y };
   }, [insetPos]);
 
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizingInset(true);
+    resizeStart.current = { x: e.clientX, y: e.clientY, w: insetSize.width, h: insetSize.height };
+  }, [insetSize]);
+
   useEffect(() => {
-    if (!isDraggingInset) return;
+    if (!isDraggingInset && !isResizingInset) return;
     const onMove = (e: MouseEvent) => {
-      setInsetPos({
-        x: Math.max(0, Math.min(dimensions.width - 220, dragStart.current.insetX + e.clientX - dragStart.current.x)),
-        y: Math.max(0, dragStart.current.insetY + e.clientY - dragStart.current.y),
-      });
+      if (isDraggingInset) {
+        setInsetPos({
+          x: Math.max(0, Math.min(dimensions.width - insetSize.width, dragStart.current.insetX + e.clientX - dragStart.current.x)),
+          y: Math.max(0, dragStart.current.insetY + e.clientY - dragStart.current.y),
+        });
+      } else if (isResizingInset) {
+        setInsetSize({
+          width: Math.max(150, resizeStart.current.w + e.clientX - resizeStart.current.x),
+          height: Math.max(130, resizeStart.current.h + e.clientY - resizeStart.current.y),
+        });
+      }
     };
-    const onUp = () => setIsDraggingInset(false);
+    const onUp = () => { setIsDraggingInset(false); setIsResizingInset(false); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [isDraggingInset, dimensions.width]);
+  }, [isDraggingInset, isResizingInset, dimensions.width, insetSize.width]);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
 
   // Determine which genes should be labeled
@@ -389,34 +406,58 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
           {/* Draggable Inset overlay (e.g. QQ Plot) */}
           {inset && insetPos && (
             <div
-              onMouseDown={handleInsetMouseDown}
               style={{
                 position: 'absolute',
                 left: insetPos.x,
                 top: insetPos.y,
+                width: insetSize.width + 16,
                 zIndex: 100,
                 background: 'rgba(255, 255, 255, 0.95)',
                 border: '1px solid var(--theme-border, #ccc)',
                 borderRadius: '6px',
                 padding: '8px',
-                boxShadow: isDraggingInset ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
-                cursor: isDraggingInset ? 'grabbing' : 'grab',
+                boxShadow: (isDraggingInset || isResizingInset) ? '0 8px 24px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.1)',
                 pointerEvents: 'auto',
-                userSelect: isDraggingInset ? 'none' : 'auto',
+                userSelect: (isDraggingInset || isResizingInset) ? 'none' : 'auto',
               }}
             >
-              <div style={{
-                width: '100%',
-                height: '12px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: '4px',
-                opacity: 0.5,
-              }}>
+              {/* Drag handle */}
+              <div
+                onMouseDown={handleInsetMouseDown}
+                style={{
+                  width: '100%',
+                  height: '12px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: '4px',
+                  opacity: 0.5,
+                  cursor: isDraggingInset ? 'grabbing' : 'grab',
+                }}
+              >
                 <div style={{ width: '30px', height: '4px', borderRadius: '2px', background: '#999' }} />
               </div>
-              {inset}
+              {inset(insetSize.width, insetSize.height)}
+              {/* Resize handle */}
+              <div
+                onMouseDown={handleResizeMouseDown}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                  width: 16,
+                  height: 16,
+                  cursor: 'nwse-resize',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.4,
+                  fontSize: 10,
+                  color: '#666',
+                }}
+              >
+                ◢
+              </div>
             </div>
           )}
         </div>

@@ -395,20 +395,26 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const [showQQOverlay, setShowQQOverlay] = useRecoilState(showQQOverlayAtom);
 
   // Compute mini QQ plot points from gene burden p-values
-  const qqMiniInset = useMemo(() => {
-    if (!showQQOverlay) return undefined;
+  const qqPoints = useMemo(() => {
+    if (!showQQOverlay) return null;
     const validGenes = geneData
       .filter((g): g is GeneAssociationResult & { pvalue: number } =>
         g.pvalue != null && g.pvalue > 0
       )
       .sort((a, b) => a.pvalue - b.pvalue);
-    if (validGenes.length === 0) return undefined;
-    const qqPoints: QQPoint[] = validGenes.map((g, i) => ({
+    if (validGenes.length === 0) return null;
+    return validGenes.map((g, i): QQPoint => ({
       x: -Math.log10((i + 1) / (validGenes.length + 1)),
       y: -Math.log10(g.pvalue),
     }));
-    return <PrecomputedQQPlot points={qqPoints} width={200} height={180} />;
   }, [geneData, showQQOverlay]);
+
+  const qqMiniInset = useMemo(() => {
+    if (!qqPoints) return undefined;
+    return (w: number, h: number) => (
+      <PrecomputedQQPlot points={qqPoints} width={w} height={h} />
+    );
+  }, [qqPoints]);
 
   return (
     <Container>
