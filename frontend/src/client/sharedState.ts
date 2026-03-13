@@ -73,6 +73,13 @@ export const variantIdAtom = atom<string | null | undefined>({
   ],
 })
 
+export type TopResultsTab = 'gene-burden' | 'single-variants'
+
+export const topResultsTabAtom = atom<TopResultsTab>({
+  key: 'topResultsTab',
+  default: 'gene-burden',
+})
+
 type BurdenSetOptions = 'pLoF' | 'missenseLC' | 'synonymous' | 'other'
 
 const burdenSetChecker = stringLiterals<BurdenSetOptions>({

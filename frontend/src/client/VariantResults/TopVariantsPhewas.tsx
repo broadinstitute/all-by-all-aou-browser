@@ -1,0 +1,248 @@
+import React, { useState, useMemo } from 'react'
+import { useQuery } from '@axaou/ui'
+import { useRecoilValue } from 'recoil'
+import styled from 'styled-components'
+
+import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
+import { ancestryGroupAtom } from '../sharedState'
+import { DocumentTitle, Spinner, StatusMessage, ColorMarker } from '../UserInterface'
+import { AnalysisMetadata, AggregatedVariantAssociation } from '../types'
+import { TopVariantsTable } from './TopVariantsTable'
+import { filterValidAnalyses, getAvailableAnalysisIds } from '../utils'
+import { getCategoryFromConsequence } from '../vepConsequences'
+import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  align-items: flex-start;
+`
+
+const ControlsRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+`
+
+const FilterGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--theme-border, #ddd);
+  border-radius: 4px;
+  overflow: hidden;
+`
+
+const FilterButton = styled.button<{ $active: boolean; $color: string }>`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: GothamBook, sans-serif;
+  background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-surface-alt, #f5f5f5)')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  border: none;
+  border-right: 1px solid var(--theme-border, #ccc);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &:hover {
+    background-color: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #e0e0e0)')};
+  }
+`
+
+const SearchInput = styled.input`
+  padding: 6px 12px;
+  border: 1px solid var(--theme-border, #ddd);
+  border-radius: 4px;
+  font-size: 13px;
+  min-width: 250px;
+
+  &:focus {
+    outline: none;
+    border-color: #262262;
+  }
+`
+
+const CountBadge = styled.span`
+  font-size: 12px;
+  color: var(--theme-text-muted, #666);
+  margin-left: auto;
+`
+
+const CONSEQUENCE_FILTERS = [
+  { key: 'lof', label: 'pLoF', color: consequenceCategoryColors.lof },
+  { key: 'missense', label: 'Missense', color: consequenceCategoryColors.missense },
+  { key: 'synonymous', label: 'Synonymous', color: consequenceCategoryColors.synonymous },
+  { key: 'other', label: 'Other', color: consequenceCategoryColors.other },
+] as const
+
+type ConsequenceCategory = typeof CONSEQUENCE_FILTERS[number]['key']
+
+interface Data {
+  topVariants: AggregatedVariantAssociation[]
+  analysesMetadata: AnalysisMetadata[]
+  availableAnalyses: any[]
+}
+
+const TopVariantsPhewas = () => {
+  const ancestryGroup = useRecoilValue(ancestryGroupAtom)
+  const [searchText, setSearchText] = useState('')
+  const [activeCategories, setActiveCategories] = useState<Record<ConsequenceCategory, boolean>>({
+    lof: true,
+    missense: true,
+    synonymous: true,
+    other: true,
+  })
+
+  const toggleCategory = (key: ConsequenceCategory) => {
+    setActiveCategories((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const { queryStates, anyLoading } = useQuery<Data>({
+    dbName: pouchDbName,
+    queries: [
+      { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
+      {
+        url: `${axaouDevUrl}/variants/associations/top-aggregated?ancestry=${ancestryGroup}&limit=5000`,
+        name: 'topVariants',
+      },
+      {
+        url: `${axaouDevUrl}/analyses-loaded`,
+        name: 'availableAnalyses',
+      },
+    ],
+    deps: [ancestryGroup],
+    cacheEnabled,
+  })
+
+  if (anyLoading()) {
+    return (
+      <Container>
+        <Spinner />
+      </Container>
+    )
+  }
+
+  const { analysesMetadata, topVariants, availableAnalyses } = queryStates
+
+  if (topVariants.error || analysesMetadata.error) {
+    return (
+      <Container>
+        <StatusMessage>
+          Error loading data: {topVariants.error?.message || analysesMetadata.error?.message}
+        </StatusMessage>
+      </Container>
+    )
+  }
+
+  if (!topVariants.data || !analysesMetadata.data) {
+    return (
+      <Container>
+        <StatusMessage>No Variant PheWAS Data Found</StatusMessage>
+      </Container>
+    )
+  }
+
+  const availableIds = getAvailableAnalysisIds(availableAnalyses.data)
+  const validMetadata = filterValidAnalyses(analysesMetadata.data, availableIds)
+
+  const annotatedVariants = topVariants.data
+    .map((v: AggregatedVariantAssociation) => {
+      const meta = validMetadata.find((m: AnalysisMetadata) => m.analysis_id === v.top_phenotype)
+      const category = v.consequence
+        ? getCategoryFromConsequence(v.consequence)
+        : 'other'
+      return {
+        ...v,
+        top_phenotype_description: meta ? meta.description : v.top_phenotype,
+        top_phenotype_category: meta ? meta.category : 'Unknown',
+        consequence_category: category,
+      }
+    })
+    .filter((v: any) =>
+      validMetadata.some((m: AnalysisMetadata) => m.analysis_id === v.top_phenotype)
+    )
+
+  // Apply consequence category filter
+  const categoryFiltered = annotatedVariants.filter((v: any) => {
+    const cat: string = v.consequence_category
+    // Map non-coding/unknown to 'other' bucket
+    if (cat === 'non-coding' || cat === 'unknown') return activeCategories.other
+    return activeCategories[cat as ConsequenceCategory] ?? activeCategories.other
+  })
+
+  // Apply search filter
+  const search = searchText.toLowerCase()
+  const filteredVariants = search
+    ? categoryFiltered.filter(
+        (v: any) =>
+          v.variant_id?.toLowerCase().includes(search) ||
+          v.gene_symbol?.toLowerCase().includes(search) ||
+          v.top_phenotype_description?.toLowerCase().includes(search)
+      )
+    : categoryFiltered
+
+  const onVariantClick = (variant: any) => {
+    const params = new URLSearchParams(window.location.search)
+    const stateStr = params.get('state')
+    const state = stateStr ? JSON.parse(stateStr) : {}
+    state.variantId = variant.variant_id
+    state.analysisId = variant.top_phenotype
+    state.resultIndex = 'variant-phewas'
+    state.resultLayout = 'half'
+    state.regionId = null
+    if (variant.gene_id) state.geneId = variant.gene_id
+    params.set('state', JSON.stringify(state))
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+  }
+
+  return (
+    <Container>
+      <DocumentTitle title={`Top Variants`} />
+      <h3 className="app-section-title" style={{ width: '100%', marginTop: 20 }}>
+        <strong>Top single variant associations</strong> (P-value &lt; 1e-6)
+      </h3>
+      <ControlsRow>
+        <FilterGroup>
+          {CONSEQUENCE_FILTERS.map((f) => (
+            <FilterButton
+              key={f.key}
+              $active={activeCategories[f.key]}
+              $color={f.color}
+              onClick={() => toggleCategory(f.key)}
+            >
+              <ColorMarker color={f.color} />
+              {f.label}
+            </FilterButton>
+          ))}
+        </FilterGroup>
+        <SearchInput
+          placeholder="Search variant, gene, or phenotype..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+        />
+        <CountBadge>
+          {filteredVariants.length.toLocaleString()} of{' '}
+          {annotatedVariants.length.toLocaleString()} variants
+        </CountBadge>
+      </ControlsRow>
+      <TopVariantsTable variants={filteredVariants} onVariantClick={onVariantClick} />
+    </Container>
+  )
+}
+
+export default TopVariantsPhewas

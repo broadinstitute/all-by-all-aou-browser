@@ -7,9 +7,10 @@ import { useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
 import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom } from './sharedState'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, TopResultsTab } from './sharedState'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
+import { useHistory } from 'react-router-dom'
 
 // @ts-ignore
 import AoULogo from './assets/AoU_Logo.svg'
@@ -171,10 +172,54 @@ const LogoItem = styled.div`
 `
 
 
+const ResultsDropdownWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &:hover .results-submenu {
+    display: block;
+  }
+`
+
+const ResultsSubmenu = styled.div`
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #262262;
+  min-width: 180px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.3);
+  z-index: 20;
+
+  a {
+    color: white;
+    padding: 10px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #3e3e7e;
+    }
+  }
+`
+
 const PageHeading = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const setResultIndex = useSetRecoilState(resultIndexAtom)
   const setResultsLayout = useSetRecoilState(resultLayoutAtom)
+  const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
+  const history = useHistory()
+
+  const goToResults = (tab?: TopResultsTab) => {
+    if (tab) setTopResultsTab(tab)
+    setResultIndex('top-associations')
+    setResultsLayout('full')
+    history.push('/app')
+  }
 
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen)
   const closeDropdown = () => setDropdownOpen(false)
@@ -209,12 +254,18 @@ const PageHeading = () => {
           <PageHeadingRouterLink to="/walkthrough" onClick={closeDropdown}>
             Walkthrough
           </PageHeadingRouterLink>
-          <PageHeadingRouterLink to="/app" onClick={() => {
-            setResultIndex('top-associations')
-            setResultsLayout('half')
-          }}>
-            Results
-          </PageHeadingRouterLink>
+          <ResultsDropdownWrapper>
+            <PageHeadingRouterLink to="/app" onClick={(e: any) => {
+              e.preventDefault()
+              goToResults()
+            }}>
+              Results
+            </PageHeadingRouterLink>
+            <ResultsSubmenu className="results-submenu">
+              <a onClick={() => goToResults('gene-burden')}>Gene Burden</a>
+              <a onClick={() => goToResults('single-variants')}>Single Variants</a>
+            </ResultsSubmenu>
+          </ResultsDropdownWrapper>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
             Support
           </PageHeadingExternalLink>
@@ -231,9 +282,9 @@ const PageHeading = () => {
             Walkthrough
           </PageHeadingRouterLink>
 
-          <PageHeadingRouterLink to="/app" onClick={() => {
-            setResultIndex('top-associations')
-            setResultsLayout('half')
+          <PageHeadingRouterLink to="/app" onClick={(e: any) => {
+            e.preventDefault()
+            goToResults()
             closeDropdown()
           }}>
             Results

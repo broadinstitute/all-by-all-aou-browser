@@ -228,6 +228,29 @@ hail-decoder pool submit heavy --batch-size 100 -- \
     ingest manhattan --config axaou-server/phenotype-data.toml
 ```
 
+### Derived Tables
+
+After ingesting the base tables, build derived/aggregate tables for fast queries:
+
+```bash
+cd axaou-server
+
+# Build all derived tables
+cargo run -- derive all
+
+# Or build individually
+cargo run -- derive top-variants-aggregated
+
+# Check status
+cargo run -- derive status
+```
+
+Derived tables are computed from existing ClickHouse data (no external sources needed). Re-run after any base table reload.
+
+| Derived Table | Source Tables | Description |
+|---------------|--------------|-------------|
+| `top_variants_aggregated` | `significant_variants` + annotations | Per-variant summary: top phenotype, association count, gene |
+
 ### Tables Created
 
 | Table | Description | Rows |
@@ -240,3 +263,4 @@ hail-decoder pool submit heavy --batch-size 100 -- \
 | `loci` | GWAS locus definitions | varies |
 | `loci_variants` | Variants within each locus | varies |
 | `gene_associations` | Gene burden test results | ~2.3M |
+| `top_variants_aggregated` | Aggregated top variant associations (derived) | varies |

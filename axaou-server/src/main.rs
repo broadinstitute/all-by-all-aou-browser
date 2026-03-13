@@ -117,6 +117,12 @@ enum Commands {
         #[command(subcommand)]
         command: cli::IngestCommand,
     },
+
+    /// Build derived/aggregate tables from existing ClickHouse data
+    Derive {
+        #[command(subcommand)]
+        command: cli::DeriveCommand,
+    },
 }
 
 #[tokio::main]
@@ -175,6 +181,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Ingest { command } => {
             cli::run_ingest(command).await?;
+        }
+        Commands::Derive { command } => {
+            cli::run_derive(command).await?;
         }
     }
 
@@ -350,6 +359,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/variants/associations/top",
                     get(variants::phewas::get_top_variants),
+                )
+                .route(
+                    "/variants/associations/top-aggregated",
+                    get(variants::phewas::get_top_variants_aggregated),
                 )
                 .route(
                     "/variants/associations/gene/:gene_id",

@@ -79,6 +79,24 @@ pub struct VariantAnnotationApi {
     pub lof: Option<String>,
 }
 
+/// Aggregated variant association data for API responses.
+///
+/// Matches the frontend's expected shape for the top variants PheWAS table.
+#[derive(Debug, Clone, Serialize)]
+pub struct AggregatedVariantApi {
+    pub variant_id: String,
+    pub locus: Locus,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub top_pvalue: f64,
+    pub top_phenotype: String,
+    pub num_associations: u64,
+    pub gene_id: Option<String>,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+}
+
 /// Gene association data for API responses.
 ///
 /// Field names match frontend GeneAssociationsHds type.

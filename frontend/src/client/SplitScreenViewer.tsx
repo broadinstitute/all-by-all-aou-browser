@@ -15,6 +15,7 @@ import {
 import VariantPhewas from './VariantPage/VariantPhewas'
 import PhenotypePageLayout from './PhenotypeList/PhenotypePageLayout'
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
+import TopResultsLayout from './TopResultsLayout'
 import { LocusPageRoot } from './GenePage/LocusPageRoot'
 import LocusPhewas from './GenePage/LocusPhewas'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
@@ -73,7 +74,7 @@ const ResizableItems = withSize({
     }
 
     if (resultIndex === 'top-associations') {
-      ResultIndexComponent = TopHitPhewas
+      ResultIndexComponent = TopResultsLayout
     }
 
     if (resultIndex === 'gene-manhattan') {

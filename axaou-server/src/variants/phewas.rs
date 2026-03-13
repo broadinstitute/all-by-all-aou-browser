@@ -150,3 +150,55 @@ pub async fn get_phewas_by_interval(
     let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
+
+/// Query parameters for aggregated top variants endpoint
+#[derive(Debug, Deserialize)]
+pub struct TopAggregatedVariantsQuery {
+    /// Ancestry group (required)
+    pub ancestry: String,
+    /// Minimum p-value (default: 0.0)
+    pub min_p: Option<f64>,
+    /// Maximum p-value (default: 1e-6)
+    pub max_p: Option<f64>,
+    /// Maximum number of results (default: 1000)
+    pub limit: Option<u64>,
+}
+
+/// GET /api/variants/associations/top-aggregated
+///
+/// Returns top variants aggregated across all phenotypes, yielding the single most significant
+/// phenotype per variant, along with the total count of significant associations.
+pub async fn get_top_variants_aggregated(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<TopAggregatedVariantsQuery>,
+) -> Result<Json<LookupResult<crate::models::AggregatedVariantApi>>, AppError> {
+    let timer = QueryTimer::start();
+    let min_p = params.min_p.unwrap_or(0.0);
+    let max_p = params.max_p.unwrap_or(1e-6);
+    let limit = params.limit.unwrap_or(1000);
+
+    let query = r#"
+        SELECT xpos, contig, position, ref, alt,
+               top_pvalue, top_phenotype, num_associations,
+               gene_id, gene_symbol, consequence
+        FROM top_variants_aggregated
+        WHERE ancestry = ? AND top_pvalue >= ? AND top_pvalue <= ?
+        ORDER BY num_associations DESC, top_pvalue ASC
+        LIMIT ?
+    "#;
+
+    let rows = state
+        .clickhouse
+        .query(query)
+        .bind(&params.ancestry)
+        .bind(min_p)
+        .bind(max_p)
+        .bind(limit)
+        .fetch_all::<crate::clickhouse::models::AggregatedVariantRow>()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    let api_rows: Vec<crate::models::AggregatedVariantApi> =
+        rows.into_iter().map(|r| r.to_api()).collect();
+    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
+}

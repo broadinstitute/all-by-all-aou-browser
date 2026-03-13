@@ -75,6 +75,19 @@ export interface VariantDataset {
   data: VariantJoined[];
 }
 
+export interface AggregatedVariantAssociation {
+  variant_id: string;
+  locus: Locus;
+  ref: string;
+  alt: string;
+  top_pvalue: number;
+  top_phenotype: string;
+  num_associations: number;
+  gene_id?: string | null;
+  gene_symbol?: string | null;
+  consequence?: string | null;
+}
+
 interface VariantAssociationManhattan extends VariantAssociations {
   variant_id: string
   chrom: string
@@ -236,4 +249,5 @@ export {
   LocusPlotSidecar,
   LocusPlotResponse,
   LocusMetadata,
+  AggregatedVariantAssociation,
 }

@@ -464,6 +464,7 @@ async fn show_status(url: &str) -> Result<()> {
         ("gene_models", "Gene models"),
         ("analysis_metadata", "Analysis/phenotype metadata"),
         ("analysis_categories", "Analysis categories (derived)"),
+        ("top_variants_aggregated", "Aggregated top variants (derived)"),
         ("variant_annotations", "Legacy combined annotations"),
     ];
 

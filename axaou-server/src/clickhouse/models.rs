@@ -590,6 +590,43 @@ impl GeneModelRow {
     }
 }
 
+/// Aggregated variant result from the `significant_variants` table
+///
+/// Contains top phenotype and total number of associations for a variant.
+#[derive(Debug, Clone, Serialize, Deserialize, Row)]
+pub struct AggregatedVariantRow {
+    pub xpos: i64,
+    pub contig: String,
+    pub position: i32,
+    #[serde(rename = "ref")]
+    pub ref_allele: String,
+    pub alt: String,
+    pub top_pvalue: f64,
+    pub top_phenotype: String,
+    pub num_associations: u64,
+    pub gene_id: Option<String>,
+    pub gene_symbol: Option<String>,
+    pub consequence: Option<String>,
+}
+
+impl AggregatedVariantRow {
+    /// Convert to API model with nested locus and variant_id
+    pub fn to_api(&self) -> crate::models::AggregatedVariantApi {
+        crate::models::AggregatedVariantApi {
+            variant_id: make_variant_id(&self.contig, self.position as u32, &self.ref_allele, &self.alt),
+            locus: Locus::new(self.contig.clone(), self.position as u32),
+            ref_allele: self.ref_allele.clone(),
+            alt: self.alt.clone(),
+            top_pvalue: self.top_pvalue,
+            top_phenotype: self.top_phenotype.clone(),
+            num_associations: self.num_associations,
+            gene_id: self.gene_id.clone(),
+            gene_symbol: self.gene_symbol.clone(),
+            consequence: self.consequence.clone(),
+        }
+    }
+}
+
 /// Analysis metadata from the `analysis_metadata` table
 ///
 /// Contains phenotype/analysis information loaded from ClickHouse
