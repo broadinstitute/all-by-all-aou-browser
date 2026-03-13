@@ -37,32 +37,22 @@ pub async fn get_qq_plot(
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let sequencing_type = params.sequencing_type.unwrap_or_else(|| "genomes".to_string());
 
-    let limit = params.limit.unwrap_or(10000);
-
     let base_query = if params.contig.is_some() {
-        format!(
-            r#"
+        r#"
             SELECT phenotype, ancestry, sequencing_type, contig, position,
                    ref, alt, pvalue_log10, pvalue_expected_log10
             FROM qq_points
             WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND contig = ?
-            ORDER BY pvalue_expected_log10 DESC
-            LIMIT {}
-            "#,
-            limit
-        )
+            ORDER BY pvalue_expected_log10 ASC
+        "#.to_string()
     } else {
-        format!(
-            r#"
+        r#"
             SELECT phenotype, ancestry, sequencing_type, contig, position,
                    ref, alt, pvalue_log10, pvalue_expected_log10
             FROM qq_points
             WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
-            ORDER BY pvalue_expected_log10 DESC
-            LIMIT {}
-            "#,
-            limit
-        )
+            ORDER BY pvalue_expected_log10 ASC
+        "#.to_string()
     };
 
     let mut query = state.clickhouse.query(&base_query);
