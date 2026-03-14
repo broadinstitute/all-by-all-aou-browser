@@ -42,6 +42,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   // State for peak selection (shared between plot and table)
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
   const [customLabelMode, setCustomLabelMode] = useState(false);
+  const [topN, setTopN] = useState(10);
 
   interface Data {
     overviewData: UnifiedOverviewResponse | null;
@@ -68,7 +69,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
         return bestA - bestB;
       });
-      const top10Ids = new Set(sortedLoci.slice(0, 10).map((l) => `${l.contig}-${l.position}`));
+      const top10Ids = new Set(sortedLoci.slice(0, topN).map((l) => `${l.contig}-${l.position}`));
       // Apply the toggle to the initialized set
       if (top10Ids.has(peakId)) {
         top10Ids.delete(peakId);
@@ -90,14 +91,21 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       }
       return next;
     });
-  }, [customLabelMode]);
+  }, [customLabelMode, topN]);
 
   const clearSelection = useCallback(() => {
+    setTopN(0);
     setSelectedPeakIds(new Set());
-    setCustomLabelMode(true);
+    setCustomLabelMode(false);
   }, []);
 
   const resetToDefault = useCallback(() => {
+    setSelectedPeakIds(new Set());
+    setCustomLabelMode(false);
+  }, []);
+
+  const handleSetTopN = useCallback((n: number) => {
+    setTopN(n);
     setSelectedPeakIds(new Set());
     setCustomLabelMode(false);
   }, []);
@@ -235,6 +243,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         unifiedLoci={filteredLoci}
         selectedPeakIds={selectedPeakIds}
         customLabelMode={customLabelMode}
+        topN={topN}
         onPeakClick={handlePeakClick}
         showYAxis={true}
         contig={selectedContig}
@@ -251,6 +260,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             selectedPeakIds={selectedPeakIds}
             onTogglePeak={togglePeak}
             customLabelMode={customLabelMode}
+            topN={topN}
+            onSetTopN={handleSetTopN}
             onClearSelection={clearSelection}
             onResetToDefault={resetToDefault}
             onSelectAllFiltered={selectAllFiltered}

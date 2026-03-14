@@ -24,8 +24,10 @@ export interface OverviewManhattanProps {
   unifiedLoci: UnifiedLocus[];
   /** IDs of peaks to label (when in custom selection mode) */
   selectedPeakIds?: Set<string>;
-  /** Whether in custom label mode (true) or default top-10 mode (false) */
+  /** Whether in custom label mode (true) or default top-N mode (false) */
   customLabelMode?: boolean;
+  /** Number of top peaks to label in default mode */
+  topN?: number;
   /** Callback when a peak label is clicked */
   onPeakClick?: (node: PeakLabelNode) => void;
   /** Show Y-axis with -log10(p) labels */
@@ -116,6 +118,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   unifiedLoci,
   selectedPeakIds,
   customLabelMode = false,
+  topN = 10,
   onPeakClick,
   showYAxis = true,
   contig = 'all',
@@ -172,7 +175,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : 10
+    customLabelMode ? 500 : topN
   );
 
   // Observe image size changes for responsive scaling

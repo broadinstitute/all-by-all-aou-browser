@@ -189,9 +189,26 @@ export function usePeakLabelLayout(
     const gwasPeaks = filteredPeaks.filter((p) => !p.isBurdenOnly);
     const burdenOnlyPeaks = filteredPeaks.filter((p) => p.isBurdenOnly);
 
-    // Take top N GWAS peaks
+    // Sort GWAS peaks: implicated (burden or coding evidence) first, then by p-value
+    const isImplicated = (p: Peak): boolean =>
+      p.genes.some((g) => {
+        const hasBurden = g.burden_results?.some((b) =>
+          ((b.pvalue ?? Infinity) < SIG_THRESHOLD) ||
+          ((b.pvalue_burden ?? Infinity) < SIG_THRESHOLD) ||
+          ((b.pvalue_skat ?? Infinity) < SIG_THRESHOLD)
+        );
+        const hasCoding = (g.lof_count || 0) > 0 || (g.missense_count || 0) > 0 || (g.coding_variant_count || 0) > 0;
+        return hasBurden || hasCoding;
+      });
+
+    // Take top N GWAS peaks, prioritizing implicated
     const topGwasPeaks = [...gwasPeaks]
-      .sort((a, b) => a.pvalue - b.pvalue)
+      .sort((a, b) => {
+        const aImpl = isImplicated(a);
+        const bImpl = isImplicated(b);
+        if (aImpl !== bImpl) return aImpl ? -1 : 1;
+        return a.pvalue - b.pvalue;
+      })
       .slice(0, maxLabels);
 
     // Include ALL burden-only peaks with significant pLoF or missense burden

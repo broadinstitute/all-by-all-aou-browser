@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
@@ -20,9 +20,13 @@ export interface UnifiedLocusTableProps {
   onTogglePeak: (peakId: string, filteredLoci?: UnifiedLocus[]) => void;
   /** Whether in custom label mode */
   customLabelMode: boolean;
+  /** Number of top peaks to label in default mode */
+  topN: number;
+  /** Set number of top peaks to label (exits custom mode) */
+  onSetTopN: (n: number) => void;
   /** Clear all selections */
   onClearSelection: () => void;
-  /** Reset to default (top 10) mode */
+  /** Reset to default mode */
   onResetToDefault: () => void;
   /** Select all filtered loci */
   onSelectAllFiltered: (ids: Set<string>) => void;
@@ -77,6 +81,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   selectedPeakIds,
   onTogglePeak,
   customLabelMode,
+  topN,
+  onSetTopN,
   onClearSelection,
   onResetToDefault,
   onSelectAllFiltered,
@@ -85,6 +91,10 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const [searchText, setSearchText] = useState('');
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
+  // Local slider value with debounced propagation to avoid layout thrash
+  const [sliderValue, setSliderValue] = useState(topN);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => { setSliderValue(topN); }, [topN]);
   // Unified context menu state - can include locus, gene, or both
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -93,9 +103,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     gene?: { geneId: string; geneSymbol: string };
   } | null>(null);
 
-  // Sort by best p-value
+  // Sort by implicated first, then best p-value
   const sortedLoci = useMemo(() => {
     return [...unifiedLoci].sort((a, b) => {
+      const aImpl = a.genes.some(geneHasEvidence);
+      const bImpl = b.genes.some(geneHasEvidence);
+      if (aImpl !== bImpl) return aImpl ? -1 : 1;
       const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
       const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
       return bestA - bestB;
@@ -160,6 +173,20 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
   }, [searchFilteredLoci, showOnlyImplicated]);
 
+  const hasActiveFilter = showOnlyImplicated || !!searchText.trim();
+  const handleSliderChange = useCallback((v: number) => {
+    setSliderValue(v);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (hasActiveFilter) {
+        const ids = new Set(filteredLoci.slice(0, v).map((l) => `${l.contig}-${l.position}`));
+        onSelectAllFiltered(ids);
+      } else {
+        onSetTopN(v);
+      }
+    }, 250);
+  }, [onSetTopN, onSelectAllFiltered, hasActiveFilter, filteredLoci]);
+
   const handleSelectAllFiltered = useCallback(() => {
     const ids = new Set(filteredLoci.map((l) => `${l.contig}-${l.position}`));
     onSelectAllFiltered(ids);
@@ -216,28 +243,90 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             />
             <span style={{ fontSize: 11 }}>Gene implicated</span>
           </label>
+          {/* Label controls */}
           {customLabelMode ? (
             <span style={{ color: 'var(--theme-primary, #262262)' }}>
               <strong>{selectedPeakIds.size}</strong> labeled
+              <button
+                onClick={onResetToDefault}
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--theme-primary, #262262)',
+                  textDecoration: 'underline',
+                  marginLeft: 4,
+                }}
+                title="Return to top-N auto-label mode"
+              >
+                reset
+              </button>
             </span>
           ) : (
-            <span style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>Top 10 labeled</span>
-          )}
-          {!customLabelMode && (
-            <button
-              onClick={handleSelectAllFiltered}
-              style={{
-                fontSize: 11,
-                padding: '4px 10px',
-                cursor: 'pointer',
-                background: 'var(--theme-surface)',
-                border: '1px solid var(--theme-border)',
-                borderRadius: 3,
-              }}
-              title="Select all filtered loci for labeling"
-            >
-              Select all ({filteredLoci.length})
-            </button>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--theme-text-muted)', whiteSpace: 'nowrap' }}>Labels:</span>
+              <input
+                type="range"
+                min={0}
+                max={Math.min(filteredLoci.length, 100)}
+                value={sliderValue}
+                onChange={(e) => handleSliderChange(Number(e.target.value))}
+                style={{ width: 80, cursor: 'pointer' }}
+                title={`Label top ${sliderValue} peaks`}
+              />
+              <input
+                type="number"
+                min={0}
+                max={filteredLoci.length}
+                value={sliderValue}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (!isNaN(v) && v >= 0) handleSliderChange(v);
+                }}
+                style={{
+                  width: 40,
+                  fontSize: 11,
+                  padding: '2px 4px',
+                  border: '1px solid var(--theme-border, #ccc)',
+                  borderRadius: 3,
+                  background: 'var(--theme-surface, #fff)',
+                  color: 'var(--theme-text, #333)',
+                  textAlign: 'center',
+                }}
+              />
+              <button
+                onClick={handleSelectAllFiltered}
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                  background: 'var(--theme-surface)',
+                  border: '1px solid var(--theme-border)',
+                  borderRadius: 3,
+                  whiteSpace: 'nowrap',
+                }}
+                title="Label all filtered loci"
+              >
+                All
+              </button>
+              <button
+                onClick={onClearSelection}
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                  background: 'var(--theme-surface)',
+                  border: '1px solid var(--theme-border)',
+                  borderRadius: 3,
+                  whiteSpace: 'nowrap',
+                }}
+                title="Remove all labels"
+              >
+                None
+              </button>
+            </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -245,37 +334,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           <span style={{ fontSize: 10, color: 'var(--theme-text-muted)', fontStyle: 'italic' }}>
             Right-click rows for options
           </span>
-          {/* Clear all button - always visible */}
-          <button
-            onClick={onClearSelection}
-            style={{
-              fontSize: 11,
-              padding: '4px 10px',
-              cursor: 'pointer',
-              background: 'var(--theme-surface, #fff)',
-              color: 'var(--theme-text, #333)',
-              border: '1px solid var(--theme-border, #ccc)',
-              borderRadius: 3,
-            }}
-          >
-            Clear all
-          </button>
-          {customLabelMode && (
-            <button
-              onClick={onResetToDefault}
-              style={{
-                fontSize: 11,
-                padding: '4px 10px',
-                cursor: 'pointer',
-                background: 'var(--theme-surface, #fff)',
-                color: 'var(--theme-text, #333)',
-                border: '1px solid var(--theme-border, #ccc)',
-                borderRadius: 3,
-              }}
-            >
-              Reset to top 10
-            </button>
-          )}
         </div>
       </div>
 
@@ -294,7 +352,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           {filteredLoci.slice(0, visibleRowCount).map((locus, index) => {
             const locusId = `${locus.contig}-${locus.position}`;
             const isSelected = selectedPeakIds.has(locusId);
-            const hasLabel = customLabelMode ? isSelected : index < 10;
+            const hasLabel = customLabelMode ? isSelected : index < topN;
 
             // Partition genes: implicated first, then non-implicated
             const implicatedGenes = locus.genes.filter(geneHasEvidence);
