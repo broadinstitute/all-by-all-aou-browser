@@ -193,7 +193,7 @@ export const LocusPageDataContainer = () => {
   const sequencingTypes = ["exome", "genome"];
 
   const variantAssociationsGeneQueries = analyses.flatMap((analysisID) =>
-    ['exome'].map((seqType) => ({
+    sequencingTypes.map((seqType) => ({
       url: `${axaouDevUrl}/variants/associations/gene/${geneIdOrName}?ancestry_group=${ancestryGroup}&analysis_id=${analysisID}&sequencing_type=${seqType}`,
       name: `variantAssociations-${analysisID}-${seqType}-${ancestryGroup}`,
       queryMode: 'two_step',
@@ -248,6 +248,21 @@ export const LocusPageDataContainer = () => {
     })),
     ...variantAnnotationRegionQueries,
   ]
+
+  // When we have a variantId but no gene or region, infer a region
+  // from the variant ID so we can show the locus context.
+  const setRegionId = useSetRecoilState(regionIdAtom)
+  useEffect(() => {
+    if (regionId || geneIdOrName || !variantId) return
+    const parts = variantId.replace(/^chr/, '').split('-')
+    if (parts.length >= 2) {
+      const contig = parts[0]
+      const pos = parseInt(parts[1], 10)
+      if (!isNaN(pos)) {
+        setRegionId(`${contig}-${pos - 500000}-${pos + 500000}`)
+      }
+    }
+  }, [regionId, geneIdOrName, variantId, setRegionId])
 
   if (regionId) {
     queries = [...queries, ...regionQueries]

@@ -30,7 +30,7 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
   const geneModels = filterGenes(geneModelsInRegion)
 
   const onClickGene = (gene: any) => {
-    goToGene(gene.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
+    goToGene(gene.gene_id, { fromPhenotype: true, keepVariant: true, resultIndex: 'gene-phewas' })
   }
 
   const [contextMenu, setContextMenu] = React.useState<{x: number, y: number, gene: any} | null>(null);

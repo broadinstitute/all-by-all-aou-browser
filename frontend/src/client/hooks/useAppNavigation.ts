@@ -24,10 +24,10 @@ export function useAppNavigation() {
     setResultLayout((prev) => (prev === 'full' ? 'split' : prev));
   }, [setResultLayout]);
 
-  const goToGene = useCallback((geneId: string, options?: { fromPhenotype?: boolean; resultIndex?: ResultIndex }) => {
+  const goToGene = useCallback((geneId: string, options?: { fromPhenotype?: boolean; keepVariant?: boolean; resultIndex?: ResultIndex }) => {
     setGeneId(geneId);
     setRegionId(null);
-    setVariantId(null);
+    if (!options?.keepVariant) setVariantId(null);
     if (!options?.fromPhenotype) setAnalysisId(null);
     if (options?.resultIndex) setResultIndex(options.resultIndex);
     openDetailPane();
@@ -50,11 +50,13 @@ export function useAppNavigation() {
     openDetailPane();
   }, [setVariantId, setGeneId, setRegionId, setResultIndex, openDetailPane]);
 
-  const goToPhenotype = useCallback((analysisId: string, options?: { resultIndex?: ResultIndex }) => {
+  const goToPhenotype = useCallback((analysisId: string, options?: { keepContext?: boolean; resultIndex?: ResultIndex }) => {
     setAnalysisId(analysisId);
-    setGeneId(null);
-    setRegionId(null);
-    setVariantId(null);
+    if (!options?.keepContext) {
+      setGeneId(null);
+      setRegionId(null);
+      setVariantId(null);
+    }
     if (options?.resultIndex) setResultIndex(options.resultIndex);
   }, [setAnalysisId, setGeneId, setRegionId, setVariantId, setResultIndex]);
 

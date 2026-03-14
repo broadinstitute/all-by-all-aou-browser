@@ -438,7 +438,7 @@ export const getPhenotypeColumns = ({
             className='grid-cell-content'
             onClick={() => {
               switchAnalysis(row.analysis_id)
-              goToGene(row.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
+              goToGene(row.gene_id, { fromPhenotype: true, keepVariant: true, resultIndex: 'gene-phewas' })
             }}
           >
             {row.gene_symbol || row.gene_id}
@@ -556,7 +556,7 @@ export const getPhenotypeColumns = ({
         const handleClick = () => {
           setSelectedAnalyses([row.analysis_id])
           setShowSelectOnly(false)
-          goToPhenotype(row.analysis_id, { resultIndex: 'variant-phewas' })
+          goToPhenotype(row.analysis_id, { keepContext: true, resultIndex: 'variant-phewas' })
           openDetailPane()
         }
 
@@ -601,7 +601,7 @@ export const getPhenotypeColumns = ({
 
         const handleClick = () => {
           switchAnalysis(row.analysis_id)
-          goToGene(row.gene_id, { fromPhenotype: true })
+          goToGene(row.gene_id, { fromPhenotype: true, keepVariant: true })
         }
 
         return (

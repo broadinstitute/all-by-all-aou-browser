@@ -347,6 +347,24 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const geneModel = !regionId ? geneModels[0] : undefined
   const exons = geneModel?.exons.filter((e) => e.feature_type === 'CDS')
 
+  // Check if the selected variant falls outside the gene's CDS exon regions.
+  // If so, use a continuous locus view so the variant is visible in context.
+  const selectedVariantPos = React.useMemo(() => {
+    if (!variantId || !variantDatasets) return null
+    for (const vds of variantDatasets) {
+      const v = vds.data.find(d => d.variant_id === variantId)
+      if (v?.locus?.position) return v.locus.position
+    }
+    return null
+  }, [variantId, variantDatasets])
+
+  const variantInExons = React.useMemo(() => {
+    if (!selectedVariantPos || !exons || exons.length === 0) return true
+    // Check if variant position falls within any exon (with small padding)
+    const padding = 100
+    return exons.some(e => selectedVariantPos >= e.start - padding && selectedVariantPos <= e.stop + padding)
+  }, [selectedVariantPos, exons])
+
   const regions = regionId
     ? (() => {
       const { start, stop } = parseRegionId(regionId)
@@ -360,7 +378,15 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
         },
       ]
     })()
-    : (exons && exons.length > 0) ? exons : [{ start: 0, stop: 100 }]
+    : (variantId && !variantInExons && geneModel)
+      ? [{
+        feature_type: 'region',
+        start: geneModel.start - 10000,
+        stop: geneModel.stop + 10000,
+        previousRegionDistance: 0,
+        offset: 0,
+      }]
+      : (exons && exons.length > 0) ? exons : [{ start: 0, stop: 100 }]
 
   let Container = PageWithGeneBurdenDetails
 
@@ -408,11 +434,14 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     return v as VariantJoined
   }
 
-  const datasets: VariantJoined[][] = variantDatasets
-    ? variantDatasets
+  const datasets: VariantJoined[][] = React.useMemo(() => {
+    if (!variantDatasets) return [[]]
+
+    const allFiltered: VariantJoined[] = variantDatasets
       .filter((vds) => vds.ancestryGroup === ancestryGroup)
-      .map((vds) => {
-        let filtered = filterVariants(vds.data, { ...filter, searchText }, membershipFilters).map(enrichVariantWithMetadata)
+      .flatMap((vds) => {
+        const effectiveSearchText = variantId ? '' : searchText
+        let filtered = filterVariants(vds.data, { ...filter, searchText: effectiveSearchText }, membershipFilters).map(enrichVariantWithMetadata)
 
         if (regionId) {
           const { start, stop } = parseRegionId(regionId);
@@ -434,9 +463,21 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           filtered = filtered.filter((v) => v.gwas_catalog)
         }
 
-        return sortItems(filtered, sortState)
+        return filtered
       })
-    : [[]]
+
+    // Deduplicate across all sequencing types — outer merge can produce
+    // the same variant from both exome and genome; prefer the record with association data.
+    const seen = new Map<string, VariantJoined>()
+    for (const v of allFiltered) {
+      const existing = seen.get(v.variant_id)
+      if (!existing || (v.pvalue != null && existing.pvalue == null)) {
+        seen.set(v.variant_id, v)
+      }
+    }
+
+    return [sortItems(Array.from(seen.values()), sortState)]
+  }, [variantDatasets, ancestryGroup, variantId, searchText, filter, membershipFilters, regionId, geneModel, gwasCatalogOption, sortState])
 
   const handleSort = (newSortKey: string) => {
     const newSortOrder: 'ascending' | 'descending' =
@@ -446,11 +487,29 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     setSortState({ sortKey: newSortKey, sortOrder: newSortOrder })
   }
 
+  // Clear search text when a variant is selected so it doesn't filter the plot
+  React.useEffect(() => {
+    if (variantId) {
+      setVariantSearchText('')
+    }
+  }, [variantId, setVariantSearchText])
+
   // Create a separate dataset for tables: when a variant is selected,
   // tables show only that variant while the plot shows the full locus context.
+  // Collect all matches across datasets, then deduplicate — the same variant
+  // can appear in both exome and genome datasets; prefer the one with pvalue.
   const tableDatasets = React.useMemo(() => {
     if (!variantId) return datasets;
-    return datasets.map(ds => ds.filter(v => v.variant_id === variantId));
+    const allMatches = datasets.flatMap(ds => ds.filter(v => v.variant_id === variantId));
+    const seen = new Map<string, VariantJoined>();
+    for (const v of allMatches) {
+      const existing = seen.get(v.variant_id);
+      if (!existing || (v.pvalue != null && existing.pvalue == null)) {
+        seen.set(v.variant_id, v);
+      }
+    }
+    const deduped = Array.from(seen.values());
+    return [deduped];
   }, [datasets, variantId]);
 
   const renderTitle = () => {

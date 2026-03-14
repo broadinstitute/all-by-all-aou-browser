@@ -97,7 +97,7 @@ export const renderPoint = ({
     radius += 1;
   } else if (hasAnySelection) {
     // Dim unselected variants when one is selected
-    compositeOp = 'destination-over';
+    compositeOp = 'source-over';
     fillColor = transparentize(0.7, fillColor);
     doStroke = false;
   } else if (activeAnalysis && activeVariant && point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
