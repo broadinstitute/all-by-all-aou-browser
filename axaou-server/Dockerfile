@@ -1,7 +1,7 @@
 # Multi-stage build for axaou-server
 #
 # Build stages:
-# 1. builder  - Compiles Rust binary (hail-decoder fetched from git)
+# 1. builder  - Compiles Rust binary (genohype-core fetched from git)
 # 2. assets   - Downloads pre-computed GCS assets (requires gcloud auth)
 # 3. runtime  - Final minimal image with binary + assets
 #
@@ -32,13 +32,7 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs
 # Build dependencies only (this layer will be cached)
 # Use git CLI for fetching (avoids SSH auth issues with cargo's native fetcher)
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
-# genohype-cli embeds dashboard assets via RustEmbed at compile time;
-# create the expected directory so the build succeeds (axaou-server doesn't serve the dashboard)
-RUN cargo fetch && \
-    CLI_DIR=$(find /usr/local/cargo/git/checkouts/genohype-* -maxdepth 2 -name "cli" -type d | head -1) && \
-    mkdir -p "$CLI_DIR/static/dist" && \
-    echo '<html></html>' > "$CLI_DIR/static/dist/index.html" && \
-    cargo build --release && rm -rf src target/release/deps/axaou_server*
+RUN cargo build --release && rm -rf src target/release/deps/axaou_server*
 
 # Copy the actual source code
 COPY src ./src

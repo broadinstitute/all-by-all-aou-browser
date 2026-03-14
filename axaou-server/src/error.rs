@@ -10,7 +10,7 @@ use serde_json::json;
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
     #[error("Hail Decoder Error: {0}")]
-    HailDecoder(#[from] hail_decoder::HailError),
+    HailDecoder(#[from] genohype_core::HailError),
 
     #[error("Failed to transform data: {0}")]
     DataTransformError(String),

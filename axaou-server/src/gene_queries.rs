@@ -11,8 +11,8 @@ use crate::models::{
     AnalysisAssetType, AnalysisAssets, AncestryGroup, GeneAssociationResponse,
     GeneAssociationResult, GeneQueryParams,
 };
-use hail_decoder::codec::EncodedValue;
-use hail_decoder::query::{KeyRange, KeyValue, QueryEngine};
+use genohype_core::codec::EncodedValue;
+use genohype_core::query::{KeyRange, KeyValue, QueryEngine};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

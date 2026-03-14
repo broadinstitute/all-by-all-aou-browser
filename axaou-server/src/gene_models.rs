@@ -8,8 +8,8 @@ use crate::clickhouse::models::GeneModelRow;
 use crate::error::AppError;
 use crate::models::{Exon, GeneModel, GnomadConstraint, ManeSelectTranscript, Transcript};
 use clickhouse::Client;
-use hail_decoder::codec::EncodedValue;
-use hail_decoder::query::QueryEngine;
+use genohype_core::codec::EncodedValue;
+use genohype_core::query::QueryEngine;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tracing::info;
@@ -45,9 +45,9 @@ impl GeneModelsQuery {
         })?;
 
         // Query with gene_id as the first key field
-        let key_ranges = vec![hail_decoder::query::KeyRange::point(
+        let key_ranges = vec![genohype_core::query::KeyRange::point(
             "gene_id".to_string(),
-            hail_decoder::query::KeyValue::String(gene_id.to_string()),
+            genohype_core::query::KeyValue::String(gene_id.to_string()),
         )];
 
         let mut results = Vec::new();

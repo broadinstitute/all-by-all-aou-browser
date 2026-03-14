@@ -26,7 +26,7 @@ pub struct AppState {
     /// ClickHouse client for variant queries
     pub clickhouse: clickhouse::Client,
     /// Hail Table client for slow-path queries (directly from GCS)
-    pub hail_client: hail_decoder::genomic::HailClient,
+    pub hail_client: genohype_core::genomic::HailClient,
     /// In-memory cache for Manhattan plot data and images
     pub plot_cache: moka::future::Cache<String, Vec<u8>>,
 }

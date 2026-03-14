@@ -5,8 +5,8 @@
 
 use crate::error::AppError;
 use crate::models::AnalysisMetadata;
-use hail_decoder::codec::EncodedValue;
-use hail_decoder::query::QueryEngine;
+use genohype_core::codec::EncodedValue;
+use genohype_core::query::QueryEngine;
 use tracing::info;
 
 /// GCS path to the v8/414k analysis metadata Hail Table

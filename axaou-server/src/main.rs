@@ -136,7 +136,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
                 .add_directive("axaou_server=info".parse()?)
-                .add_directive("hail_decoder=info".parse()?),
+                .add_directive("genohype_core=info".parse()?),
         )
         .init();
 
@@ -234,7 +234,7 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     let gene_queries = gene_queries::GeneQueryEngine::new(Arc::clone(&assets));
 
     // Create Hail client for slow-path queries (caches up to 50 open tables)
-    let hail_client = hail_decoder::genomic::HailClient::new(50);
+    let hail_client = genohype_core::genomic::HailClient::new(50);
 
     // Create in-memory cache for Manhattan plots (100MB max, ~1000 items)
     let plot_cache = moka::future::Cache::builder()
