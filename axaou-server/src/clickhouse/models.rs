@@ -651,6 +651,9 @@ pub struct PhenotypeSummaryRow {
     pub analysis_id: String,
     pub description: String,
     pub category: String,
+    pub trait_type: String,
+    pub pheno_sex: String,
+    pub lambda_gc_exome: Option<f64>,
     pub n_cases: i32,
     pub n_controls: i32,
     pub sig_variants_count: u32,
@@ -666,8 +669,15 @@ pub struct GeneSummaryRow {
     pub gene_id: String,
     pub gene_symbol: String,
     pub chrom: String,
+    pub start: i32,
+    pub xstart: i64,
+    pub gnomad_oe_lof: Option<f64>,
+    pub gnomad_pli: Option<f64>,
     pub sig_phenos_variant_count: u32,
     pub sig_phenos_burden_count: u32,
+    pub sig_phenos_burden_plof: u32,
+    pub sig_phenos_burden_missense: u32,
+    pub sig_phenos_burden_synonymous: u32,
 }
 
 /// Analysis metadata from the `analysis_metadata` table

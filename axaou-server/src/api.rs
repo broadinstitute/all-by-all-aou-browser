@@ -193,41 +193,31 @@ pub struct AnalysisCategory {
     pub pheno_count: usize,
 }
 
-/// Generate a deterministic color from a category name
-fn category_color(category: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+/// Tableau 20 palette — the industry standard for categorical data visualization.
+/// 10 pairs of base + lighter shade, designed for maximum perceptual distinctness.
+const TABLEAU_20: &[&str] = &[
+    "#4e79a7", // blue
+    "#f28e2b", // orange
+    "#e15759", // red
+    "#76b7b2", // teal
+    "#59a14f", // green
+    "#edc948", // yellow
+    "#b07aa1", // purple
+    "#ff9da7", // pink
+    "#9c755f", // brown
+    "#bab0ac", // grey
+    "#a0cbe8", // light blue
+    "#ffbe7d", // light orange
+    "#ff9888", // light red
+    "#8cd17d", // light green
+    "#b6992d", // dark yellow
+    "#d4a6c8", // light purple
+    "#86bcb6", // light teal
+    "#fabfd2", // light pink
+    "#d7b5a6", // light brown
+    "#79706e", // dark grey
+];
 
-    let mut hasher = DefaultHasher::new();
-    category.hash(&mut hasher);
-    let hash = hasher.finish();
-
-    // Generate a pleasing color by using HSL with fixed saturation/lightness
-    // Use the hash to determine the hue
-    let hue: f64 = (hash % 360) as f64;
-    let saturation: f64 = 0.65;
-    let lightness: f64 = 0.55;
-
-    // Convert HSL to RGB
-    let c: f64 = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
-    let x = c * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
-    let m = lightness - c / 2.0;
-
-    let (r, g, b) = match (hue / 60.0) as u32 {
-        0 => (c, x, 0.0),
-        1 => (x, c, 0.0),
-        2 => (0.0, c, x),
-        3 => (0.0, x, c),
-        4 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-
-    let r = ((r + m) * 255.0) as u8;
-    let g = ((g + m) * 255.0) as u8;
-    let b = ((b + m) * 255.0) as u8;
-
-    format!("#{:02X}{:02X}{:02X}", r, g, b)
-}
 
 /// Handler for GET /api/categories
 ///
@@ -256,7 +246,7 @@ pub async fn get_categories(
             analyses.dedup();
             let count = analyses.len();
             AnalysisCategory {
-                color: category_color(&category),
+                color: String::new(), // assigned below after sorting
                 phenocodes: analyses.clone(),
                 pheno_count: count,
                 analyses,
@@ -266,8 +256,11 @@ pub async fn get_categories(
         })
         .collect();
 
-    // Sort by category name
+    // Sort by category name, then assign colors sequentially for guaranteed uniqueness
     categories.sort_by(|a, b| a.category.cmp(&b.category));
+    for (i, cat) in categories.iter_mut().enumerate() {
+        cat.color = TABLEAU_20[i % TABLEAU_20.len()].to_string();
+    }
 
     Json(categories)
 }
