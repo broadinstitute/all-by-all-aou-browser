@@ -92,11 +92,11 @@ const ColumnHeaderBase = styled.div`
   font-weight: bold;
 
   &[aria-sort="ascending"] {
-    background-image: url("data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjI8Bya2wnINUMopZAQA7");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M6 0l6 6H0z' fill='%23888'/%3E%3C/svg%3E");
   }
 
   &[aria-sort="descending"] {
-    background-image: url("data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjB+gC+jP2ptn0WskLQA7");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 0h12L6 6z' fill='%23888'/%3E%3C/svg%3E");
   }
 
   &:focus-within {

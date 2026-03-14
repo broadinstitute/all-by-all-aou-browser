@@ -22,7 +22,7 @@ const openVariantInNewTab = (row: any) => {
   state.variantId = row.variant_id
   state.analysisId = row.top_phenotype
   state.resultIndex = 'variant-phewas'
-  state.resultLayout = 'half'
+  state.resultLayout = 'full'
   state.regionId = null
   if (row.gene_id) state.geneId = row.gene_id
   params.set('state', JSON.stringify(state))

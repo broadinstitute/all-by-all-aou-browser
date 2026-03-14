@@ -22,7 +22,7 @@ const TabContainer = styled.div`
   flex-direction: row;
   width: 100%;
   border-bottom: 2px solid var(--theme-border, #e0e0e0);
-  margin-bottom: 20px;
+  margin-bottom: 0;
 `
 
 const Tab = styled.button<{ $active: boolean }>`

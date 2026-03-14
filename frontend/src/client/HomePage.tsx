@@ -5,7 +5,7 @@ import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
 import { Page, Button, ExternalLink } from '@gnomad/ui'
 import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom } from './sharedState'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom } from './sharedState'
 import { datasetCounts } from './utils'
 import { Link } from 'react-router-dom'
 
@@ -111,6 +111,7 @@ export const defaultBrowseLink = {
 export default function HomePageComponent() {
   const setResultIndex = useSetRecoilState(resultIndexAtom);
   const setResultsLayout = useSetRecoilState(resultLayoutAtom);
+  const setTopResultsTab = useSetRecoilState(topResultsTabAtom);
 
   return (
     <HomePage>
@@ -129,7 +130,8 @@ export default function HomePageComponent() {
                   style={{ marginBottom: 20, marginTop: 0, fontSize: 16 }}
                   onClick={() => {
                     setResultIndex('top-associations');
-                    setResultsLayout('half');
+                    setResultsLayout('full');
+                    setTopResultsTab('all-phenotypes');
                   }}
                 >
                   Browse Results

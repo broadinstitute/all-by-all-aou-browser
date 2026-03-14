@@ -30,9 +30,6 @@ import {
 } from '../sharedState'
 import { AnalysisCategories, AnalysisMetadata, MissingVariantFieldsGenePage, VariantAnnotations, VariantAssociations, VariantJoined } from '../types'
 import {
-  AttributeCards,
-  AttributeList,
-  AttributeListItem,
   ColorMarker,
   DocumentTitle,
   HalfPage,
@@ -52,19 +49,113 @@ const Container = styled(HalfPage)`
 
 
 
-const VariantInfoStyles = styled.div`
-  .variant-info
-
-  display: flex;
-  flex-direction: column;
+const VariantInfoWrapper = styled.div`
   width: 100%;
-  min-width: 97%;
-  max-width: 97%;
+  margin-top: 4px;
+  margin-bottom: 12px;
+`;
+
+const CompactHeader = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  font-size: 14px;
+`;
+
+const InfoItem = styled.span`
+  color: ${(props) => props.theme.textMuted};
+
+  strong {
+    color: ${(props) => props.theme.text};
+    font-weight: 500;
+  }
+`;
+
+const DetailsToggle = styled.button`
+  background: none;
+  border: none;
+  color: var(--theme-primary, #262262);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const DetailsPanel = styled.div`
+  background: ${(props) => props.theme.surfaceAlt};
+  border: 1px solid ${(props) => props.theme.border};
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+`;
+
+const DetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 24px;
+`;
+
+const DetailItem = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+
+  .label {
+    color: ${(props) => props.theme.textMuted};
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+
+  .value {
+    color: ${(props) => props.theme.text};
+    font-weight: 500;
+    font-family: monospace;
+    font-size: 12px;
+  }
+`;
+
+const LinksRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid ${(props) => props.theme.border};
+`;
+
+const LinkChip = styled.a`
+  display: inline-flex;
   align-items: center;
-  height: 100%;
-  gap: 10px;
-  position: relative;
-  padding-top: 25px;
+  gap: 4px;
+  padding: 5px 10px;
+  background: ${(props) => props.theme.surface};
+  border: 1px solid ${(props) => props.theme.border};
+  border-radius: 16px;
+  color: var(--theme-primary, #262262);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e3f2fd;
+    border-color: var(--theme-primary, #262262);
+    text-decoration: none;
+  }
+
+  &::after {
+    content: '↗';
+    font-size: 10px;
+    opacity: 0.7;
+  }
 `;
 
 interface VariantInfoProps {
@@ -72,43 +163,106 @@ interface VariantInfoProps {
 }
 
 const VariantInfo: React.FC<VariantInfoProps> = ({ variantData }) => {
+  const [showDetails, setShowDetails] = React.useState(false);
+  const consequenceColor = getConsequenceColor(variantData.consequence);
+
   return (
-    <VariantInfoStyles>
-      <AttributeCards>
-        <AttributeList labelWidth={120}>
-          <h4> Variant info</h4>
-          <AttributeListItem label="Consequence">
-            {variantData.consequence}
-          </AttributeListItem>
-          {variantData.hgvsp && (
-            <AttributeListItem label="HGVSp">
-              {(variantData.hgvsp || '').split(':')[1]}
-            </AttributeListItem>
-          )}
-          <AttributeListItem label="HGVSc">
-            {(variantData.hgvsc || '').split(':')[1]}
-          </AttributeListItem>
-          <AttributeListItem label="Gene Symbol">
-            {variantData.gene_symbol}
-          </AttributeListItem>
-          <AttributeListItem label="Gene ID">
-            {variantData.gene_id}
-          </AttributeListItem>
-          <AttributeListItem label="Allele Count">
-            {variantData.allele_count}
-          </AttributeListItem>
-          <AttributeListItem label="Allele Frequency">
-            {variantData.allele_frequency}
-          </AttributeListItem>
-          <AttributeListItem label="PolyPhen">
-            {variantData.polyphen2}
-          </AttributeListItem>
-          <AttributeListItem label="Position">
-            {variantData.locus.position}
-          </AttributeListItem>
-        </AttributeList>
-      </AttributeCards>
-    </VariantInfoStyles>
+    <VariantInfoWrapper>
+      <CompactHeader>
+        <InfoItem><strong>{variantData.gene_symbol}</strong></InfoItem>
+        {variantData.consequence && (
+          <InfoItem style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+            <ColorMarker color={consequenceColor} style={{ position: 'relative', top: '1px' }} />
+            {variantData.consequence.replace(/_/g, ' ')}
+          </InfoItem>
+        )}
+        {variantData.hgvsp && (
+          <InfoItem style={{ fontFamily: 'monospace', fontSize: 13 }}>
+            {(variantData.hgvsp || '').split(':')[1]}
+          </InfoItem>
+        )}
+        <InfoItem>
+          {variantData.locus?.contig || ''}:{variantData.locus?.position?.toLocaleString()}
+        </InfoItem>
+        <DetailsToggle onClick={() => setShowDetails(!showDetails)}>
+          {showDetails ? 'Hide details' : 'More details'}
+        </DetailsToggle>
+      </CompactHeader>
+
+      {showDetails && (
+        <DetailsPanel>
+          <DetailsGrid>
+            {variantData.hgvsc && (
+              <DetailItem>
+                <span className="label">HGVSc</span>
+                <span className="value">{(variantData.hgvsc || '').split(':')[1]}</span>
+              </DetailItem>
+            )}
+            <DetailItem>
+              <span className="label">Gene ID</span>
+              <span className="value">{variantData.gene_id}</span>
+            </DetailItem>
+            <DetailItem>
+              <span className="label">AC / AN</span>
+              <span className="value">
+                {variantData.allele_count?.toLocaleString() ?? '—'} / {variantData.allele_number?.toLocaleString() ?? '—'}
+              </span>
+            </DetailItem>
+            <DetailItem>
+              <span className="label">Allele Freq</span>
+              <span className="value">
+                {variantData.allele_frequency != null
+                  ? Number(variantData.allele_frequency).toExponential(3)
+                  : '—'}
+              </span>
+            </DetailItem>
+            <DetailItem>
+              <span className="label">Hom Count</span>
+              <span className="value">{variantData.homozygote_count?.toLocaleString() ?? '—'}</span>
+            </DetailItem>
+            <DetailItem>
+              <span className="label">Ancestry</span>
+              <span className="value">{variantData.ancestry_group?.toUpperCase() || '—'}</span>
+            </DetailItem>
+            {variantData.polyphen2 && (
+              <DetailItem>
+                <span className="label">PolyPhen</span>
+                <span className="value">{variantData.polyphen2}</span>
+              </DetailItem>
+            )}
+            {variantData.lof && (
+              <DetailItem>
+                <span className="label">LOFTEE</span>
+                <span className="value">{variantData.lof}</span>
+              </DetailItem>
+            )}
+          </DetailsGrid>
+          <LinksRow>
+            <LinkChip
+              href={`https://gnomad.broadinstitute.org/variant/${variantData.variant_id}?dataset=gnomad_r4`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              gnomAD
+            </LinkChip>
+            <LinkChip
+              href={`https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&position=chr${variantData.locus?.contig}%3A${variantData.locus?.position}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              UCSC
+            </LinkChip>
+            <LinkChip
+              href={`https://databrowser.researchallofus.org/snvindel-variants/${variantData.gene_symbol}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              AoU Data Browser
+            </LinkChip>
+          </LinksRow>
+        </DetailsPanel>
+      )}
+    </VariantInfoWrapper>
   );
 };
 

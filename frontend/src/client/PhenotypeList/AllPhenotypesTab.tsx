@@ -28,19 +28,27 @@ const SearchInput = styled.input`
   border-radius: 4px;
   font-size: 13px;
   min-width: 250px;
+  background: var(--theme-surface, #fff);
+  color: var(--theme-text, #333);
   &:focus {
     outline: none;
-    border-color: #262262;
+    border-color: var(--theme-primary, #262262);
   }
 `
 
 const Select = styled.select`
-  padding: 6px 12px;
+  padding: 6px 28px 6px 12px;
   border: 1px solid var(--theme-border, #ddd);
   border-radius: 4px;
   font-size: 13px;
-  background: var(--theme-surface);
+  background-color: var(--theme-surface);
   color: var(--theme-text);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
 `
 
 interface PhenotypeSummaryRow {
@@ -126,7 +134,7 @@ const AllPhenotypesTab = () => {
       render: (row: PhenotypeSummaryRow) => (
         <span
           className="grid-cell-content"
-          style={{ cursor: 'pointer', fontWeight: 500, color: '#262262' }}
+          style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--theme-primary, #262262)' }}
           onClick={() => handleRowClick(row)}
         >
           {row.description}
@@ -201,7 +209,7 @@ const AllPhenotypesTab = () => {
 
   return (
     <Container>
-      <h3 className="app-section-title" style={{ marginTop: 20, marginBottom: 12 }}>
+      <h3 className="app-section-title" style={{ marginTop: 0, marginBottom: 12 }}>
         <strong>All Phenotypes Directory</strong>
       </h3>
       <ControlsRow>

@@ -123,7 +123,7 @@ const TopVariantsPhewas = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(inputValue)
-    }, 500)
+    }, 1500)
     return () => clearTimeout(timer)
   }, [inputValue])
 
@@ -255,7 +255,7 @@ const TopVariantsPhewas = () => {
     state.variantId = variant.variant_id
     state.analysisId = variant.top_phenotype
     state.resultIndex = 'variant-phewas'
-    state.resultLayout = 'half'
+    state.resultLayout = 'full'
     state.regionId = null
     if (variant.gene_id) state.geneId = variant.gene_id
     params.set('state', JSON.stringify(state))
@@ -265,8 +265,8 @@ const TopVariantsPhewas = () => {
   return (
     <Container>
       <DocumentTitle title={`Top Variants`} />
-      <h3 className="app-section-title" style={{ width: '100%', marginTop: 20 }}>
-        <strong>Top single variant associations across all by all dataset</strong>
+      <h3 className="app-section-title" style={{ width: '100%', marginTop: 0, marginBottom: 10 }}>
+        <strong>Top single variant associations across All by All dataset</strong>
       </h3>
       <ControlsRow>
         <FilterGroup>

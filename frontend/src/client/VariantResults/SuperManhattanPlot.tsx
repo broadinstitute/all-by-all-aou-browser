@@ -504,6 +504,7 @@ export const SuperManhattanPlot: React.FC<SuperManhattanPlotProps> = ({
       </PlotArea>
       <div style={{ marginLeft: 50 }}>
         {dimensions.width > 0 && <ChromosomeLabels width={dimensions.width} contig="all" />}
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--theme-text-muted, #666)', marginTop: 2 }}>Chromosome</div>
       </div>
       <LegendContainer>
         <span style={{ fontWeight: 500 }}>Pleiotropy:</span>

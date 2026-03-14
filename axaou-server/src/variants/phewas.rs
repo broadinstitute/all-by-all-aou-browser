@@ -28,11 +28,14 @@ pub async fn get_phewas_by_variant(
 
     let query = r#"
         SELECT phenotype, ancestry, sequencing_type, xpos, contig, position,
-               ref, alt, pvalue, beta, se, af
+               `ref`, alt, pvalue, beta, se, af
         FROM significant_variants
-        WHERE xpos = ? AND ref = ? AND alt = ?
+        WHERE xpos = ? AND `ref` = ? AND alt = ?
         ORDER BY pvalue ASC
     "#;
+
+    // Deduplicate by phenotype client-side, keeping lowest pvalue
+
 
     let rows = state
         .clickhouse
@@ -44,7 +47,21 @@ pub async fn get_phewas_by_variant(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    let api_rows: Vec<VariantAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
+    // Deduplicate by phenotype, keeping the row with the lowest pvalue
+    let mut seen = std::collections::HashMap::new();
+    for row in rows {
+        let api = row.to_api();
+        seen.entry(api.phenotype.clone())
+            .and_modify(|existing: &mut VariantAssociationApi| {
+                if api.pvalue < existing.pvalue {
+                    *existing = api.clone();
+                }
+            })
+            .or_insert(api);
+    }
+    let mut api_rows: Vec<VariantAssociationApi> = seen.into_values().collect();
+    api_rows.sort_by(|a, b| a.pvalue.partial_cmp(&b.pvalue).unwrap_or(std::cmp::Ordering::Equal));
+
     Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
 }
 

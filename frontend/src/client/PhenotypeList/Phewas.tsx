@@ -215,6 +215,14 @@ const Phewas = ({
   const [betaLabelOverrides, setBetaLabelOverrides] = useState<Record<string, {x: number, y: number}>>({})
   const [hasInitializedLabels, setHasInitializedLabels] = useState(false)
 
+  // Clear labels when the active analysis changes
+  React.useEffect(() => {
+    setLabeledPhenoIds(new Set())
+    setPvalLabelOverrides({})
+    setBetaLabelOverrides({})
+    setHasInitializedLabels(false)
+  }, [analysisId])
+
   // Generate unique row ID - for topHit mode, combine gene_id and analysis_id
   const getRowId = React.useCallback((row: any) => {
     if (phewasType === 'topHit' && row.gene_id) {

@@ -27,9 +27,11 @@ const SearchInput = styled.input`
   border-radius: 4px;
   font-size: 13px;
   min-width: 250px;
+  background: var(--theme-surface, #fff);
+  color: var(--theme-text, #333);
   &:focus {
     outline: none;
-    border-color: #262262;
+    border-color: var(--theme-primary, #262262);
   }
 `
 
@@ -39,6 +41,7 @@ interface GeneSummaryRow {
   chrom: string
   sig_phenos_variant_count: number
   sig_phenos_burden_count: number
+  sig_phenos_total: number
 }
 
 interface Data {
@@ -47,7 +50,7 @@ interface Data {
 
 const AllGenesTab = () => {
   const [searchText, setSearchText] = useState('')
-  const [sortKey, setSortKey] = useState('sig_phenos_variant_count')
+  const [sortKey, setSortKey] = useState('sig_phenos_total')
   const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>('descending')
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -61,7 +64,7 @@ const AllGenesTab = () => {
 
   const filteredData = useMemo(() => {
     if (!data) return []
-    let result = data
+    let result = data.map((r: any) => ({ ...r, sig_phenos_total: r.sig_phenos_variant_count + r.sig_phenos_burden_count })) as GeneSummaryRow[]
     if (searchText) {
       const q = searchText.toLowerCase()
       result = result.filter(
@@ -104,7 +107,7 @@ const AllGenesTab = () => {
       render: (row: GeneSummaryRow) => (
         <span
           className="grid-cell-content"
-          style={{ cursor: 'pointer', fontWeight: 500, color: '#262262' }}
+          style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--theme-primary, #262262)' }}
           onClick={() => handleRowClick(row)}
         >
           {row.gene_symbol}
@@ -119,6 +122,14 @@ const AllGenesTab = () => {
       minWidth: 100,
       grow: 0,
       render: (row: GeneSummaryRow) => `chr${row.chrom}`,
+    },
+    {
+      key: 'sig_phenos_total',
+      heading: 'Sig Phenotypes',
+      isSortable: true,
+      minWidth: 140,
+      grow: 0,
+      render: (row: GeneSummaryRow) => row.sig_phenos_total.toLocaleString(),
     },
     {
       key: 'sig_phenos_variant_count',
@@ -162,7 +173,7 @@ const AllGenesTab = () => {
 
   return (
     <Container>
-      <h3 className="app-section-title" style={{ marginTop: 20, marginBottom: 12 }}>
+      <h3 className="app-section-title" style={{ marginTop: 0, marginBottom: 12 }}>
         <strong>All Genes Directory</strong>
       </h3>
       <ControlsRow>

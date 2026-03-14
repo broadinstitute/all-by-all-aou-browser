@@ -21,6 +21,8 @@ import {
   regionIdAtom,
   resultIndexAtom,
   resultLayoutAtom,
+  selectedAnalyses as selectedAnalysesAtom,
+  showSelectAnalysesOnlyAtom,
 } from '../sharedState'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
@@ -45,10 +47,22 @@ const NoPhenotypes = styled.div`
 const InfoIconWrapper = styled.span`
   min-width: 20px;
   min-height: 10px;
+  cursor: pointer;
+  svg {
+    fill: var(--theme-text, #333);
+    transition: fill 0.15s;
+  }
+  &:hover svg {
+    fill: var(--theme-primary, #262262);
+  }
 `
 const InfoTooltipWrapper = styled.div`
   display: flex;
   flex-direction: column;
+  color: #fff;
+  h3 {
+    color: #fff;
+  }
 `
 const InfoTooltipItem = styled.div`
   margin-bottom: 5px;
@@ -551,10 +565,18 @@ export const getPhenotypeColumns = ({
       render: (row: GenePhewasAnnotated) => {
         const setResultIndex = useSetRecoilState(resultIndexAtom)
         const setAnalysisId = useSetRecoilState(analysisIdAtom)
+        const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
+        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
+        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
-          setResultIndex('variant-phewas')
+          setSelectedAnalyses([row.analysis_id])
+          setShowSelectOnly(false)
           setAnalysisId(row.analysis_id)
+          setResultIndex('variant-phewas')
+          if (resultLayout === 'full') {
+            setResultLayout('small')
+          }
         }
 
         return (

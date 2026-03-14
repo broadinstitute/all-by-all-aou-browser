@@ -194,7 +194,7 @@ const ResultsSubmenu = styled.div`
 
   a {
     color: white;
-    padding: 10px 16px;
+    padding: 14px 16px;
     text-decoration: none;
     display: block;
     font-size: 14px;
@@ -270,6 +270,8 @@ const PageHeading = () => {
               Results
             </PageHeadingRouterLink>
             <ResultsSubmenu className="results-submenu">
+              <a onClick={() => goToResults('all-phenotypes')}>All Phenotypes</a>
+              <a onClick={() => goToResults('all-genes')}>All Genes</a>
               <a onClick={() => goToResults('gene-burden')}>Gene Burden</a>
               <a onClick={() => goToResults('single-variants')}>Single Variants</a>
             </ResultsSubmenu>

@@ -133,7 +133,7 @@ const TopHitPhewasLayout = withSize()(
       <>
         <DocumentTitle title={`Top ${burdenSet} hits`} />
         <Titles>
-          <h3 className='app-section-title top-hit-phewas' style={{ width: '100%', marginTop: 20 }}>
+          <h3 className='app-section-title top-hit-phewas' style={{ width: '100%', marginTop: 0 }}>
             <strong>Top {burdenSet} gene burden associations</strong>
           </h3>
         </Titles>

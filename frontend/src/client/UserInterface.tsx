@@ -235,7 +235,7 @@ const SpinnerStyle = styled.div`
   }
 
   .loader {
-    color: black;
+    color: var(--theme-text, black);
     font-size: 90px;
     text-indent: -9999em;
     overflow: hidden;
@@ -393,7 +393,7 @@ export const Spinner: React.FC<{}> = () => {
 }
 
 export const RightArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <RightArrowIcon height={15} width={15} onClick={onClick} style={{ cursor: 'pointer' }} />
+  <RightArrowIcon height={15} width={15} onClick={onClick} style={{ cursor: 'pointer', fill: 'var(--theme-text, #333)' }} />
 );
 
 export const NoVariants = styled.div<{ height?: number | string; width?: number | string }>`
@@ -425,7 +425,7 @@ export const ShadedCell: React.FC<{
 }
 
 export const Link = styled(BaseLink)`
-  color: #3279b7;
+  color: var(--theme-primary, #3279b7);
 `
 
 const basePageHeadingLinkStyles = css`

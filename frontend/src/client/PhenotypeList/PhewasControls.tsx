@@ -326,11 +326,11 @@ const CategoryItem = styled.label<{ $selected: boolean }>`
   padding: 6px 8px;
   font-size: 13px;
   cursor: pointer;
-  background: ${(props) => (props.$selected ? 'rgba(25, 118, 210, 0.15)' : props.theme.surface)};
+  background: ${(props) => props.theme.surface};
   border-bottom: 1px solid ${(props) => props.theme.border};
 
   &:hover {
-    background: ${(props) => (props.$selected ? 'rgba(25, 118, 210, 0.25)' : props.theme.surfaceAlt)};
+    background: ${(props) => props.theme.surfaceAlt};
   }
 
   &:last-child {
