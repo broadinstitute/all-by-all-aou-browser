@@ -219,7 +219,13 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             onMouseEnter={(e) => handleMouseEnter(e, peakId, node)}
             onMouseMove={(e) => handleMouseMoveLabel(e, node)}
             onMouseLeave={handleMouseLeave}
-            onClick={() => !isDragging && !justDraggedRef.current && onPeakClick?.(node)}
+            onClick={() => {
+              if (isDragging || justDraggedRef.current) return;
+              // Clear hover/tooltip before navigating to avoid frozen tooltip
+              setHoveredPeakId(null);
+              onPeakHover?.(null);
+              onPeakClick?.(node);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               onPeakContextMenu?.(node, e.clientX, e.clientY);
