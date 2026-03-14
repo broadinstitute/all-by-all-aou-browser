@@ -7,7 +7,7 @@ import { useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
 import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, TopResultsTab, analysisIdAtom } from './sharedState'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, TopResultsTab } from './sharedState'
 import { useAppNavigation } from './hooks/useAppNavigation'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
@@ -213,8 +213,7 @@ const PageHeading = () => {
   const setResultIndex = useSetRecoilState(resultIndexAtom)
   const setResultsLayout = useSetRecoilState(resultLayoutAtom)
   const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
-  const { clearAll } = useAppNavigation()
+  const { clearAll, switchAnalysis } = useAppNavigation()
   const history = useHistory()
 
   const goToResults = (tab?: TopResultsTab) => {
@@ -222,7 +221,7 @@ const PageHeading = () => {
     setResultIndex('top-associations')
     setResultsLayout('full')
     clearAll()
-    setAnalysisId(null)
+    switchAnalysis(null)
     history.push('/app')
   }
 

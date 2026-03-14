@@ -12,14 +12,11 @@ import { modifyCategoryColor } from '../PhenotypeList/phenotypeUtils'
 import Phewas from '../PhenotypeList/Phewas'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
-  analysisIdAtom,
   ancestryGroupAtom,
   AncestryGroupCodes,
   burdenSetAtom,
-  geneIdAtom,
   hoveredAnalysisAtom,
   phewasOptsAtom,
-  regionIdAtom,
   resultLayoutAtom,
   selectedAnalyses,
   selectedAnalysesColorsSelector,
@@ -39,6 +36,7 @@ import {
 import { addVariantIdsToList, annotateWorstConsequence, genericMerge } from '../utils'
 import { getConsequenceColor } from '../VariantList/variantTableColumns'
 import { hoveredVariantAtom } from '../variantState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const Container = styled(HalfPage)`
   h3 {
@@ -271,7 +269,7 @@ const ConnectedVariantPhewas = ({ size }: any) => {
   const { width } = size
 
   const analyses = useRecoilValue(selectedAnalyses)
-  const [variantId, setVariantId] = useRecoilState(variantIdAtom)
+  const variantId = useRecoilValue(variantIdAtom)
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom)
   const toggleSelectedAnalysis = useToggleSelectedAnalysis()
   const resultLayout = useRecoilValue(resultLayoutAtom)
@@ -282,9 +280,7 @@ const ConnectedVariantPhewas = ({ size }: any) => {
   const sequencingType = useRecoilValue(sequencingTypeAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
-  const setGeneId = useSetRecoilState(geneIdAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
+  const { switchAnalysis, goToVariant } = useAppNavigation()
 
   interface Data {
     variantAssociations: VariantAssociations[]
@@ -454,10 +450,8 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     showSelectAnalysesOnly,
   })
   const onPointClick = (phenotype: any) => {
-    setGeneId(variantData.gene_id)
-    setAnalysisId(phenotype.analysis_id)
-    setVariantId(variantId)
-    setRegionId(null)
+    switchAnalysis(phenotype.analysis_id)
+    goToVariant(variantId, { geneId: variantData.gene_id, regionId: null })
   }
 
   const onHoverAnalysis = (analysisId: string) => {

@@ -337,11 +337,11 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const [sortState, setSortState] = useRecoilState(sortStateAtom)
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
   const gwasCatalogOption = useRecoilValue(gwasCatalogOptionsAtom)
-  const [regionId, setRegionId] = useRecoilState(regionIdAtom)
+  const regionId = useRecoilValue(regionIdAtom)
   const [activeTab, setActiveTab] = useState<TableTab>('geneBurden')
   const locusMaf = useRecoilValue(locusMafAtom)
-  const [geneId, setGeneId] = useRecoilState(geneIdAtom)
-  const { goToGene } = useAppNavigation()
+  const geneId = useRecoilValue(geneIdAtom)
+  const { goToGene, goToLocus } = useAppNavigation()
 
   const regionViewerWidth = width
   const geneModel = !regionId ? geneModels[0] : undefined
@@ -472,7 +472,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
               onClick={() => {
                 if (geneModel) {
                   const newRegionId = `${geneModel.chrom}-${geneModel.start - 200000}-${geneModel.stop + 200000}`
-                  setRegionId(newRegionId)
+                  goToLocus(newRegionId, { geneId: geneId || undefined, fromPhenotype: true })
                 }
               }}
             >

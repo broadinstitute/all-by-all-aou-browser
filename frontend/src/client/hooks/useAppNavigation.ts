@@ -67,6 +67,14 @@ export function useAppNavigation() {
     openDetailPane();
   }, [setRegionId, setVariantId, setGeneId, setAnalysisId, setResultIndex, openDetailPane]);
 
+  const switchAnalysis = useCallback((analysisId: string | null) => {
+    setAnalysisId(analysisId);
+  }, [setAnalysisId]);
+
+  const clearVariant = useCallback(() => {
+    setVariantId(null);
+  }, [setVariantId]);
+
   const clearAll = useCallback(() => {
     setGeneId(null);
     setRegionId(null);
@@ -104,6 +112,8 @@ export function useAppNavigation() {
     goToVariant,
     goToPhenotype,
     goToLocus,
+    switchAnalysis,
+    clearVariant,
     clearAll,
     openInNewTab,
     openDetailPane,

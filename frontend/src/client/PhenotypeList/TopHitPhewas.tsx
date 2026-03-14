@@ -25,7 +25,6 @@ import {
   burdenSetAtom,
   resultLayoutAtom,
   phewasOptsAtom,
-  analysisIdAtom,
 } from '../sharedState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { useAppNavigation } from '../hooks/useAppNavigation'
@@ -159,8 +158,7 @@ const TopHitPhewas: React.FC<Props> = () => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
 
-  const { goToGene } = useAppNavigation()
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const { goToGene, switchAnalysis } = useAppNavigation()
 
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -217,8 +215,8 @@ const TopHitPhewas: React.FC<Props> = () => {
     );
 
   const onPointClick = ({ gene_id, analysis_id }: GenePhewasAnnotated) => {
+    switchAnalysis(analysis_id)
     goToGene(gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
-    setAnalysisId(analysis_id)
   }
 
   const categoriesPrepared = categories.data.map(modifyCategoryColor)

@@ -46,6 +46,7 @@ import {
   LoadedAnalysis,
 } from '../types'
 import { filterValidAnalyses, getAvailableAnalysisIds, processGeneBurden } from '../utils'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { GeneInfo } from './GeneInfo'
 
 const hasGeneAssociationPvalues = (phenotype: GenePhewasDataItem & AnalysisMetadata): boolean => {
@@ -186,7 +187,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
   const geneId = useRecoilValue(geneIdAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const { switchAnalysis } = useAppNavigation()
   const setMafSignificance = useSetRecoilState(mafSignificanceAtom)
   const setBurdenTestSignificance = useSetRecoilState(burdenTestSignificanceAtom)
 
@@ -345,7 +346,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
 
 
   const onPointClick = ({ analysis_id }: GenePhewasDataItem) => {
-    setAnalysisId(analysis_id)
+    switchAnalysis(analysis_id)
   }
 
   return (

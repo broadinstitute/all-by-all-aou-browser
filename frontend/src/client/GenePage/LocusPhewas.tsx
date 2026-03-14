@@ -12,7 +12,6 @@ import { modifyCategoryColor } from '../PhenotypeList/phenotypeUtils'
 import Phewas from '../PhenotypeList/Phewas'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
-  analysisIdAtom,
   ancestryGroupAtom,
   AncestryGroupCodes,
   burdenSetAtom,
@@ -29,6 +28,7 @@ import {
   variantIdAtom,
 } from '../sharedState'
 import { AnalysisCategories, AnalysisMetadata, VariantAssociations } from '../types'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import {
   DocumentTitle,
   HalfPage,
@@ -61,7 +61,7 @@ const LocusPhewasData = ({ size }: any) => {
   const sequencingType = useRecoilValue(sequencingTypeAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const { switchAnalysis } = useAppNavigation()
 
   interface Data {
     variantAssociations: VariantAssociations[]
@@ -190,7 +190,7 @@ const LocusPhewasData = ({ size }: any) => {
     showSelectAnalysesOnly,
   })
   const onPointClick = (phewasItem: VariantAssociations & AnalysisMetadata) => {
-    setAnalysisId(phewasItem.analysis_id)
+    switchAnalysis(phewasItem.analysis_id)
   }
 
   const onHoverAnalysis = (analysisId: string) => {

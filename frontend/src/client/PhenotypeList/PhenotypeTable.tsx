@@ -16,8 +16,6 @@ import {
 } from './Utils'
 import { AnalysisMetadata, GenePhewasAnnotated, VariantAssociations } from '../types'
 import {
-  analysisIdAtom,
-  geneIdAtom,
   resultIndexAtom,
   selectedAnalyses as selectedAnalysesAtom,
   showSelectAnalysesOnlyAtom,
@@ -125,8 +123,7 @@ const InfoTooltip = ({ rowData }: { rowData: GenePhewasAnnotated }) => {
 const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
   const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
   const navigate = useContextMenuNavigation();
-  const { goToPhenotype } = useAppNavigation();
-  const setGeneId = useSetRecoilState(geneIdAtom);
+  const { goToPhenotype, goToGene } = useAppNavigation();
   const resultIndex = useRecoilValue(resultIndexAtom);
 
   return (
@@ -137,7 +134,7 @@ const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
         onClick={() => {
           goToPhenotype(row.analysis_id, { resultIndex: 'pheno-info' })
           if (resultIndex == "top-associations") {
-            setGeneId(row.gene_id)
+            goToGene(row.gene_id, { fromPhenotype: true })
           }
         }}
         onContextMenu={(e) => {
@@ -433,16 +430,15 @@ export const getPhenotypeColumns = ({
       grow: 0,
       minWidth: 70,
       render: (row: GenePhewasAnnotated) => {
-        const { goToGene } = useAppNavigation()
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
+        const { goToGene, switchAnalysis } = useAppNavigation()
 
         return (
           <Link
             style={{ cursor: 'pointer' }}
             className='grid-cell-content'
             onClick={() => {
+              switchAnalysis(row.analysis_id)
               goToGene(row.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
-              setAnalysisId(row.analysis_id)
             }}
           >
             {row.gene_symbol || row.gene_id}
@@ -579,10 +575,10 @@ export const getPhenotypeColumns = ({
       minWidth: 80,
       grow: 0,
       render: (row: VariantAssociations & AnalysisMetadata) => {
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
+        const { switchAnalysis } = useAppNavigation()
 
         const handleClick = () => {
-          setAnalysisId(row.analysis_id)
+          switchAnalysis(row.analysis_id)
         }
 
         return (
@@ -601,12 +597,11 @@ export const getPhenotypeColumns = ({
       minWidth: 50,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
-        const { goToGene } = useAppNavigation()
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
+        const { goToGene, switchAnalysis } = useAppNavigation()
 
         const handleClick = () => {
+          switchAnalysis(row.analysis_id)
           goToGene(row.gene_id, { fromPhenotype: true })
-          setAnalysisId(row.analysis_id)
         }
 
         return (

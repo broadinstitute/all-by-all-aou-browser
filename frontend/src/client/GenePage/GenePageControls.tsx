@@ -47,6 +47,7 @@ import {
 } from '../PhenotypeList/Utils'
 import { getAlleleFrequencyScale, consequenceCategoryColors } from './LocusPagePlots'
 import { ancestryGroupAtom, regionIdAtom, variantIdAtom, locusMafAtom, MafOption, hideGeneOptsAtom, mafSignificanceAtom, AnnotationCategory } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const TooltipHint = styled(TooltipHintBase)`
   background-image: none;
@@ -797,14 +798,14 @@ const IndividualFieldCheckboxes: React.FC = () => {
 
 const UnselectVariant: React.FC = () => {
   const setVariantSearchText = useSetRecoilState(variantSearchTextAtom)
-  const setVariantId = useSetRecoilState(variantIdAtom)
+  const { clearVariant } = useAppNavigation()
 
   return (
     <Button
       style={{ backgroundColor: 'var(--theme-primary)', color: 'white', fontWeight: 'bold', width: '100%' }}
       onClick={() => {
         setVariantSearchText('')
-        setVariantId(null)
+        clearVariant()
       }}
     >
       Clear Selected Variant
