@@ -25,6 +25,8 @@ export interface LocusGeneContextMenuProps {
   locus?: {
     contig: string;
     position: number;
+    start?: number;
+    stop?: number;
   };
   /** Single gene info (for backwards compatibility) */
   gene?: ContextMenuGene;
@@ -33,7 +35,7 @@ export interface LocusGeneContextMenuProps {
   /** Callback to close the menu */
   onClose: () => void;
   /** Optional callback when navigating to locus in same tab */
-  onLocusClick?: (contig: string, position: number) => void;
+  onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
   /** Optional current phenotype description for contextual Manhattan view */
   currentPhenotypeDescription?: string;
 }
@@ -136,7 +138,9 @@ export const LocusGeneContextMenu: React.FC<LocusGeneContextMenuProps> = ({
 
   // Add locus section if provided
   if (locus) {
-    const locusId = `${locus.contig}-${Math.max(0, locus.position - 500000)}-${locus.position + 500000}`;
+    const locusStart = locus.start ?? Math.max(0, locus.position - 500000);
+    const locusStop = locus.stop ?? (locus.position + 500000);
+    const locusId = `${locus.contig}-${locusStart}-${locusStop}`;
     sections.push({
       label: `Locus: ${locus.contig}:${locus.position.toLocaleString()}`,
       targets: [

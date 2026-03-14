@@ -92,6 +92,9 @@ function unifiedLociToPeaks(loci: UnifiedLocus[]): Peak[] {
     }));
 
     return {
+      locus_id: locus.locus_id,
+      start: locus.start,
+      stop: locus.stop,
       contig: locus.contig,
       position: locus.position,
       pvalue: bestPvalue === Infinity ? 1 : bestPvalue,
@@ -149,7 +152,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    locus?: { contig: string; position: number };
+    locus?: { contig: string; position: number; start?: number; stop?: number };
     gene?: { geneId: string; geneSymbol: string };
     genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
   } | null>(null);
@@ -475,7 +478,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                   setContextMenu({
                     x: clientX,
                     y: clientY,
-                    locus: { contig: node.peak.contig, position: node.peak.position },
+                    locus: { contig: node.peak.contig, position: node.peak.position, start: node.peak.start, stop: node.peak.stop },
                     genes: node.implicatedGenes.map((g) => ({
                       geneId: g.geneId,
                       geneSymbol: g.geneSymbol,

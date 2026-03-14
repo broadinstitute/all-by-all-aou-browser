@@ -237,7 +237,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
     if (hit.hit_type === 'gene' && hit.id) {
       goToGene(hit.id, { fromPhenotype: true });
     } else if (hit.hit_type === 'variant' && hit.contig && hit.position) {
-      const windowSize = 500000; // ±500kb
+      const windowSize = 500000; // fallback ±500kb
       const regionId = `${hit.contig}-${Math.max(0, hit.position - windowSize)}-${hit.position + windowSize}`;
       goToVariant(hit.id, { regionId });
     }
@@ -245,15 +245,19 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
 
   const handlePeakClick = (node: any) => {
     if (node.peak) {
-      const windowSize = 500000; // ±500kb
-      const regionId = `${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`;
+      const windowSize = 500000; // fallback ±500kb
+      const start = node.peak.start ?? Math.max(0, node.peak.position - windowSize);
+      const stop = node.peak.stop ?? (node.peak.position + windowSize);
+      const regionId = `${node.peak.contig}-${start}-${stop}`;
       goToRegion(regionId, { fromPhenotype: true });
     }
   };
 
-  const handleOverviewLocusClick = (contig: string, position: number) => {
-    const windowSize = 500000; // ±500kb
-    const regionId = `${contig}-${Math.max(0, position - windowSize)}-${position + windowSize}`;
+  const handleOverviewLocusClick = (contig: string, position: number, start?: number, stop?: number) => {
+    const windowSize = 500000; // fallback ±500kb
+    const regionStart = start ?? Math.max(0, position - windowSize);
+    const regionStop = stop ?? (position + windowSize);
+    const regionId = `${contig}-${regionStart}-${regionStop}`;
     goToRegion(regionId, { fromPhenotype: true });
   };
 

@@ -39,7 +39,7 @@ export interface ManhattanViewerProps {
   /** Callback when a chromosome is clicked (for zoom navigation) */
   onContigClick?: (contig: string) => void;
   /** Callback when a locus is clicked (for split-screen navigation) */
-  onLocusClick?: (contig: string, position: number) => void;
+  onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
   /** Optional draggable inset render function — receives container (width, height) */
@@ -169,7 +169,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    locus?: { contig: string; position: number };
+    locus?: { contig: string; position: number; start?: number; stop?: number };
     gene?: { geneId: string; geneSymbol: string };
     genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
   } | null>(null);
@@ -513,7 +513,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   setContextMenu({
                     x: clientX,
                     y: clientY,
-                    locus: { contig: node.peak.contig, position: node.peak.position },
+                    locus: { contig: node.peak.contig, position: node.peak.position, start: node.peak.start, stop: node.peak.stop },
                     genes: node.implicatedGenes.map((g) => ({
                       geneId: g.geneId,
                       geneSymbol: g.geneSymbol,
@@ -793,13 +793,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                           />
                         </td>
                         <td
-                          onClick={() => onLocusClick?.(peak.contig, peak.position)}
+                          onClick={() => onLocusClick?.(peak.contig, peak.position, peak.start, peak.stop)}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             setContextMenu({
                               x: e.clientX,
                               y: e.clientY,
-                              locus: { contig: peak.contig, position: peak.position },
+                              locus: { contig: peak.contig, position: peak.position, start: peak.start, stop: peak.stop },
                             });
                           }}
                           style={{ cursor: 'pointer' }}
@@ -838,7 +838,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                     setContextMenu({
                                       x: e.clientX,
                                       y: e.clientY,
-                                      locus: { contig: peak.contig, position: peak.position },
+                                      locus: { contig: peak.contig, position: peak.position, start: peak.start, stop: peak.stop },
                                       gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                                     });
                                   }}
@@ -883,7 +883,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                       setContextMenu({
                                         x: e.clientX,
                                         y: e.clientY,
-                                        locus: { contig: peak.contig, position: peak.position },
+                                        locus: { contig: peak.contig, position: peak.position, start: peak.start, stop: peak.stop },
                                         gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                                       });
                                     }}

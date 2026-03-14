@@ -11,7 +11,7 @@ export interface UnifiedLocusTableProps {
   /** Unified loci from the overview API */
   unifiedLoci: UnifiedLocus[];
   /** Callback when a locus is clicked (for zoom navigation) */
-  onLocusClick?: (contig: string, position: number) => void;
+  onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
   /** Set of selected peak IDs for custom labeling */
@@ -89,7 +89,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    locus?: { contig: string; position: number };
+    locus?: { contig: string; position: number; start?: number; stop?: number };
     gene?: { geneId: string; geneSymbol: string };
   } | null>(null);
 
@@ -333,13 +333,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   />
                 </td>
                 <td
-                  onClick={() => onLocusClick?.(locus.contig, locus.position)}
+                  onClick={() => onLocusClick?.(locus.contig, locus.position, locus.start, locus.stop)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setContextMenu({
                       x: e.clientX,
                       y: e.clientY,
-                      locus: { contig: locus.contig, position: locus.position },
+                      locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
                     });
                   }}
                   style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
@@ -393,7 +393,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                             setContextMenu({
                               x: e.clientX,
                               y: e.clientY,
-                              locus: { contig: locus.contig, position: locus.position },
+                              locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
                               gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                             });
                           }}
@@ -442,7 +442,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                               setContextMenu({
                                 x: e.clientX,
                                 y: e.clientY,
-                                locus: { contig: locus.contig, position: locus.position },
+                                locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
                                 gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                               });
                             }}

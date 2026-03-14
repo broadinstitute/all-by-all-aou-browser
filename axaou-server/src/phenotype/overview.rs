@@ -52,6 +52,9 @@ pub struct UnifiedGene {
 /// A unified locus combining evidence from genome, exome, and burden tests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedLocus {
+    pub locus_id: String,
+    pub start: i32,
+    pub stop: i32,
     pub contig: String,
     pub position: i32,
     /// Best p-value from genome GWAS
@@ -88,11 +91,6 @@ struct SignificantBurdenRow {
     pub pvalue_skat: Option<f64>,
 }
 
-/// Generate locus key from contig and position (1Mb bin)
-fn locus_key(contig: &str, position: i32) -> String {
-    format!("{}-{}", contig, position / 1_000_000)
-}
-
 /// Convert Peak to UnifiedLocus with genome evidence
 fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
     let genes = peak
@@ -124,6 +122,9 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
         .collect();
 
     UnifiedLocus {
+        locus_id: peak.locus_id.clone(),
+        start: peak.start,
+        stop: peak.stop,
         contig: peak.contig.clone(),
         position: peak.position,
         pvalue_genome: if source == "genome" {
@@ -197,7 +198,7 @@ pub async fn get_phenotype_overview(
     let data_version = params.v.as_deref().unwrap_or("");
 
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-{}-overview", analysis_id, ancestry, data_version);
+    let cache_key = format!("{}-{}-{}-overview-v2", analysis_id, ancestry, data_version);
 
     // Check cache first
     if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
@@ -266,13 +267,13 @@ pub async fn get_phenotype_overview(
 
     // Add genome peaks
     for peak in &genome_peaks {
-        let key = locus_key(&peak.contig, peak.position);
+        let key = peak.locus_id.clone();
         loci_map.insert(key, peak_to_unified_locus(peak, "genome"));
     }
 
     // Merge exome peaks
     for peak in &exome_peaks {
-        let key = locus_key(&peak.contig, peak.position);
+        let key = peak.locus_id.clone();
         if let Some(existing) = loci_map.get_mut(&key) {
             // Update exome p-value if lower (or if genome didn't have one)
             if existing.pvalue_exome.is_none()
@@ -299,7 +300,7 @@ pub async fn get_phenotype_overview(
 
     for (gene_id, rows) in gene_burden_map {
         let first_row = rows[0];
-        let key = locus_key(&first_row.contig, first_row.gene_start_position);
+        let key = format!("burden-{}", gene_id);
 
         // Build burden results for this gene
         let burden_results: Vec<BurdenResult> = rows
@@ -338,8 +339,11 @@ pub async fn get_phenotype_overview(
         } else {
             // Create new locus from burden hit
             loci_map.insert(
-                key,
+                key.clone(),
                 UnifiedLocus {
+                    locus_id: key,
+                    start: first_row.gene_start_position,
+                    stop: first_row.gene_start_position,
                     contig: first_row.contig.clone(),
                     position: first_row.gene_start_position,
                     pvalue_genome: None,

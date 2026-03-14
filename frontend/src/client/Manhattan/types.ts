@@ -92,6 +92,12 @@ export interface GeneInLocus {
  * A GWAS peak with nearby genes.
  */
 export interface Peak {
+  /** Unique locus identifier */
+  locus_id: string;
+  /** Locus start position */
+  start: number;
+  /** Locus stop position */
+  stop: number;
   /** Chromosome (e.g., "chr3", "chr19") */
   contig: string;
   /** Genomic position of top variant in peak */
@@ -153,6 +159,12 @@ export interface UnifiedGene {
  * A unified locus combining evidence from genome, exome, and burden tests.
  */
 export interface UnifiedLocus {
+  /** Unique locus identifier */
+  locus_id: string;
+  /** Locus start position */
+  start: number;
+  /** Locus stop position */
+  stop: number;
   contig: string;
   position: number;
   /** Best p-value from genome GWAS */

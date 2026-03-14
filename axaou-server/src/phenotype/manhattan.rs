@@ -72,6 +72,9 @@ struct SignificantGeneRow {
 /// Peak gene row from ClickHouse for peak annotations
 #[derive(Debug, Clone, Deserialize, Row)]
 struct PeakGeneRow {
+    pub locus_id: String,
+    pub start: i32,
+    pub stop: i32,
     pub contig: String,
     pub peak_position: i32,
     pub peak_pvalue: f64,
@@ -145,6 +148,9 @@ pub struct GeneInLocus {
 /// A GWAS peak with nearby genes
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Peak {
+    pub locus_id: String,
+    pub start: i32,
+    pub stop: i32,
     pub contig: String,
     pub position: i32,
     pub pvalue: f64,
@@ -395,82 +401,50 @@ pub(crate) async fn fetch_peak_annotations(
         String::new()
     };
 
-    // Complex CTE query to aggregate peaks and annotate with nearby genes
-    // Uses loci_variants with is_significant filter since significant_variants may be empty
+    // Query precomputed loci table directly, then annotate with nearby genes and coding variants
     let query = format!(
         r#"
-        WITH peak_variants AS (
+        WITH peaks AS (
             SELECT
-                CASE intDiv(lv.xpos, 1000000000)
-                    WHEN 23 THEN 'chrX'
-                    WHEN 24 THEN 'chrY'
-                    WHEN 25 THEN 'chrM'
-                    ELSE concat('chr', toString(intDiv(lv.xpos, 1000000000)))
-                END as contig,
-                lv.position,
-                lv.pvalue,
-                ann.gene_symbol,
-                ann.consequence
-            FROM loci_variants lv
-            LEFT JOIN (
-                SELECT xpos, ref, alt, gene_symbol, consequence
-                FROM {annotation_table}
-                WHERE xpos IN (SELECT xpos FROM loci_variants WHERE phenotype = ? AND is_significant = true)
-            ) ann ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
-            WHERE lv.phenotype = ?
-              AND lv.ancestry = ?
-              AND lv.sequencing_type = ?
-              AND lv.is_significant = true
-              {xpos_filter}
-        ),
-        -- Cluster peaks into 1Mb bins, take top variant per bin
-        peaks AS (
-            SELECT
-                contig,
-                argMin(position, pvalue) as peak_position,
-                min(pvalue) as peak_pvalue
-            FROM peak_variants
-            GROUP BY contig, intDiv(position, 1000000)
+                locus_id, contig, start, stop,
+                toInt32OrZero(splitByChar(':', lead_variant)[2]) as peak_position,
+                lead_pvalue as peak_pvalue
+            FROM loci
+            WHERE phenotype = ? AND ancestry = ?
+              AND (source = 'both' OR source = ?)
             ORDER BY peak_pvalue ASC
             LIMIT ?
         ),
-        -- Get genes within 200kb of each peak (named genes only)
         locus_genes AS (
             SELECT
-                p.contig,
-                p.peak_position,
-                p.peak_pvalue,
-                gm.gene_id,
-                gm.symbol as gene_symbol,
+                p.locus_id, p.start, p.stop, p.contig, p.peak_position, p.peak_pvalue,
+                gm.gene_id, gm.symbol as gene_symbol,
                 abs(p.peak_position - (gm.start + gm.stop) / 2) as distance_to_peak
             FROM peaks p
             JOIN gene_models gm
                 ON gm.chrom = substring(p.contig, 4)
                 AND gm.start < p.peak_position + 200000
                 AND gm.stop > p.peak_position - 200000
-            WHERE gm.symbol != ''
-              AND gm.symbol NOT LIKE 'ENSG%'
+            WHERE gm.symbol != '' AND gm.symbol NOT LIKE 'ENSG%'
         ),
-        -- Count coding variants per gene at each peak, broken down by consequence
         coding_variants AS (
             SELECT
-                pv.contig,
-                intDiv(pv.position, 1000000) as bin,
-                pv.gene_symbol,
+                lv.locus_id,
+                ann.gene_symbol,
                 count(*) as coding_count,
-                countIf(pv.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost')) as lof_count,
-                countIf(pv.consequence = 'missense_variant') as missense_count,
-                countIf(pv.consequence = 'synonymous_variant') as synonymous_count
-            FROM peak_variants pv
-            WHERE pv.gene_symbol IS NOT NULL
-            GROUP BY pv.contig, bin, pv.gene_symbol
+                countIf(ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost')) as lof_count,
+                countIf(ann.consequence = 'missense_variant') as missense_count,
+                countIf(ann.consequence = 'synonymous_variant') as synonymous_count
+            FROM loci_variants lv
+            JOIN {annotation_table} ann
+                ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
+            WHERE lv.phenotype = ? AND lv.ancestry = ? AND lv.sequencing_type = ? AND lv.is_significant = true
+              {xpos_filter}
+            GROUP BY lv.locus_id, ann.gene_symbol
         )
         SELECT
-            lg.contig,
-            lg.peak_position,
-            lg.peak_pvalue,
-            lg.gene_symbol,
-            lg.gene_id,
+            lg.locus_id, lg.start, lg.stop, lg.contig, lg.peak_position, lg.peak_pvalue,
+            lg.gene_symbol, lg.gene_id,
             round(lg.distance_to_peak / 1000, 1) as distance_kb,
             toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
             toUInt32(coalesce(cv.lof_count, 0)) as lof_count,
@@ -478,9 +452,7 @@ pub(crate) async fn fetch_peak_annotations(
             toUInt32(coalesce(cv.synonymous_count, 0)) as synonymous_count
         FROM locus_genes lg
         LEFT JOIN coding_variants cv
-            ON cv.contig = lg.contig
-            AND cv.bin = intDiv(lg.peak_position, 1000000)
-            AND cv.gene_symbol = lg.gene_symbol
+            ON cv.locus_id = lg.locus_id AND cv.gene_symbol = lg.gene_symbol
         ORDER BY lg.peak_pvalue ASC, lg.distance_to_peak ASC
         "#,
         annotation_table = annotation_table,
@@ -490,11 +462,13 @@ pub(crate) async fn fetch_peak_annotations(
     let rows: Vec<PeakGeneRow> = state
         .clickhouse
         .query(&query)
-        .bind(analysis_id) // for annotation subquery
-        .bind(analysis_id) // for peak_variants
-        .bind(ancestry)
-        .bind(sequencing_type)
-        .bind(limit)
+        .bind(analysis_id) // peaks: phenotype
+        .bind(ancestry)    // peaks: ancestry
+        .bind(sequencing_type) // peaks: source
+        .bind(limit)       // peaks: limit
+        .bind(analysis_id) // coding_variants: phenotype
+        .bind(ancestry)    // coding_variants: ancestry
+        .bind(sequencing_type) // coding_variants: sequencing_type
         .fetch_all()
         .await
         .map_err(|e| AppError::DataTransformError(format!("Peak annotation query error: {}", e)))?;
@@ -563,19 +537,19 @@ pub(crate) async fn fetch_peak_annotations(
         std::collections::HashMap::new()
     };
 
-    // Group rows by (contig, peak_position) into Peak structs
+    // Group rows by locus_id into Peak structs
     let mut peaks: Vec<Peak> = Vec::new();
     let mut current_peak: Option<Peak> = None;
 
     for row in rows {
-        let key = (row.contig.clone(), row.peak_position);
+        let key = row.locus_id.clone();
         let burden_results = burden_map.get(&row.gene_id).cloned().unwrap_or_default();
 
         // Helper to convert 0 to None for cleaner JSON
         let opt_count = |c: u32| if c > 0 { Some(c) } else { None };
 
         match &mut current_peak {
-            Some(peak) if peak.contig == key.0 && peak.position == key.1 => {
+            Some(peak) if peak.locus_id == key => {
                 // Add gene to existing peak
                 peak.genes.push(GeneInLocus {
                     gene_symbol: row.gene_symbol,
@@ -600,6 +574,9 @@ pub(crate) async fn fetch_peak_annotations(
                     Some(-row.peak_pvalue.log10())
                 };
                 current_peak = Some(Peak {
+                    locus_id: row.locus_id,
+                    start: row.start,
+                    stop: row.stop,
                     contig: row.contig,
                     position: row.peak_position,
                     pvalue: row.peak_pvalue,
@@ -645,7 +622,7 @@ pub async fn get_manhattan_overlay(
     let data_version = params.v.as_deref().unwrap_or("");
 
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-{}-{}-{}-overlay", analysis_id, ancestry, plot_type, contig, data_version);
+    let cache_key = format!("{}-{}-{}-{}-{}-overlay-v2", analysis_id, ancestry, plot_type, contig, data_version);
 
     // Check cache first
     if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
@@ -821,7 +798,7 @@ async fn get_gene_manhattan_overlay(
     data_version: &str,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay", analysis_id, ancestry, contig, data_version);
+    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay-v2", analysis_id, ancestry, contig, data_version);
 
     // Check cache first
     if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
@@ -921,6 +898,9 @@ async fn get_gene_manhattan_overlay(
             }
 
             Peak {
+                locus_id: format!("burden-{}", hit.id),
+                start: hit.position,
+                stop: hit.position,
                 contig: hit.contig.clone(),
                 position: hit.position,
                 pvalue: hit.pvalue,

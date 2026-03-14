@@ -21,7 +21,7 @@ const Y_AXIS_WIDTH = 50;
 export interface OverviewPlotContainerProps {
   analysisId: string;
   /** Callback when a locus is clicked (for zoom navigation) */
-  onLocusClick?: (contig: string, position: number) => void;
+  onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
 }
 
 /**
@@ -162,15 +162,15 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
       // 3. Fall back to locus view
       if (onLocusClick) {
-        onLocusClick(peak.contig, peak.position);
+        onLocusClick(peak.contig, peak.position, peak.start, peak.stop);
       }
     },
     [onLocusClick, goToGene]
   );
 
   const handleLocusClick = useCallback(
-    (contig: string, position: number) => {
-      onLocusClick?.(contig, position);
+    (contig: string, position: number, start?: number, stop?: number) => {
+      onLocusClick?.(contig, position, start, stop);
     },
     [onLocusClick]
   );
