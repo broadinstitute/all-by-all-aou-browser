@@ -98,12 +98,17 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      if (dragPos && onLabelDragEnd) {
+      // Check if the mouse actually moved (real drag vs just a click)
+      const dx = Math.abs(e.clientX - dragState.startMouseX);
+      const dy = Math.abs(e.clientY - dragState.startMouseY);
+      const didDrag = dx > 3 || dy > 3;
+
+      if (didDrag && dragPos && onLabelDragEnd) {
         onLabelDragEnd(dragState.id, dragPos.x, dragPos.y);
+        // Only suppress the click if an actual drag happened
+        justDraggedRef.current = true;
+        requestAnimationFrame(() => { justDraggedRef.current = false; });
       }
-      // Flag that a drag just ended so the click handler can suppress
-      justDraggedRef.current = true;
-      requestAnimationFrame(() => { justDraggedRef.current = false; });
       setDragState(null);
       setDragPos(null);
     };

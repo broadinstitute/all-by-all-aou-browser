@@ -300,7 +300,6 @@ pub async fn get_phenotype_overview(
 
     for (gene_id, rows) in gene_burden_map {
         let first_row = rows[0];
-        let key = format!("burden-{}", gene_id);
 
         // Build burden results for this gene
         let burden_results: Vec<BurdenResult> = rows
@@ -316,28 +315,29 @@ pub async fn get_phenotype_overview(
             })
             .collect();
 
-        if let Some(existing) = loci_map.get_mut(&key) {
-            // Find or add gene
+        // First, try to find an existing locus that already contains this gene
+        // (e.g., from a GWAS peak where this gene was within ±200kb)
+        let existing_locus_key = loci_map.iter().find_map(|(k, locus)| {
+            if locus.genes.iter().any(|g| g.gene_id == gene_id) {
+                Some(k.clone())
+            } else {
+                None
+            }
+        });
+
+        if let Some(key) = existing_locus_key {
+            // Merge burden results into the gene in the existing locus
+            let existing = loci_map.get_mut(&key).unwrap();
             if let Some(gene) = existing.genes.iter_mut().find(|g| g.gene_id == gene_id) {
-                // Merge burden results
                 for br in burden_results {
                     if !gene.burden_results.iter().any(|b| b.annotation == br.annotation) {
                         gene.burden_results.push(br);
                     }
                 }
-            } else {
-                // Add new gene with burden results
-                existing.genes.push(UnifiedGene {
-                    gene_symbol: first_row.gene_symbol.clone(),
-                    gene_id: gene_id.clone(),
-                    distance_kb: 0.0, // Gene is at the locus position
-                    genome_coding_hits: None,
-                    exome_coding_hits: None,
-                    burden_results,
-                });
             }
         } else {
-            // Create new locus from burden hit
+            // No existing locus contains this gene — create a burden-only locus
+            let key = format!("burden-{}", gene_id);
             loci_map.insert(
                 key.clone(),
                 UnifiedLocus {
