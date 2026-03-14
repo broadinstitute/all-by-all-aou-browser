@@ -14,6 +14,7 @@ interface RenderPointArgs {
   margin: Margin
   point: { data: VariantJoined; x: number; y: number }
   selectedVariant: VariantJoined | null | undefined
+  selectedVariantId?: string | null
   activeVariant?: string | null
   activeAnalysis?: string | null
   alleleFrequencyScale: any
@@ -31,6 +32,7 @@ export const renderPoint = ({
   ctx,
   point,
   selectedVariant,
+  selectedVariantId,
   activeVariant,
   activeAnalysis,
   margin,
@@ -47,19 +49,12 @@ export const renderPoint = ({
 }: RenderPointArgs) => {
   // Use textMuted for strokes - provides good contrast in both light and dark modes
   const strokeColor = theme?.textMuted || '#666666';
-  if (selectedVariant && point.data.locus.position == selectedVariant.locus.position) {
-    ctx.beginPath()
-    ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false)
-    ctx.fillStyle = 'red'
-    ctx.fill()
-  }
 
   // Determine if stroke should be applied based on annotation (gene plot) or consequence (variant plot)
   const annotation = point.data.annotation;
   const consequence = point.data.consequence;
   const category = consequence ? getCategoryFromConsequence(consequence) : null;
 
-  // Apply stroke only for lof/pLoF/missense categories, not for "other" or "non-coding"
   const shouldStroke = annotation === 'pLoF' || annotation === 'missense' ||
     category === 'lof' || category === 'missense';
 
@@ -67,59 +62,76 @@ export const renderPoint = ({
     applyStroke = true
   }
 
-  const singleVariantSelected = activeAnalysis && activeVariant
-
-  ctx.beginPath()
+  const isExplicitlySelected = selectedVariantId && point.data.variant_id === selectedVariantId;
+  const hasAnySelection = !!selectedVariantId;
+  const isHovered = activeVariant && point.data.variant_id === activeVariant;
 
   const h = height - margin.top - margin.bottom
-
-  // Calculate radius with fallback for NaN/Infinity (happens when af=0 with log scale)
   const rawRadius = Math.abs(alleleFrequencyScale(getAfField(point.data)))
-  const radius = Number.isFinite(rawRadius) ? rawRadius : 3
+  let radius = Number.isFinite(rawRadius) ? rawRadius : 3
 
   let yValue = h + margin.top + margin.bottom - 50
-
   if (point.data.pvalue) {
     yValue = point.y
   }
-  ctx.arc(point.x, yValue, radius, 0, 2 * Math.PI, false)
 
-  if (applyStroke) {
-    ctx.fillStyle = pointColor(point.data, betaScale)
-    ctx.strokeStyle = strokeColor
-    ctx.lineWidth = 1
-    ctx.stroke()
-  } else if (point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.fillStyle = pointColor(point.data, betaScale)
+  // Determine base styles
+  let fillColor = pointColor(point.data, betaScale) || 'black';
+  let currentStrokeColor = strokeColor;
+  let currentStrokeWidth = 0.5;
+  let doStroke = applyStroke && shouldStroke;
+  let compositeOp: GlobalCompositeOperation = 'destination-over';
+
+  if (isExplicitlySelected) {
+    compositeOp = 'source-over';
+    doStroke = true;
+    currentStrokeColor = '#c62828';
+    currentStrokeWidth = 2;
+
+    // Draw a light red halo behind the selected variant
+    ctx.beginPath();
+    ctx.arc(point.x, yValue, radius + 4, 0, 2 * Math.PI, false);
+    ctx.fillStyle = 'rgba(229, 57, 53, 0.3)';
+    ctx.fill();
+
+    radius += 1;
+  } else if (hasAnySelection) {
+    // Dim unselected variants when one is selected
+    compositeOp = 'destination-over';
+    fillColor = transparentize(0.7, fillColor);
+    doStroke = false;
+  } else if (activeAnalysis && activeVariant && point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant) {
+    compositeOp = 'source-over';
     if (shouldStroke) {
-      ctx.strokeStyle = strokeColor
-      ctx.lineWidth = 1
-      ctx.stroke()
+      doStroke = true;
+      currentStrokeWidth = 1;
     }
-  } else if (
-    !singleVariantSelected &&
-    (point.data.analysis_id === activeAnalysis || point.data.variant_id === activeVariant)
-  ) {
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.fillStyle = pointColor(point.data, betaScale)
-    if (shouldStroke) {
-      ctx.strokeStyle = strokeColor
-      ctx.lineWidth = 1.5
-      ctx.stroke()
-    }
+  } else if (isHovered) {
+    compositeOp = 'source-over';
+    doStroke = true;
+    currentStrokeColor = '#333';
+    currentStrokeWidth = 1.5;
   } else {
-    ctx.globalCompositeOperation = 'destination-over'
-    ctx.fillStyle = transparentize(transparency[1], pointColor(point.data, betaScale) || 'black')
-    // Only apply stroke for lof/pLoF/missense, not for "other" variant types
+    compositeOp = 'destination-over';
+    fillColor = transparentize(transparency[1], fillColor);
     if (shouldStroke) {
-      ctx.strokeStyle = strokeColor
-      ctx.lineWidth = 0.5
-      ctx.stroke()
+      doStroke = true;
+      currentStrokeWidth = 0.5;
     }
   }
 
-  ctx.fill()
+  ctx.beginPath();
+  ctx.arc(point.x, yValue, radius, 0, 2 * Math.PI, false);
+
+  ctx.globalCompositeOperation = compositeOp;
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+
+  if (doStroke) {
+    ctx.strokeStyle = currentStrokeColor;
+    ctx.lineWidth = currentStrokeWidth;
+    ctx.stroke();
+  }
 
   if (gwasCatalogOption === 'highlight') {
     if (point.data.gwas_catalog) {

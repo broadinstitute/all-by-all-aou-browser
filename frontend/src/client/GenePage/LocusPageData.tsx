@@ -54,12 +54,6 @@ const formatRegionIdForApi = (regionId: string): string => {
   return regionId
 }
 
-const filterByVariantId =
-  (variantId: string | undefined | null) =>
-    (v: VariantJoined): boolean => {
-      return variantId ? v.variant_id === variantId : true
-    }
-
 const annotateVariantWithAnalysisMetadata = (
   v: VariantJoined,
   analysisId: string,
@@ -127,7 +121,6 @@ const processVariants = ({
 
 
         const data = variantsMerged
-          .filter(filterByVariantId(variantId))
           .map(annotateWorstConsequence)
           .map((v) => {
             if (analysesMetadata) {

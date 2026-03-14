@@ -312,6 +312,7 @@ export const LocusPvaluePlot = ({
   variantDatasets = [],
   activeAnalysis,
   activeVariant,
+  selectedVariantId,
   transparency,
   logLogEnabled = true,
   scalePosition,
@@ -414,6 +415,11 @@ export const LocusPvaluePlot = ({
 
     const allLabels: LollipopLabel[] = points
       .filter(p => {
+        // If a variant is explicitly selected, show ONLY its label
+        if (selectedVariantId) {
+          return p.data.variant_id === selectedVariantId;
+        }
+
         const hasCustomLabel = variantLabels[p.data.variant_id];
         const explicitlySet = variantShowLabel[p.data.variant_id];
         const hasHgvs = p.data.hgvsp || p.data.hgvsc;
@@ -455,6 +461,12 @@ export const LocusPvaluePlot = ({
         } as LollipopLabel;
       });
       // No need to filter by label length since we now guarantee all variants have at least variant_id as label
+
+    // Bypass layout limits when highlighting a specifically selected variant
+    if (selectedVariantId) {
+      runClusteredLayout(allLabels, w);
+      return allLabels;
+    }
 
     const pLoFLabels = allLabels.filter(l => l.tier === 'pLoF');
     const missenseLabels = allLabels.filter(l => l.tier === 'missense');
@@ -498,6 +510,7 @@ export const LocusPvaluePlot = ({
         ctx,
         point,
         selectedVariant,
+        selectedVariantId,
         activeVariant,
         activeAnalysis,
         margin,
@@ -544,7 +557,7 @@ export const LocusPvaluePlot = ({
     // ====================================================
 
     return canvas
-  }, [variantDatasets, totalHeight, pointColor, width, xLabel, yLabel, thresholds, activeAnalysis, showLollipopLabels, labelZoneHeight, lollipopPvalueThreshold])
+  }, [variantDatasets, totalHeight, pointColor, width, xLabel, yLabel, thresholds, activeAnalysis, selectedVariantId, showLollipopLabels, labelZoneHeight, lollipopPvalueThreshold])
 
   const mainCanvas: {
     current: HTMLCanvasElement | null

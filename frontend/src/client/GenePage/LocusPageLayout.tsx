@@ -446,11 +446,12 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     setSortState({ sortKey: newSortKey, sortOrder: newSortOrder })
   }
 
-  React.useEffect(() => {
-    if (variantId) {
-      setVariantSearchText(variantId)
-    }
-  }, [variantId, setVariantSearchText])
+  // Create a separate dataset for tables: when a variant is selected,
+  // tables show only that variant while the plot shows the full locus context.
+  const tableDatasets = React.useMemo(() => {
+    if (!variantId) return datasets;
+    return datasets.map(ds => ds.filter(v => v.variant_id === variantId));
+  }, [datasets, variantId]);
 
   const renderTitle = () => {
     if (!regionId) {
@@ -624,19 +625,19 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
               </TabContainer>
 
               {activeTab === 'variants' ? (
-                tableFormat === 'wide' && variantId && datasets?.[0]?.length === 1 ? (
+                tableFormat === 'wide' && variantId && tableDatasets?.[0]?.length === 1 ? (
                   <>
                     <IndividualVariantResultsTable
-                      variantDatasets={datasets}
+                      variantDatasets={tableDatasets}
                       sortVariants={sortAndFilterVariants}
                     />
-                    {datasets[0][0].gwas_catalog && (
-                      <GwasCatalogDetails gwasCatalog={datasets[0][0].gwas_catalog} />
+                    {tableDatasets[0][0].gwas_catalog && (
+                      <GwasCatalogDetails gwasCatalog={tableDatasets[0][0].gwas_catalog} />
                     )}
                   </>
                 ) : (
                   <GenePageVariantTable
-                    variantDatasets={datasets}
+                    variantDatasets={tableDatasets}
                     onSort={handleSort}
                     sortState={sortState}
                     sortVariants={sortAndFilterVariants}
@@ -684,19 +685,19 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
               )}
             </>
           ) : (
-            tableFormat === 'wide' && variantId && datasets?.[0]?.length === 1 ? (
+            tableFormat === 'wide' && variantId && tableDatasets?.[0]?.length === 1 ? (
               <>
                 <IndividualVariantResultsTable
-                  variantDatasets={datasets}
+                  variantDatasets={tableDatasets}
                   sortVariants={sortAndFilterVariants}
                 />
-                {datasets[0][0].gwas_catalog && (
-                  <GwasCatalogDetails gwasCatalog={datasets[0][0].gwas_catalog} />
+                {tableDatasets[0][0].gwas_catalog && (
+                  <GwasCatalogDetails gwasCatalog={tableDatasets[0][0].gwas_catalog} />
                 )}
               </>
             ) : (
               <GenePageVariantTable
-                variantDatasets={datasets}
+                variantDatasets={tableDatasets}
                 onSort={handleSort}
                 sortState={sortState}
                 sortVariants={sortAndFilterVariants}

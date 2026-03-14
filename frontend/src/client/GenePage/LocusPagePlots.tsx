@@ -172,6 +172,7 @@ export interface VariantPlotProps {
   variantDatasets: VariantJoined[][]
   activeAnalysis?: string | null
   activeVariant?: string | null
+  selectedVariantId?: string | null
   transparency: [number, number]
   alleleFrequencyScale: ScaleLogarithmic<number, number>
   getAfField?: (d: VariantJoined) => number
@@ -486,6 +487,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
                 variantDatasets={variantDatasets}
                 activeAnalysis={undefined}
                 activeVariant={hoveredVariant}
+                selectedVariantId={variantId}
                 betaScale={betaScale}
                 alleleFrequencyScale={alleleFrequencyScale}
                 transparency={transparency}
