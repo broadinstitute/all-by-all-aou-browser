@@ -36,6 +36,18 @@ The first section is an overview of the phenotype, including any descriptive sta
 
 Below this, the **Phenotype Overview tab** integrates single variant results (exome and genome) with burden results, highlighting genes with coding variants. You can easily toggle between this overview, isolated Gene Burden results, Exome Variants, and Genome Variants using the tabs.
 
+#### Locus definition
+
+Loci are precomputed by the data pipeline using a greedy clumping algorithm applied to genome-wide significant variants (p < 5×10⁻⁸) and significant gene burden test results (p < 2.5×10⁻⁶). Variants are sorted by p-value and the most significant variant seeds a ±1 Mb window that absorbs all other significant variants within its range; this process repeats for the next most significant unabsorbed variant until all are assigned. Significant burden genes contribute their physical gene bounds expanded by the same ±1 Mb window. All resulting intervals on the same chromosome are then merged if they overlap, producing contiguous locus regions with exact start/stop boundaries. The browser uses these precomputed boundaries directly for peak annotation, overview merging, and navigation — ensuring a single, consistent definition of "locus" across the pipeline and frontend.
+
+#### Peak labels and navigation
+
+Each locus on the Overview Manhattan plot is labeled with a representative gene name. The label is chosen by prioritizing genes with the strongest evidence: first, genes with a significant burden test result (p < 2.5×10⁻⁶); then genes with coding variants (loss-of-function or missense); and finally, the nearest gene by physical distance (shown with a "nearest:" prefix). When a locus contains multiple implicated genes, a "+N" suffix indicates additional genes with evidence.
+
+The number of labeled peaks can be adjusted using a slider or numeric input. By default, labels prioritize loci with gene-level evidence (burden or coding hits) over those without, then rank by p-value. The "Gene implicated" checkbox filters both the table and labels to only loci where at least one gene has burden or coding evidence. Individual peak labels can be toggled on or off via checkboxes in the locus table.
+
+Clicking a peak label navigates to the most relevant view for that locus: if a gene in the locus has a significant burden result, it navigates to that gene's page; otherwise, if a gene has coding variants, it navigates to that gene; and as a fallback, it opens the Region View using the exact precomputed locus boundaries. Right-clicking a peak label or table row opens a context menu with additional options including opening in a new tab or copying coordinates.
+
 Manhattan plots are provided showing the association p-values (-log10 scaled up to a maximum of 350) across chromosomes. These interactive plots feature pre-rendered PNG backgrounds with SVG overlays, allowing you to drag gene labels to prevent overlap, click peaks for more info, and export the plot as an image. When a peak lacks significant burden or coding evidence, the label will automatically display a "nearest:" prefix. You can also view **Overlay Manhattan plots**, which combine exome and genome signals to easily compare associations visually.
 
 When zooming into a specific signal, a per-chromosome view with a dedicated chromosome selector becomes available. Additionally, precise pre-computed `neg_log10_p` fields are used throughout the API and frontend to ensure that extremely small, highly significant p-values are plotted and displayed accurately without underflowing to zero.
@@ -133,6 +145,28 @@ Under the plot, a table provides gene burden statistics for all genes within the
 You can refine the region displayed with the zoom in/out buttons.
 
 <img src="/SVG/10-walkthrough-region@4x.png" />
+
+## Exploring associations by variant
+
+In addition to exploring by phenotype or gene, you can investigate the pleiotropic effects of specific genetic variants across the entire phenome.
+
+### Global top variant results
+
+To discover the most significant single-variant associations across the All by All dataset, navigate to the **Top Single Variants** tab in the global Results section. This table aggregates the strongest variant-phenotype associations globally, allowing you to filter by consequence (e.g., pLoF, Missense) or search for specific variant ID, gene, or phenotype keyword.
+
+<img src="/SVG/11-walkthrough-variant-top-results@4x.png" />
+
+### Variant PheWAS
+
+Clicking on a specific variant ID from any table will open the **Variant PheWAS** (Phenome-Wide Association Study) view. This plot displays all phenotypes significantly associated with that particular variant across the dataset. Just like the Gene PheWAS view, you can use the control panel to filter the displayed phenotypes by category, keyword, or specific P-value thresholds, and toggle directional shapes to see risk versus protective effects.
+
+<img src="/SVG/12-walkthrough-variant-phewas-results@4x.png" />
+
+### Variant details and gene context
+
+When exploring a variant's PheWAS, the right-hand panel displays detailed annotations for the selected variant. This includes its Ensembl Variant Effect Predictor (VEP) consequence, HGVS notations, allele frequencies, and case/control breakdowns. It also highlights the gene associated with the variant, allowing you to quickly pivot to the Gene Page to explore the broader regional context or burden statistics for that gene.
+
+<img src="/SVG/13-walkthrough-variant-phewas-gene@4x.png" />
 
 ## Results
 
