@@ -18,15 +18,14 @@ import { AnalysisMetadata, GenePhewasAnnotated, VariantAssociations } from '../t
 import {
   analysisIdAtom,
   geneIdAtom,
-  regionIdAtom,
   resultIndexAtom,
-  resultLayoutAtom,
   selectedAnalyses as selectedAnalysesAtom,
   showSelectAnalysesOnlyAtom,
 } from '../sharedState'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -126,9 +125,9 @@ const InfoTooltip = ({ rowData }: { rowData: GenePhewasAnnotated }) => {
 const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
   const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
   const navigate = useContextMenuNavigation();
-  const setAnalysisId = useSetRecoilState(analysisIdAtom);
+  const { goToPhenotype } = useAppNavigation();
   const setGeneId = useSetRecoilState(geneIdAtom);
-  const [resultIndex, setResultIndex] = useRecoilState(resultIndexAtom);
+  const resultIndex = useRecoilValue(resultIndexAtom);
 
   return (
     <>
@@ -136,8 +135,7 @@ const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
         className='grid-cell-content'
         style={{ cursor: 'pointer' }}
         onClick={() => {
-          setAnalysisId(row.analysis_id)
-          setResultIndex('pheno-info')
+          goToPhenotype(row.analysis_id, { resultIndex: 'pheno-info' })
           if (resultIndex == "top-associations") {
             setGeneId(row.gene_id)
           }
@@ -435,9 +433,7 @@ export const getPhenotypeColumns = ({
       grow: 0,
       minWidth: 70,
       render: (row: GenePhewasAnnotated) => {
-        const setGeneId = useSetRecoilState(geneIdAtom)
-        const setRegionId = useSetRecoilState(regionIdAtom)
-        const setResultIndex = useSetRecoilState(resultIndexAtom)
+        const { goToGene } = useAppNavigation()
         const setAnalysisId = useSetRecoilState(analysisIdAtom)
 
         return (
@@ -445,10 +441,8 @@ export const getPhenotypeColumns = ({
             style={{ cursor: 'pointer' }}
             className='grid-cell-content'
             onClick={() => {
-              setRegionId(null)
-              setGeneId(row.gene_id)
+              goToGene(row.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
               setAnalysisId(row.analysis_id)
-              setResultIndex('gene-phewas')
             }}
           >
             {row.gene_symbol || row.gene_id}
@@ -538,15 +532,11 @@ export const getPhenotypeColumns = ({
       minWidth: 50,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
-        const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
-        const setRegionId = useSetRecoilState(regionIdAtom)
+        const { goToPhenotype, openDetailPane } = useAppNavigation()
 
         const handleClick = () => {
-          setAnalysisId(row.analysis_id)
-          const newLayout = resultLayout === 'full' ? 'small' : resultLayout
-          setResultLayout(newLayout)
-          setRegionId(null)
+          goToPhenotype(row.analysis_id)
+          openDetailPane()
         }
 
         return (
@@ -563,20 +553,15 @@ export const getPhenotypeColumns = ({
       minWidth: 80,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
-        const setResultIndex = useSetRecoilState(resultIndexAtom)
-        const setAnalysisId = useSetRecoilState(analysisIdAtom)
-        const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
+        const { goToPhenotype, openDetailPane } = useAppNavigation()
         const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
         const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
           setSelectedAnalyses([row.analysis_id])
           setShowSelectOnly(false)
-          setAnalysisId(row.analysis_id)
-          setResultIndex('variant-phewas')
-          if (resultLayout === 'full') {
-            setResultLayout('small')
-          }
+          goToPhenotype(row.analysis_id, { resultIndex: 'variant-phewas' })
+          openDetailPane()
         }
 
         return (
@@ -616,17 +601,12 @@ export const getPhenotypeColumns = ({
       minWidth: 50,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
-
-        const setGeneId = useSetRecoilState(geneIdAtom)
+        const { goToGene } = useAppNavigation()
         const setAnalysisId = useSetRecoilState(analysisIdAtom)
-        const setLayout = useSetRecoilState(resultLayoutAtom)
-        const setRegionId = useSetRecoilState(regionIdAtom)
 
         const handleClick = () => {
-          setGeneId(row.gene_id)
+          goToGene(row.gene_id, { fromPhenotype: true })
           setAnalysisId(row.analysis_id)
-          setLayout((resultLayout) => resultLayout === 'full' ? 'small' : resultLayout)
-          setRegionId(null)
         }
 
         return (

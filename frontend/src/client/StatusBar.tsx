@@ -138,7 +138,7 @@ export const StatusBar: React.FC = () => {
           <strong>Phenotype:</strong>
           <Link onClick={() => {
             setResultIndex('pheno-info')
-            setResultsLayout('half')
+            setResultsLayout('split')
           }
           } style={{ cursor: 'pointer' }}>
             {getAnalysisDisplayTitle(analysisMetadataData[0])}
@@ -153,7 +153,7 @@ export const StatusBar: React.FC = () => {
             style={{ cursor: 'pointer' }}
             onClick={() => {
               setResultIndex('gene-phewas')
-              setResultsLayout('half')
+              setResultsLayout('split')
             }}
           >
             {`${geneModel.symbol} `} ({geneId})
@@ -173,7 +173,7 @@ export const StatusBar: React.FC = () => {
             style={{ cursor: 'pointer' }}
             onClick={() => {
               setResultIndex('variant-phewas')
-              setResultsLayout('half')
+              setResultsLayout('split')
             }}
           >
             {variantId}

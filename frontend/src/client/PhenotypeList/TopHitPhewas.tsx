@@ -25,12 +25,10 @@ import {
   burdenSetAtom,
   resultLayoutAtom,
   phewasOptsAtom,
-  geneIdAtom,
   analysisIdAtom,
-  resultIndexAtom,
-  regionIdAtom,
 } from '../sharedState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import styled from 'styled-components'
 import { withSize } from 'react-sizeme'
 import { analysisInTestConfig, filterValidAnalyses, geneInTestConfig, getAvailableAnalysisIds } from '../utils'
@@ -161,11 +159,8 @@ const TopHitPhewas: React.FC<Props> = () => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
 
-  const setGeneId = useSetRecoilState(geneIdAtom)
+  const { goToGene } = useAppNavigation()
   const setAnalysisId = useSetRecoilState(analysisIdAtom)
-  const setResultIndex = useSetRecoilState(resultIndexAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  const setResultLayout = useSetRecoilState(resultLayoutAtom)
 
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -222,11 +217,8 @@ const TopHitPhewas: React.FC<Props> = () => {
     );
 
   const onPointClick = ({ gene_id, analysis_id }: GenePhewasAnnotated) => {
-    setGeneId(gene_id)
+    goToGene(gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
     setAnalysisId(analysis_id)
-    setRegionId(null)
-    setResultIndex('gene-phewas')
-    setResultLayout('half')
   }
 
   const categoriesPrepared = categories.data.map(modifyCategoryColor)

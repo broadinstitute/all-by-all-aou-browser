@@ -8,7 +8,6 @@ import {
   resultIndexAtom,
   resultLayoutAtom,
   ResultIndex,
-  ResultLayout
 } from '../sharedState';
 
 export type EntityType = 'locus' | 'gene' | 'phenotype' | 'variant';
@@ -20,6 +19,9 @@ export const FOCUS_LOCUS = '__FOCUS_LOCUS__' as any;
 // Special sentinel value to indicate we want to focus the region browser pane (keep current state)
 export const FOCUS_REGION = '__FOCUS_REGION__' as any;
 
+/**
+ * @deprecated Use useAppNavigation instead
+ */
 export function useContextMenuNavigation() {
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setRegionId = useSetRecoilState(regionIdAtom);
@@ -38,32 +40,27 @@ export function useContextMenuNavigation() {
 
     const stateUpdates: any = {
       resultLayout: isFocusMode
-        ? (mode === 'split' ? 'half' : 'hidden')  // For focus modes: half=split, hidden=full (focus gene/locus pane)
-        : (mode === 'split' ? 'half' : 'full')  // For results: half=split view, full=full screen results (including newTab)
+        ? (mode === 'split' ? 'split' : 'detail')
+        : (mode === 'split' ? 'split' : 'full')
     };
 
-    // Only set resultIndex if we're not in a focus mode
     if (!isFocusMode) {
       stateUpdates.resultIndex = targetIndex;
     }
 
-    // For FOCUS_REGION, don't change any entity IDs, just adjust layout
     if (!focusRegionMode) {
       if (entityType === 'gene') {
         stateUpdates.geneId = id;
-        // Always clear regionId when navigating to a gene to avoid staying on region page
         stateUpdates.regionId = null;
       }
       if (entityType === 'locus') {
         stateUpdates.regionId = id;
-        // Clear geneId when navigating to a locus to show region-centric view
         stateUpdates.geneId = null;
       }
       if (entityType === 'phenotype') stateUpdates.analysisId = id;
       if (entityType === 'variant') stateUpdates.variantId = id;
     }
 
-    // For pheno-info and variant-manhattan, preserve the current analysisId if requested
     if (preserveAnalysisId && currentAnalysisId && (targetIndex === 'pheno-info' || targetIndex === 'variant-manhattan')) {
       stateUpdates.analysisId = currentAnalysisId;
     }
@@ -76,19 +73,15 @@ export function useContextMenuNavigation() {
         if (stateStr) stateObj = JSON.parse(decodeURIComponent(stateStr));
       } catch (e) {}
 
-      // For FOCUS_REGION, preserve current state
       if (focusRegionMode) {
-        // Keep current geneId and regionId for FOCUS_REGION
         if (currentGeneId) stateObj.geneId = currentGeneId;
         if (currentRegionId) stateObj.regionId = currentRegionId;
       } else {
-        // Clean stale entity ids to prevent state conflicts
         delete stateObj.geneId;
         delete stateObj.regionId;
         delete stateObj.variantId;
       }
 
-      // Only clean analysisId if we're not preserving it
       if (!preserveAnalysisId) {
         delete stateObj.analysisId;
       }
@@ -96,7 +89,6 @@ export function useContextMenuNavigation() {
       Object.assign(stateObj, stateUpdates);
       url.searchParams.set('state', JSON.stringify(stateObj));
 
-      // Clean top-level query params just in case
       url.searchParams.delete('regionId');
       url.searchParams.delete('resultLayout');
       url.searchParams.delete('geneId');
@@ -104,7 +96,7 @@ export function useContextMenuNavigation() {
       window.open(url.toString(), '_blank');
     } else {
       if (stateUpdates.geneId) setGeneId(stateUpdates.geneId);
-      if ('regionId' in stateUpdates) setRegionId(stateUpdates.regionId);  // Allow setting to null
+      if ('regionId' in stateUpdates) setRegionId(stateUpdates.regionId);
       if (stateUpdates.analysisId) setAnalysisId(stateUpdates.analysisId);
       if (stateUpdates.variantId) setVariantId(stateUpdates.variantId);
 

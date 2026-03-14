@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import memoizeOne from 'memoize-one'
 import styled from 'styled-components'
-import { useRecoilState, useSetRecoilState } from 'recoil'
 import { Button } from '@gnomad/ui'
-import { analysisIdAtom, regionIdAtom, resultLayoutAtom, selectedContigAtom } from '../sharedState'
+import { analysisIdAtom, selectedContigAtom } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { variantShowLabelAtom } from '../variantState'
 import VariantManhattanPlot from './VariantManhattanPlot'
 import VariantQQPlot from './VariantQQPlot'
@@ -71,8 +71,7 @@ const VariantsInPhenotype = ({
   }
 
   const windowSize = useRecoilValue(windowSizeAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
+  const { goToLocus } = useAppNavigation()
 
   const [filter, setVariantFilter] = useState(defaultVariantFilter)
 
@@ -167,11 +166,7 @@ const VariantsInPhenotype = ({
     const intervalSize = 500_000
     const regionId = `${variant.chrom}-${variant.pos - intervalSize}-${variant.pos + intervalSize
       }`
-    if (resultsLayout == 'full') {
-      setResultsLayout('half')
-    }
-
-    setRegionId(regionId)
+    goToLocus(regionId, { fromPhenotype: true })
   }
 
   const pointLabel = (variant: VariantAssociationManhattan) => {

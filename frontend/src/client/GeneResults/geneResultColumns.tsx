@@ -14,9 +14,8 @@ import {
 import { GeneQc } from '../GenePage/GeneBurdenTable'
 
 import { GeneAssociations } from '../types'
-import { useSetRecoilState } from 'recoil'
-import { geneIdAtom, regionIdAtom, resultIndexAtom, resultLayoutAtom } from '../sharedState'
 import { ColorMarker, RightArrow } from '../UserInterface'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
@@ -25,17 +24,13 @@ import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 const GeneLinkRenderer = ({ row }: any) => {
   const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
   const navigate = useContextMenuNavigation();
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
+  const { goToGene } = useAppNavigation();
 
   return (
     <>
       <Link
         onClick={() => {
-          setGeneId(row.gene_id)
-          setResultIndex('gene-phewas')
-          setRegionId(null)
+          goToGene(row.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
         }}
         onContextMenu={(e: any) => {
           e.preventDefault();
@@ -277,16 +272,12 @@ const selectionColumns = () => [
     minWidth: 80,
     grow: 0,
     render: (row: any) => {
-      const setResultLayout = useSetRecoilState(resultLayoutAtom)
-      const setGeneId = useSetRecoilState(geneIdAtom)
-      const setRegionId = useSetRecoilState(regionIdAtom)
+      const { goToGene } = useAppNavigation()
 
       return (
         <RightArrow
           onClick={() => {
-            setResultLayout((currentLayout) => (currentLayout === 'full' ? 'small' : currentLayout))
-            setGeneId(row.gene_id)
-            setRegionId(null)
+            goToGene(row.gene_id, { fromPhenotype: true })
           }}
         />
       )

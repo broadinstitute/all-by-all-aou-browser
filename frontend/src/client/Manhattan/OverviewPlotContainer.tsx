@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
 import type { UnifiedOverviewResponse, UnifiedLocus, UnifiedGene } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom, regionIdAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 import { configQuery } from '../queryStates';
 
 const Container = styled.div`
@@ -33,9 +34,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
+  const { goToGene } = useAppNavigation();
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
@@ -109,10 +108,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   }, []);
 
   const handleGeneClick = useCallback((geneId: string) => {
-    setRegionId(null);
-    setGeneId(geneId);
-    setResultLayout('half');
-  }, [setRegionId, setGeneId, setResultLayout]);
+    goToGene(geneId, { fromPhenotype: true });
+  }, [goToGene]);
 
   const handlePeakClick = useCallback(
     (node: any) => {
@@ -148,9 +145,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
       if (genesWithSigBurden.length > 0) {
         const topGene = genesWithSigBurden[0];
-        setRegionId(null);
-        setGeneId(topGene.gene_id);
-        setResultLayout('half');
+        goToGene(topGene.gene_id, { fromPhenotype: true });
         return;
       }
 
@@ -161,9 +156,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 
       if (genesWithCoding.length > 0) {
         const topGene = genesWithCoding[0];
-        setRegionId(null);
-        setGeneId(topGene.gene_id);
-        setResultLayout('half');
+        goToGene(topGene.gene_id, { fromPhenotype: true });
         return;
       }
 
@@ -172,7 +165,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         onLocusClick(peak.contig, peak.position);
       }
     },
-    [onLocusClick, setRegionId, setGeneId, setResultLayout]
+    [onLocusClick, goToGene]
   );
 
   const handleLocusClick = useCallback(

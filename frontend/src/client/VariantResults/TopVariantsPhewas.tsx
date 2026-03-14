@@ -5,6 +5,7 @@ import styled from 'styled-components'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import { ancestryGroupAtom } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { DocumentTitle, Spinner, StatusMessage, ColorMarker } from '../UserInterface'
 import { AnalysisMetadata, AggregatedVariantAssociation } from '../types'
 import { TopVariantsTable } from './TopVariantsTable'
@@ -102,6 +103,7 @@ interface Data {
 
 const TopVariantsPhewas = () => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
+  const { openInNewTab } = useAppNavigation()
   const [inputValue, setInputValue] = useState('')
   const [debouncedSearchText, setDebouncedSearchText] = useState('')
   const [limit, setLimit] = useState(50000)
@@ -249,17 +251,14 @@ const TopVariantsPhewas = () => {
     : allAnnotatedVariants
 
   const onVariantClick = (variant: any) => {
-    const params = new URLSearchParams(window.location.search)
-    const stateStr = params.get('state')
-    const state = stateStr ? JSON.parse(stateStr) : {}
-    state.variantId = variant.variant_id
-    state.analysisId = variant.top_phenotype
-    state.resultIndex = 'variant-phewas'
-    state.resultLayout = 'full'
-    state.regionId = null
-    if (variant.gene_id) state.geneId = variant.gene_id
-    params.set('state', JSON.stringify(state))
-    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+    openInNewTab({
+      variantId: variant.variant_id,
+      analysisId: variant.top_phenotype,
+      resultIndex: 'variant-phewas',
+      resultLayout: 'full',
+      regionId: null,
+      ...(variant.gene_id ? { geneId: variant.gene_id } : {}),
+    })
   }
 
   return (

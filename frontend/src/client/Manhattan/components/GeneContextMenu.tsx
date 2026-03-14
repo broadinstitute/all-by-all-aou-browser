@@ -1,6 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { useSetRecoilState } from 'recoil';
-import { geneIdAtom, regionIdAtom, resultIndexAtom, resultLayoutAtom } from '../../sharedState';
+import { useAppNavigation } from '../../hooks/useAppNavigation';
 
 export interface GeneContextMenuProps {
   /** X position in viewport */
@@ -26,10 +25,7 @@ export const GeneContextMenu: React.FC<GeneContextMenuProps> = ({
   geneSymbol,
   onClose,
 }) => {
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const { goToGene, openInNewTab } = useAppNavigation();
 
   // Close on click outside
   useEffect(() => {
@@ -49,44 +45,20 @@ export const GeneContextMenu: React.FC<GeneContextMenuProps> = ({
   }, [onClose]);
 
   const handleOpenPheWAS = useCallback(() => {
-    setGeneId(geneId);
-    setRegionId(null);
-    setResultIndex('gene-phewas');
-    setResultLayout('half');
+    goToGene(geneId, { resultIndex: 'gene-phewas' });
     onClose();
-  }, [geneId, setGeneId, setRegionId, setResultIndex, setResultLayout, onClose]);
+  }, [geneId, goToGene, onClose]);
 
   const handleOpenInNewTab = useCallback(() => {
-    const url = new URL(window.location.href);
-    const stateStr = url.searchParams.get('state');
-    let stateObj: Record<string, unknown> = {};
-    if (stateStr) {
-      try {
-        stateObj = JSON.parse(decodeURIComponent(stateStr));
-      } catch (e) {
-        try {
-          stateObj = JSON.parse(stateStr);
-        } catch (e2) {
-          // Ignore parse errors, start fresh
-        }
-      }
-    }
-
-    stateObj.geneId = geneId;
-    stateObj.resultIndex = 'gene-phewas';
-    stateObj.resultLayout = 'half';
-    delete stateObj.regionId;
-    delete stateObj.variantId;
-
-    url.searchParams.set('state', JSON.stringify(stateObj));
-
-    // Clear top level params just in case
-    url.searchParams.delete('regionId');
-    url.searchParams.delete('geneId');
-
-    window.open(url.toString(), '_blank');
+    openInNewTab({
+      geneId,
+      resultIndex: 'gene-phewas',
+      resultLayout: 'split',
+      regionId: null,
+      variantId: null,
+    });
     onClose();
-  }, [geneId, onClose]);
+  }, [geneId, openInNewTab, onClose]);
 
   const handleCopyGeneSymbol = useCallback(() => {
     navigator.clipboard.writeText(geneSymbol).then(() => onClose()).catch(() => onClose());

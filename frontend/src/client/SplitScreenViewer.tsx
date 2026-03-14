@@ -52,12 +52,12 @@ const ResizableItems = withSize({
 
     let borderStyles = {}
 
-    if (resultsLayout !== 'hidden' && resultsLayout !== 'full') {
+    if (resultsLayout !== 'detail' && resultsLayout !== 'full') {
       borderStyles = { borderRight: '1px dashed var(--theme-border, black)' }
     }
 
     const closeRightPanel = () => {
-      setResultsLayout("hidden")
+      setResultsLayout("detail")
     }
 
     const resizableStyles = {
@@ -135,7 +135,7 @@ const ResizableItems = withSize({
         >
           <div className="resizable-grid-item1">
             <div className="resizable-inner-container">
-              {resultsLayout !== 'hidden' ? <ResultIndexComponent size={leftPanelSize} /> : null}
+              {resultsLayout !== 'detail' ? <ResultIndexComponent size={leftPanelSize} /> : null}
             </div>
           </div>
         </Resizable>

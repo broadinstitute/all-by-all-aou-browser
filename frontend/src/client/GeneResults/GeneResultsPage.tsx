@@ -3,12 +3,12 @@
 import { SearchInput } from '@gnomad/ui'
 import { useQuery } from '@axaou/ui'
 import React, { useState } from 'react'
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import AnalysisControls from '../AnalysisControls'
 import { tableDisplayThreshold } from '../PhenotypeList/Utils'
 import { pouchDbName, axaouDevUrl, cacheEnabled } from '../Query'
-import { analysisIdAtom, ancestryGroupAtom, burdenSetAtom, geneIdAtom, regionIdAtom, selectedContigAtom, windowSizeAtom } from '../sharedState'
+import { analysisIdAtom, ancestryGroupAtom, burdenSetAtom, selectedContigAtom, windowSizeAtom } from '../sharedState'
 import { HalfPage, Spinner, StatusMessage } from '../UserInterface'
 import getColumns from './geneResultColumns'
 import GeneResultsManhattanPlot from './GeneResultsManhattanPlot'
@@ -18,6 +18,7 @@ import { AxaouConfig } from '../types'
 
 import { GeneAssociations, AnalysisMetadata } from '../types'
 import { processGeneBurden } from '../utils'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const ResultsSection = styled.div`
   width: 100%;
@@ -80,8 +81,7 @@ const ControlSection = styled.div`
 const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = ({ size }) => {
 
   const analysisId = useRecoilValue(analysisIdAtom)
-  const setGeneId = useSetRecoilState(geneIdAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
+  const { goToGene } = useAppNavigation()
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom)
   const [searchText, setSearchText] = useState('')
   const contig = useRecoilValue(selectedContigAtom)
@@ -143,8 +143,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
   // .filter((gene) => geneInTestConfig(gene, queryStates.config.data))
 
   const onGeneClick = (d: any) => {
-    setRegionId(null)  // Clear region to navigate to gene page
-    setGeneId(d.gene_id)
+    goToGene(d.gene_id, { fromPhenotype: true })
   }
 
 

@@ -559,7 +559,7 @@ const LayoutIconRight = () => (
   </svg>
 );
 
-export type LayoutMode = 'full' | 'half' | 'hidden';
+export type LayoutMode = 'full' | 'split' | 'detail';
 
 interface LayoutToggleProps {
   value: LayoutMode;
@@ -584,16 +584,16 @@ export const LayoutToggle: React.FC<LayoutToggleProps> = ({
       {leftLabel}
     </LayoutOption>
     <LayoutOption
-      $active={value === 'half'}
-      onClick={() => onChange('half')}
+      $active={value === 'split'}
+      onClick={() => onChange('split')}
       title="Show both panels"
     >
       <LayoutIconSplit />
       Split
     </LayoutOption>
     <LayoutOption
-      $active={value === 'hidden'}
-      onClick={() => onChange('hidden')}
+      $active={value === 'detail'}
+      onClick={() => onChange('detail')}
       title="Show gene/locus panel only"
     >
       <LayoutIconRight />

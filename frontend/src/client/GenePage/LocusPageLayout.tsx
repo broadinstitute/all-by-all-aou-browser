@@ -12,8 +12,8 @@ import {
   variantIdAtom,
   locusMafAtom,
   geneIdAtom,
-  resultLayoutAtom,
 } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { TinySpinner } from '../UserInterface'
 import {
   gwasCatalogOptionsAtom,
@@ -341,7 +341,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const [activeTab, setActiveTab] = useState<TableTab>('geneBurden')
   const locusMaf = useRecoilValue(locusMafAtom)
   const [geneId, setGeneId] = useRecoilState(geneIdAtom)
-  const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
+  const { goToGene } = useAppNavigation()
 
   const regionViewerWidth = width
   const geneModel = !regionId ? geneModels[0] : undefined
@@ -507,9 +507,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   ]
 
   const handleGeneClick = (geneId: string) => {
-    setRegionId(null)  // Clear region to navigate to gene page
-    setGeneId(geneId)
-    setResultLayout('half')
+    goToGene(geneId, { fromPhenotype: true })
   }
 
   const geneResultsColumns = getColumns({

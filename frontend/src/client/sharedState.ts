@@ -432,7 +432,7 @@ export const showQQOverlayAtom = atom<boolean>({
   ],
 })
 
-export type ResultLayout = 'hidden' | 'smallest' | 'small' | 'half' | 'large' | 'full'
+export type ResultLayout = 'detail' | 'split' | 'full'
 
 export type ResultIndex =
   | 'top-associations'
@@ -445,11 +445,8 @@ export type ResultIndex =
   | 'pheno-info'
 
 const resultLayoutChecker = stringLiterals<ResultLayout>({
-  hidden: 'hidden',
-  smallest: 'smallest',
-  small: 'small',
-  half: 'half',
-  large: 'large',
+  detail: 'detail',
+  split: 'split',
   full: 'full',
 })
 
@@ -465,7 +462,7 @@ const resultIndexChecker = stringLiterals<ResultIndex>({
 
 export const resultLayoutAtom = atom<ResultLayout>({
   key: 'resultLayout',
-  default: 'small',
+  default: 'split',
   effects: [
     urlSyncEffect({
       refine: resultLayoutChecker,
@@ -513,7 +510,7 @@ export const firstItemWidthSelector = selectorFamily<
           return containerWidth / 1.05
         }
 
-        if (resultLayout === 'hidden') {
+        if (resultLayout === 'detail') {
           return 5
         }
 
@@ -521,23 +518,7 @@ export const firstItemWidthSelector = selectorFamily<
           return resizableWidth
         }
 
-        if (resultLayout === 'half') {
-          return containerWidth / 2
-        }
-
-        if (resultLayout === 'large') {
-          return containerWidth / 1.5
-        }
-
-        if (resultLayout === 'small') {
-          return containerWidth / 2.4
-        }
-
-        if (resultLayout === 'smallest') {
-          return containerWidth / 3.5
-        }
-
-        // half by default
+        // split by default
         return containerWidth / 2
       },
 })

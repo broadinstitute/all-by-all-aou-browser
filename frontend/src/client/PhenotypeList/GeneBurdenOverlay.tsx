@@ -1,12 +1,13 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilValue, useRecoilState } from 'recoil';
+import { useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 import { YAxis } from '../Manhattan/components/YAxis';
 import { ChromosomeLabels } from '../Manhattan/components/ChromosomeLabels';
 import { getChromosomeLayout, getYScale } from '../Manhattan/layout';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { ancestryGroupAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 import '../Manhattan/OverviewManhattan.css';
 
 const Container = styled.div`
@@ -148,8 +149,7 @@ interface Props {
 
 export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001, testType = 'max' }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
-  const [, setGeneId] = useRecoilState(geneIdAtom);
-  const [, setResultLayout] = useRecoilState(resultLayoutAtom);
+  const { goToGene } = useAppNavigation();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -442,10 +442,9 @@ export const GeneBurdenOverlay: React.FC<Props> = ({ analysisId, maxMaf = 0.001,
 
   const handleClick = useCallback(() => {
     if (hoveredPoint) {
-      setGeneId(hoveredPoint.gene_id);
-      setResultLayout('half');
+      goToGene(hoveredPoint.gene_id, { fromPhenotype: true });
     }
-  }, [hoveredPoint, setGeneId, setResultLayout]);
+  }, [hoveredPoint, goToGene]);
 
   const toggleAnnotation = useCallback((key: string) => {
     setVisibleAnnotations((prev) => {

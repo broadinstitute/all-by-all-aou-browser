@@ -23,15 +23,15 @@ import {
   enableVariantLabelsAtom,
   variantShowLabelAtom,
 } from '../variantState'
-import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil'
+import { useRecoilValue, useRecoilState } from 'recoil'
 import styled from 'styled-components'
 import { useState } from 'react'
 import {
   regionIdAtom,
-  resultIndexAtom,
   selectedAnalysesColorsSelector,
   variantIdAtom,
 } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 import { interpolateRdBu, interpolateGreens } from 'd3-scale-chromatic'
 import { variantGreenThreshold } from '../PhenotypeList/Utils'
@@ -262,12 +262,10 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
   const variantLabels = useRecoilValue(variantLabelsAtom)
   const [variantShowLabel, setVariantShowLabel] = useRecoilState(variantShowLabelAtom)
 
-  const setVariantId = useSetRecoilState(variantIdAtom)
-  const setResultsIndex = useSetRecoilState(resultIndexAtom)
+  const { goToVariant } = useAppNavigation()
 
   const onClickVariant = (variant: VariantJoined) => {
-    setVariantId(variant.variant_id)
-    setResultsIndex('variant-phewas')
+    goToVariant(variant.variant_id, { resultIndex: 'variant-phewas' })
   }
 
   const [plotHeight, setPlotHeight] = useState(200)
@@ -414,8 +412,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
 
   // Handle click on PNG overlay variant
   const onPngVariantClick = (variant: SignificantHit) => {
-    setVariantId(variant.id)
-    setResultsIndex('variant-phewas')
+    goToVariant(variant.id, { resultIndex: 'variant-phewas' })
   }
 
   // Disable PNG-based rendering - use canvas-based plot with DB data instead

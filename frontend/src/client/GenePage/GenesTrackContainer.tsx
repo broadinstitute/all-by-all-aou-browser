@@ -4,8 +4,9 @@ import styled from 'styled-components'
 import { GenesTrack, RegionViewerContext } from '@axaou/ui'
 
 import { GeneAssociations, GeneModels } from '../types'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
-import { analysisIdAtom, geneIdAtom, regionIdAtom, resultIndexAtom } from '../sharedState'
+import { useRecoilValue } from 'recoil'
+import { analysisIdAtom } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
 
 const Container = styled.div``
@@ -17,9 +18,7 @@ interface Props {
 }
 
 const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociations = [], locusMaf }) => {
-  const setGeneId = useSetRecoilState(geneIdAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  const setResultsIndex = useSetRecoilState(resultIndexAtom)
+  const { goToGene } = useAppNavigation()
   const currentAnalysisId = useRecoilValue(analysisIdAtom)
 
   const { scalePosition, centerPanelWidth, leftPanelWidth, rightPanelWidth, isPositionDefined } =
@@ -31,9 +30,7 @@ const GenesTrackContainer: React.FC<Props> = ({ geneModelsInRegion, geneAssociat
   const geneModels = filterGenes(geneModelsInRegion)
 
   const onClickGene = (gene: any) => {
-    setGeneId(gene.gene_id)
-    setRegionId(null)
-    setResultsIndex("gene-phewas")
+    goToGene(gene.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
   }
 
   const [contextMenu, setContextMenu] = React.useState<{x: number, y: number, gene: any} | null>(null);

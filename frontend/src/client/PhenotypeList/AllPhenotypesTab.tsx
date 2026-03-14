@@ -5,6 +5,7 @@ import styled from 'styled-components'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import { Spinner, StatusMessage } from '../UserInterface'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const Container = styled.div`
   display: flex;
@@ -67,6 +68,7 @@ interface Data {
 }
 
 const AllPhenotypesTab = () => {
+  const { openInNewTab } = useAppNavigation()
   const [searchText, setSearchText] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortKey, setSortKey] = useState('sig_loci_count')
@@ -114,14 +116,11 @@ const AllPhenotypesTab = () => {
   }, [data, searchText, selectedCategory, sortKey, sortOrder])
 
   const handleRowClick = (row: PhenotypeSummaryRow) => {
-    const params = new URLSearchParams(window.location.search)
-    const stateStr = params.get('state')
-    const stateObj = stateStr ? JSON.parse(stateStr) : {}
-    stateObj.analysisId = row.analysis_id
-    stateObj.resultIndex = 'pheno-info'
-    stateObj.resultLayout = 'full'
-    params.set('state', JSON.stringify(stateObj))
-    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+    openInNewTab({
+      analysisId: row.analysis_id,
+      resultIndex: 'pheno-info',
+      resultLayout: 'full',
+    })
   }
 
   const columns = [

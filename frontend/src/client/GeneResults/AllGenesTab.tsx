@@ -5,6 +5,7 @@ import styled from 'styled-components'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import { Spinner, StatusMessage } from '../UserInterface'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const Container = styled.div`
   display: flex;
@@ -49,6 +50,7 @@ interface Data {
 }
 
 const AllGenesTab = () => {
+  const { openInNewTab } = useAppNavigation()
   const [searchText, setSearchText] = useState('')
   const [sortKey, setSortKey] = useState('sig_phenos_total')
   const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>('descending')
@@ -86,15 +88,12 @@ const AllGenesTab = () => {
   }, [data, searchText, sortKey, sortOrder])
 
   const handleRowClick = (row: GeneSummaryRow) => {
-    const params = new URLSearchParams(window.location.search)
-    const stateStr = params.get('state')
-    const stateObj = stateStr ? JSON.parse(stateStr) : {}
-    stateObj.geneId = row.gene_id
-    stateObj.regionId = null
-    stateObj.resultIndex = 'gene-phewas'
-    stateObj.resultLayout = 'full'
-    params.set('state', JSON.stringify(stateObj))
-    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+    openInNewTab({
+      geneId: row.gene_id,
+      regionId: null,
+      resultIndex: 'gene-phewas',
+      resultLayout: 'full',
+    })
   }
 
   const columns = [

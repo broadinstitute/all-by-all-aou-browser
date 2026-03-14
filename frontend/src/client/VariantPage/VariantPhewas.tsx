@@ -282,6 +282,9 @@ const ConnectedVariantPhewas = ({ size }: any) => {
   const sequencingType = useRecoilValue(sequencingTypeAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
+  const setGeneId = useSetRecoilState(geneIdAtom)
+  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const setRegionId = useSetRecoilState(regionIdAtom)
 
   interface Data {
     variantAssociations: VariantAssociations[]
@@ -451,11 +454,6 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     showSelectAnalysesOnly,
   })
   const onPointClick = (phenotype: any) => {
-    const setGeneId = useSetRecoilState(geneIdAtom)
-    const setAnalysisId = useSetRecoilState(analysisIdAtom)
-    const setVariantId = useSetRecoilState(variantIdAtom)
-    const setRegionId = useSetRecoilState(regionIdAtom)
-
     setGeneId(variantData.gene_id)
     setAnalysisId(phenotype.analysis_id)
     setVariantId(variantId)

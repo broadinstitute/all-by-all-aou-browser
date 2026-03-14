@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@axaou/ui';
 import styled from 'styled-components';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 
 import { ManhattanPlotContainer } from '../Manhattan';
 import { OverviewPlotContainer } from '../Manhattan/OverviewPlotContainer';
@@ -11,7 +11,8 @@ import { PrecomputedQQMini } from '../VariantResults/PrecomputedQQMini';
 import type { PlotType } from '../Manhattan/ManhattanPlotContainer';
 import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
-import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, variantIdAtom, resultLayoutAtom, showQQOverlayAtom, phenotypeTabAtom, phenotypePlotViewAtom } from '../sharedState';
+import { analysisIdAtom, ancestryGroupAtom, showQQOverlayAtom, phenotypeTabAtom, phenotypePlotViewAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 import { AnalysisMetadata } from '../types';
 import {
   AttributeCards,
@@ -190,10 +191,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   const [showQQOverlay, setShowQQOverlay] = useRecoilState(showQQOverlayAtom);
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const analysisId = useRecoilValue(analysisIdAtom);
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
-  const setVariantId = useSetRecoilState(variantIdAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const { goToGene, goToRegion, goToVariant } = useAppNavigation();
 
   interface Data {
     analysisMetadata: AnalysisMetadata[] | null;
@@ -237,32 +235,26 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
 
   const handleHitClick = (hit: SignificantHit) => {
     if (hit.hit_type === 'gene' && hit.id) {
-      setRegionId(null);  // Clear region when navigating to gene
-      setGeneId(hit.id);
-      setResultLayout('half');
+      goToGene(hit.id, { fromPhenotype: true });
     } else if (hit.hit_type === 'variant' && hit.contig && hit.position) {
       const windowSize = 500000; // ±500kb
-      setGeneId(null);  // Clear gene when navigating to region
-      setRegionId(`${hit.contig}-${Math.max(0, hit.position - windowSize)}-${hit.position + windowSize}`);
-      setVariantId(hit.id);
-      setResultLayout('half');
+      const regionId = `${hit.contig}-${Math.max(0, hit.position - windowSize)}-${hit.position + windowSize}`;
+      goToVariant(hit.id, { regionId });
     }
   };
 
   const handlePeakClick = (node: any) => {
     if (node.peak) {
       const windowSize = 500000; // ±500kb
-      setGeneId(null);  // Clear gene when navigating to region
-      setRegionId(`${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`);
-      setResultLayout('half');
+      const regionId = `${node.peak.contig}-${Math.max(0, node.peak.position - windowSize)}-${node.peak.position + windowSize}`;
+      goToRegion(regionId, { fromPhenotype: true });
     }
   };
 
   const handleOverviewLocusClick = (contig: string, position: number) => {
     const windowSize = 500000; // ±500kb
-    setGeneId(null);  // Clear gene when navigating to region
-    setRegionId(`${contig}-${Math.max(0, position - windowSize)}-${position + windowSize}`);
-    setResultLayout('half');
+    const regionId = `${contig}-${Math.max(0, position - windowSize)}-${position + windowSize}`;
+    goToRegion(regionId, { fromPhenotype: true });
   };
 
   const renderTabContent = () => {

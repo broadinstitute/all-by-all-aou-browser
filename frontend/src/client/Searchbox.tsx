@@ -7,14 +7,11 @@ import { filteredAnalysesQuery, geneSymbolsQuery } from './queryStates';
 import { axaouDevUrl } from './Query';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  analysisIdAtom,
-  geneIdAtom,
-  regionIdAtom,
-  variantIdAtom,
   resultIndexAtom,
   resultLayoutAtom,
   selectedAnalyses,
 } from './sharedState';
+import { useAppNavigation } from './hooks/useAppNavigation';
 import { AnalysisMetadata, GeneSymbol } from './types';
 import { ColorMarker } from './UserInterface';
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from './vepConsequences';
@@ -147,13 +144,10 @@ export const NewSearchBar: React.FC = () => {
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const geneSymbols = useRecoilValue(geneSymbolsQuery);
   const analysisMetadata = useRecoilValue(filteredAnalysesQuery);
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
-  const setAnalysisId = useSetRecoilState(analysisIdAtom);
-  const setVariantId = useSetRecoilState(variantIdAtom);
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
   const setResultIndex = useSetRecoilState(resultIndexAtom);
   const setResultsLayout = useSetRecoilState(resultLayoutAtom);
+  const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
   const history = useHistory();
 
@@ -334,21 +328,17 @@ export const NewSearchBar: React.FC = () => {
 
   const onSelect = (searchChoice: SearchChoice) => {
     if (searchChoice.resultType === 'gene') {
-      setRegionId(null);
-      setGeneId(searchChoice.id);
-      setResultIndex('gene-phewas');
+      goToGene(searchChoice.id, { resultIndex: 'gene-phewas' });
       setResultsLayout("full");
     } else if (searchChoice.resultType === 'analysis') {
-      setAnalysisId(searchChoice.id);
+      goToPhenotype(searchChoice.id, { resultIndex: 'pheno-info' });
       setSelectedAnalyses([]);
-      setResultIndex('pheno-info');
       setResultsLayout("full");
     } else if (searchChoice.resultType === 'variant') {
-      setVariantId(searchChoice.id);
-      setGeneId(searchChoice.gene_id || null);
-      setRegionId(null);
-      setResultIndex('variant-phewas');
-      setResultsLayout(searchChoice.gene_id ? "half" : "full");
+      goToVariant(searchChoice.id, { geneId: searchChoice.gene_id || null, regionId: null, resultIndex: 'variant-phewas' });
+      if (!searchChoice.gene_id) {
+        setResultsLayout("full");
+      }
     }
     setShowModal(false);
     setInputValue('');

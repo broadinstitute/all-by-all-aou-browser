@@ -74,7 +74,7 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
 
     // Set region, clear stale gene/variant state
     stateObj.regionId = regionId;
-    stateObj.resultLayout = 'hidden';
+    stateObj.resultLayout = 'detail';
     delete stateObj.geneId;
     delete stateObj.variantId;
 

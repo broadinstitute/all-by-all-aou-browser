@@ -9,7 +9,8 @@ import { TooltipAnchor, TooltipHint as TooltipHintBase, Link } from '@gnomad/ui'
 import { useRecoilState, useSetRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import { renderBetaCell, renderCount, renderPvalueCell } from '../PhenotypeList/Utils'
-import { AncestryGroupCodes, regionIdAtom, resultIndexAtom, resultLayoutAtom, variantIdAtom } from '../sharedState'
+import { AncestryGroupCodes } from '../sharedState'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 import { VariantAssociationManhattan, VariantJoined } from '../types'
 import { ColorMarker } from '../UserInterface'
 import { VariantFieldGroup, variantLabelsAtom, variantShowLabelAtom } from '../variantState'
@@ -440,9 +441,7 @@ export const getVariantColumns = ({
       // TODO: fix variant link
       render: (row: any, _: any, { highlightWords }: any) => {
 
-        const setVariantId = useSetRecoilState(variantIdAtom)
-        const setResultLayout = useSetRecoilState(resultLayoutAtom)
-        const setResultIndex = useSetRecoilState(resultIndexAtom)
+        const { goToVariant } = useAppNavigation()
 
         return (
           <Link>
@@ -453,10 +452,7 @@ export const getVariantColumns = ({
                 row.variant_id.length > 17 ? `${row.variant_id.slice(0, 14)}...` : row.variant_id
               }
               onClick={() => {
-                setVariantId(row.variant_id)
-                setResultIndex("variant-phewas")
-                setResultLayout(resultLayout => (resultLayout === 'full' || resultLayout === 'hidden') ? 'half' : resultLayout)
-
+                goToVariant(row.variant_id, { resultIndex: 'variant-phewas' })
               }}
             />
           </Link>
@@ -473,9 +469,7 @@ export const getVariantColumns = ({
       grow: 0,
       render: (row: any, _: any, { highlightWords }: any) => {
 
-        const setVariantId = useSetRecoilState(variantIdAtom)
-        const setResultLayout = useSetRecoilState(resultLayoutAtom)
-        const setResultIndex = useSetRecoilState(resultIndexAtom)
+        const { goToVariant } = useAppNavigation()
 
         return (
           <Link>
@@ -484,10 +478,7 @@ export const getVariantColumns = ({
               searchWords={highlightWords}
               textToHighlight={row.variant_id}
               onClick={() => {
-                setVariantId(row.variant_id)
-                setResultIndex("variant-phewas")
-                setResultLayout(resultLayout => (resultLayout === 'full' || resultLayout === 'hidden') ? 'half' : resultLayout)
-
+                goToVariant(row.variant_id, { resultIndex: 'variant-phewas' })
               }}
             />
           </Link>
@@ -767,18 +758,14 @@ export const getVariantColumns = ({
       minWidth: 80,
       grow: 0,
       render: (variant: VariantAssociationManhattan) => {
-        const setRegionId = useSetRecoilState(regionIdAtom)
-        const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
+        const { goToLocus } = useAppNavigation()
 
         const handleClick = () => {
           const intervalSize = 500_000
           const regionId = `${variant.chrom}-${variant.pos - intervalSize}-${variant.pos + intervalSize
             }`
 
-          setRegionId(regionId)
-          if (resultsLayout == 'full') {
-            setResultsLayout('half')
-          }
+          goToLocus(regionId, { fromPhenotype: true })
         }
 
         return (

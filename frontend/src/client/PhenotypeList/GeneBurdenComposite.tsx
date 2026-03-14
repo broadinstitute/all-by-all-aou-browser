@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilValue, useRecoilState } from 'recoil';
+import { useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { ancestryGroupAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 
 const Container = styled.div`
   width: 100%;
@@ -227,8 +228,7 @@ interface Column {
 
 export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
-  const [, setGeneId] = useRecoilState(geneIdAtom);
-  const [, setResultLayout] = useRecoilState(resultLayoutAtom);
+  const { goToGene } = useAppNavigation();
 
   const [hoveredCell, setHoveredCell] = useState<{
     gene: GeneRow;
@@ -363,10 +363,9 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
 
   const handleGeneClick = useCallback(
     (geneId: string) => {
-      setGeneId(geneId);
-      setResultLayout('half');
+      goToGene(geneId, { fromPhenotype: true });
     },
-    [setGeneId, setResultLayout]
+    [goToGene]
   );
 
   const handleCellHover = useCallback(

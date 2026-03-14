@@ -1,12 +1,13 @@
 import React from 'react';
 import { useQuery } from '@axaou/ui';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
 
 import { ManhattanViewer } from './ManhattanViewer';
 import type { ManhattanOverlay, SignificantHit } from './types';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, selectedContigAtom, geneIdAtom, resultLayoutAtom } from '../sharedState';
+import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 import { configQuery } from '../queryStates';
 
 const Container = styled.div`
@@ -50,16 +51,14 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [contig, setContig] = useRecoilState(selectedContigAtom);
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const { goToGene } = useAppNavigation();
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = process.env.DATA_VERSION || configState.data?.data_version || '';
 
   const handleGeneClick = React.useCallback((geneId: string) => {
-    setGeneId(geneId);
-    setResultLayout('half');
-  }, [setGeneId, setResultLayout]);
+    goToGene(geneId, { fromPhenotype: true });
+  }, [goToGene]);
 
   interface Data {
     manhattanData: ManhattanApiResponse | null;

@@ -1,10 +1,9 @@
 import React from 'react';
 import { Grid } from '@axaou/ui';
 import { LocusAssociation } from '../types';
-import { regionIdAtom } from '../sharedState';
-import { useSetRecoilState } from 'recoil';
 import { RightArrow } from '../UserInterface';
 import { renderPvalueCell } from '../PhenotypeList/Utils';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 
 interface VariantLocusTableProps {
   data: LocusAssociation[];
@@ -61,11 +60,11 @@ export const VariantLocusTable: React.FC<VariantLocusTableProps> = ({ data }) =>
       isSortable: false,
       minWidth: 80,
       render: (locus: LocusAssociation) => {
-        const setRegionId = useSetRecoilState(regionIdAtom)
+        const { goToLocus } = useAppNavigation()
 
         const handleClick = () => {
           const regionId = locus.region_id.replace(":", "-").replace("chr", "")
-          setRegionId(regionId)
+          goToLocus(regionId, { fromPhenotype: true })
         }
 
         return (

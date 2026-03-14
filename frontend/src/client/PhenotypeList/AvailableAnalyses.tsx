@@ -4,14 +4,12 @@ import { useQuery } from '@axaou/ui';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
 import { useSetRecoilState } from 'recoil';
 import {
-  analysisIdAtom,
-  resultIndexAtom,
-  resultLayoutAtom,
   ancestryGroupAtom,
   AncestryGroupCodes,
 } from '../sharedState';
 import { RightArrow } from '../UserInterface';
 import { LoadedAnalysis } from '../types';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 
 
 
@@ -20,9 +18,7 @@ interface Data {
 }
 
 const AvailableAnalyses: React.FC = () => {
-  const setAnalysisId = useSetRecoilState(analysisIdAtom);
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultsLayout = useSetRecoilState(resultLayoutAtom);
+  const { goToPhenotype, openDetailPane } = useAppNavigation();
   const setAncestryGroup = useSetRecoilState(ancestryGroupAtom);
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -89,10 +85,8 @@ const AvailableAnalyses: React.FC = () => {
       minWidth: 80,
       render: (row: LoadedAnalysis) => {
         const handleClick = () => {
-          setAnalysisId(row.analysis_id);
-          // setAncestryGroup(row.ancestry_group as AncestryGroupCodes);
-          setResultIndex('pheno-info');
-          setResultsLayout('half');
+          goToPhenotype(row.analysis_id, { resultIndex: 'pheno-info' });
+          openDetailPane();
         };
 
         return <RightArrow onClick={handleClick} />;

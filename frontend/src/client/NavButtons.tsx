@@ -73,7 +73,7 @@ export const NavButtons: React.FC = () => {
 
   const onClickButtonResultIndex = (mode: ResultIndex) => () => {
     setResultIndex(mode)
-    if (resultLayout === 'hidden') {
+    if (resultLayout === 'detail') {
       resetResizableWidth()
     }
   }
@@ -137,7 +137,7 @@ export const NavButtons: React.FC = () => {
         Variant PheWAS
       </button>
       {/* <label style={{ marginLeft: 40 }}>Result pane width:</label> */}
-      <button className='side-nav-button' onClick={onClickButtonResultLayout('hidden')}>
+      <button className='side-nav-button' onClick={onClickButtonResultLayout('detail')}>
         hide
       </button>
       {/* <button className='side-nav-button' onClick={onClickButtonResultLayout('smallest')}> */}

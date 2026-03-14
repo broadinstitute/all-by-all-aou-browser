@@ -9,7 +9,8 @@ import { GeneBurdenOverlay } from './GeneBurdenOverlay';
 import { PrecomputedQQPlot } from '../VariantResults/PrecomputedQQPlot';
 import type { QQPoint } from '../VariantResults/PrecomputedQQPlot';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
-import { ancestryGroupAtom, burdenSetAtom, geneIdAtom, resultLayoutAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
+import { ancestryGroupAtom, burdenSetAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 
 const Container = styled.div`
   width: 100%;
@@ -218,8 +219,7 @@ const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
-  const [, setGeneId] = useRecoilState(geneIdAtom);
-  const [, setResultLayout] = useRecoilState(resultLayoutAtom);
+  const { goToGene } = useAppNavigation();
 
   const [viewMode, setViewMode] = useRecoilState<any>(geneBurdenViewModeAtom);
   const [sortKey, setSortKey] = useState<SortKey>('pvalue');
@@ -349,13 +349,11 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   };
 
   const handleGeneClick = (gene: GeneAssociationResult) => {
-    setGeneId(gene.gene_id);
-    setResultLayout('half');
+    goToGene(gene.gene_id, { fromPhenotype: true });
   };
 
   const handleGeneClickFromPlot = (geneId: string) => {
-    setGeneId(geneId);
-    setResultLayout('half');
+    goToGene(geneId, { fromPhenotype: true });
   };
 
   const handleAnnotationChange = (annotation: typeof burdenSet) => {

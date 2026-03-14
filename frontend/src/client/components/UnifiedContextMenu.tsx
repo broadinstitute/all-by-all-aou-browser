@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
-import { NavMode } from '../hooks/useContextMenuNavigation';
+import { NavMode } from '../hooks/useAppNavigation';
 
 const MenuStyle = styled.div<{ x: number; y: number }>`
   position: fixed;
@@ -171,33 +171,19 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
           <React.Fragment key={sectionIdx}>
             {section.label && <SectionHeader>{section.label}</SectionHeader>}
 
-            {/* Navigation targets with Split/Full/Tab matrix */}
-            {navTargets.length > 0 && (
-              <MatrixTable>
-                {sectionIdx === 0 && (
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th>Split</th>
-                      <th>Full</th>
-                      <th>Tab</th>
-                    </tr>
-                  </thead>
-                )}
-                <tbody>
-                  {navTargets.map((t, idx) => (
-                    <tr key={idx}>
-                      <td onClick={() => onNavigate('split', t.resultIndex)}>
-                        {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}{t.label}
-                      </td>
-                      <td><ActionBtn onClick={() => onNavigate('split', t.resultIndex)}>◐</ActionBtn></td>
-                      <td><ActionBtn onClick={() => onNavigate('full', t.resultIndex)}>●</ActionBtn></td>
-                      <td><ActionBtn onClick={() => onNavigate('newTab', t.resultIndex)}>↗</ActionBtn></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </MatrixTable>
-            )}
+            {/* Navigation targets as flat menu */}
+            {navTargets.map((t, idx) => (
+              <React.Fragment key={`nav-${idx}`}>
+                <UtilityRow onClick={() => onNavigate('split', t.resultIndex)}>
+                  {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}
+                  {t.label}
+                </UtilityRow>
+                <UtilityRow onClick={() => onNavigate('newTab', t.resultIndex)}>
+                  <span style={{ marginRight: 4, opacity: 0.6 }}>↗</span>
+                  Open in new tab
+                </UtilityRow>
+              </React.Fragment>
+            ))}
 
             {/* Utility targets as simple clickable rows */}
             {utilityTargets.map((t, idx) => (
