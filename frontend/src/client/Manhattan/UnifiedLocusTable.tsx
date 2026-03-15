@@ -482,17 +482,24 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                           const isLof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost'].includes(g.best_coding_csq ?? '');
                           const color = isLof ? '#c62828' : '#e68a00';
                           const variantId = g.best_coding_variant_id;
+                          const totalCoding = coding.lof + coding.missense;
+                          const moreCount = totalCoding > 1 ? totalCoding - 1 : 0;
                           return (
-                            <span
-                              style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline' : undefined, textDecorationStyle: 'dotted' as const, textUnderlineOffset: '2px' }}
-                              onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId); } : undefined}
-                              title={variantId ?? undefined}
-                            >
-                              {g.best_coding_hgvsp}
-                              {g.best_coding_pvalue ? ` P=${g.best_coding_pvalue < 0.001 ? g.best_coding_pvalue.toExponential(1) : g.best_coding_pvalue.toPrecision(2)}` : ''}
-                              {g.best_coding_beta !== undefined && <span style={{ color: g.best_coding_beta > 0 ? '#2e7d32' : '#c62828' }}>{g.best_coding_beta > 0 ? ' ↑' : ' ↓'}</span>}
-                              {g.best_coding_ac ? ` AC:${g.best_coding_ac}` : ''}
-                            </span>
+                            <>
+                              <span
+                                style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline' : undefined, textDecorationStyle: 'dotted' as const, textUnderlineOffset: '2px' }}
+                                onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId); } : undefined}
+                                title={variantId ?? undefined}
+                              >
+                                {g.best_coding_hgvsp}
+                                {g.best_coding_pvalue ? ` P=${g.best_coding_pvalue < 0.001 ? g.best_coding_pvalue.toExponential(1) : g.best_coding_pvalue.toPrecision(2)}` : ''}
+                                {g.best_coding_beta !== undefined && <span style={{ color: g.best_coding_beta > 0 ? '#2e7d32' : '#c62828' }}>{g.best_coding_beta > 0 ? ' ↑' : ' ↓'}</span>}
+                                {g.best_coding_ac ? ` AC:${g.best_coding_ac}` : ''}
+                              </span>
+                              {moreCount > 0 && (
+                                <span style={{ fontSize: 10, marginLeft: 4, color: 'var(--theme-text-muted, #888)' }}>+{moreCount} more</span>
+                              )}
+                            </>
                           );
                         })()}
                         {hasCoding && !g.best_coding_hgvsp && (

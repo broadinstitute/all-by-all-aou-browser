@@ -316,6 +316,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                   onPeakClick?.(node);
                 }}
               >
+                {/* Line 1: Gene name + burden indicators */}
                 {isBurdenOnly && (
                   <tspan fill={burdenColor} fontWeight="bold">◆ </tspan>
                 )}
@@ -330,25 +331,33 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                   <tspan fill="var(--theme-text-muted, #888)" fontStyle="italic">nearest: </tspan>
                 )}
                 <tspan>{node.label}</tspan>
-                {node.hasCoding && (() => {
-                  const topGene = node.peak.genes.find(g => g.gene_symbol === node.label);
-                  const hgvsp = node.implicatedGenes[0]?.bestCodingHgvsp;
-                  const pval = topGene?.best_coding_pvalue;
-                  const beta = topGene?.best_coding_beta;
-                  const codingColor = node.lofCount > 0 ? "#c62828" : "#e68a00";
-                  return hgvsp ? (
-                    <>
-                      <tspan fill={codingColor} fontWeight="bold">{` (${hgvsp}`}</tspan>
-                      {beta !== undefined && <tspan fill={beta > 0 ? '#2e7d32' : '#c62828'} fontWeight="bold">{beta > 0 ? '↑' : '↓'}</tspan>}
-                      <tspan fill={codingColor} fontWeight="bold">{')'}</tspan>
-                    </>
-                  ) : (
-                    <tspan fill={codingColor} fontWeight="bold"> (C)</tspan>
-                  );
-                })()}
                 {node.implicatedCount > 1 && (
                   <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>
                 )}
+                {/* Line 2: Coding variant (on a new line if burden is also present) */}
+                {node.hasCoding && (() => {
+                  const topGene = node.peak.genes.find(g => g.gene_symbol === node.label);
+                  const hgvsp = node.implicatedGenes[0]?.bestCodingHgvsp;
+                  const beta = topGene?.best_coding_beta;
+                  const codingColor = node.lofCount > 0 ? "#c62828" : "#e68a00";
+                  if (!hgvsp) {
+                    return <tspan fill={codingColor} fontWeight="bold"> (C)</tspan>;
+                  }
+                  const useNewLine = node.hasBurden;
+                  return (
+                    <>
+                      <tspan
+                        fill={codingColor}
+                        fontWeight="bold"
+                        {...(useNewLine ? { x: labelX, dy: '1.2em' } : {})}
+                      >
+                        {useNewLine ? hgvsp : ` (${hgvsp}`}
+                      </tspan>
+                      {beta !== undefined && <tspan fill={beta > 0 ? '#2e7d32' : '#c62828'} fontWeight="bold">{beta > 0 ? '↑' : '↓'}</tspan>}
+                      {!useNewLine && <tspan fill={codingColor} fontWeight="bold">{')'}</tspan>}
+                    </>
+                  );
+                })()}
               </text>
             )}
           </g>

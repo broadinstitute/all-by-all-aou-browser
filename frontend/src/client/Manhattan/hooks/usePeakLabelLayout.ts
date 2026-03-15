@@ -74,20 +74,28 @@ function estimateLabelWidth(
   isBurdenOnly: boolean = false,
   isNearestOnly: boolean = false
 ): number {
-  let text = label;
-  if (isNearestOnly) text = 'nearest: ' + text;
-  // Add space for burden-only indicator
-  if (isBurdenOnly) text = '◆ ' + text;
-  // Add space for burden dots (2 chars each: dot + space)
-  if (burdenTypes.length > 0) text = '●'.repeat(burdenTypes.length) + ' ' + text;
-  // Add space for coding indicator
-  if (hasCoding) {
-    if (bestCodingHgvsp) text += ` (${bestCodingHgvsp}↑)`;
-    else text += ' (C)';
+  // Line 1: burden indicators + gene name + implicated count
+  let line1 = label;
+  if (isNearestOnly) line1 = 'nearest: ' + line1;
+  if (isBurdenOnly) line1 = '◆ ' + line1;
+  if (burdenTypes.length > 0) line1 = '●'.repeat(burdenTypes.length) + ' ' + line1;
+  if (implicatedCount > 1) line1 += ` +${implicatedCount - 1}`;
+
+  const hasBurden = burdenTypes.length > 0;
+
+  // If both burden and coding: two-line label, width = max of lines
+  if (hasCoding && hasBurden && bestCodingHgvsp) {
+    const line2 = `${bestCodingHgvsp}↑`;
+    const maxLen = Math.max(line1.length, line2.length);
+    return maxLen * CHAR_WIDTH + LABEL_PADDING * 2;
   }
-  // Add space for multi-gene indicator
-  if (implicatedCount > 1) text += ` +${implicatedCount - 1}`;
-  return text.length * CHAR_WIDTH + LABEL_PADDING * 2;
+
+  // Single line: coding appended inline
+  if (hasCoding) {
+    if (bestCodingHgvsp) line1 += ` (${bestCodingHgvsp}↑)`;
+    else line1 += ' (C)';
+  }
+  return line1.length * CHAR_WIDTH + LABEL_PADDING * 2;
 }
 
 // Minimal HGVSp parser to condense p.Val600Glu to V600E

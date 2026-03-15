@@ -154,6 +154,10 @@ const CodingBadge: React.FC<{ gene: GeneInLocus }> = ({ gene }) => {
       {gene.best_coding_ac !== undefined && gene.best_coding_ac > 0 && (
         <span style={{ fontWeight: 400, opacity: 0.8 }}>AC: {gene.best_coding_ac}</span>
       )}
+      {(() => {
+        const total = (gene.lof_count || 0) + (gene.missense_count || 0);
+        return total > 1 ? <span style={{ fontWeight: 400, opacity: 0.7 }}>+{total - 1} more</span> : null;
+      })()}
     </div>
   );
 };
@@ -211,10 +215,9 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
 
   return (
     <div style={style} className="manhattan-peak-tooltip">
-      {/* Implicated genes — each as a section */}
+      {/* No evidence */}
       {implicatedGenes.length === 0 && (
         <>
-          {/* No evidence — show nearest gene and peak info */}
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--theme-primary, #262262)', marginBottom: 4 }}>
             {peak.genes[0]?.gene_symbol ?? 'Unknown'}
             <span style={{ fontWeight: 400, color: 'var(--theme-text-muted, #888)', fontSize: 10, marginLeft: 8 }}>
@@ -227,84 +230,93 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
         </>
       )}
 
-      {implicatedGenes.slice(0, 6).map((gene, geneIndex) => {
-        const sigBurdenResults = gene.burden_results?.filter(isBurdenSignificant) || [];
-        const hasCoding = (gene.lof_count || 0) > 0 || (gene.missense_count || 0) > 0;
-
+      {/* Section 1: Gene Burden */}
+      {(() => {
+        const burdenGenes = implicatedGenes.filter(g => g.burden_results?.some(isBurdenSignificant));
+        if (burdenGenes.length === 0) return null;
         return (
-          <div
-            key={gene.gene_id || geneIndex}
-            style={{
-              marginBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? 10 : 0,
-              paddingBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? 10 : 0,
-              borderBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? '1px solid var(--theme-border, #eee)' : undefined,
-            }}
-          >
-            {/* Gene header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              marginBottom: sigBurdenResults.length > 0 || hasCoding ? 6 : 0,
-            }}>
-              <span style={{ fontWeight: 700, color: 'var(--theme-primary, #262262)', fontSize: 13 }}>
-                {gene.gene_symbol}
-              </span>
-              <span style={{ color: 'var(--theme-text-muted, #888)', fontSize: 10 }}>
-                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb from peak
-              </span>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--theme-text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+              Gene Burden
             </div>
-
-            {/* 1. Burden analysis table (highest priority) */}
-            {sigBurdenResults.length > 0 && (
-              <table style={{ ...tableStyle, marginBottom: hasCoding ? 6 : 0 }}>
-                <thead>
-                  <tr>
-                    <th style={thLeftStyle}>Burden Test</th>
-                    <th style={thStyle}>SKAT-O</th>
-                    <th style={thStyle}>Burden</th>
-                    <th style={thStyle}>SKAT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sigBurdenResults.map((result) => {
-                    const bgColor = result.annotation === 'pLoF'
-                      ? 'rgba(198, 40, 40, 0.06)'
-                      : result.annotation === 'missenseLC'
-                        ? 'rgba(249, 168, 37, 0.08)'
-                        : undefined;
-
-                    return (
-                      <tr key={result.annotation} style={{ backgroundColor: bgColor }}>
-                        <td style={{
-                          padding: '3px 6px',
-                          fontWeight: 600,
-                          color: result.annotation === 'pLoF' ? '#c62828' : result.annotation === 'missenseLC' ? '#f57f17' : '#444',
-                        }}>
-                          {formatAnnotation(result.annotation)}
-                        </td>
-                        <PvalueCell value={result.pvalue} negLog10P={result.pvalue_neg_log10} annotation={result.annotation} />
-                        <PvalueCell value={result.pvalue_burden} negLog10P={result.pvalue_burden_neg_log10} annotation={result.annotation} />
-                        <PvalueCell value={result.pvalue_skat} negLog10P={result.pvalue_skat_neg_log10} annotation={result.annotation} />
+            {burdenGenes.slice(0, 4).map((gene, i) => {
+              const sigBurdenResults = gene.burden_results!.filter(isBurdenSignificant);
+              return (
+                <div key={gene.gene_id || i} style={{ marginBottom: i < Math.min(burdenGenes.length, 4) - 1 ? 8 : 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--theme-primary, #262262)', fontSize: 12 }}>
+                      {gene.gene_symbol}
+                    </span>
+                    <span style={{ color: 'var(--theme-text-muted, #888)', fontSize: 10 }}>
+                      {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb
+                    </span>
+                  </div>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={thLeftStyle}>Annotation</th>
+                        <th style={thStyle}>SKAT-O</th>
+                        <th style={thStyle}>Burden</th>
+                        <th style={thStyle}>SKAT</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {sigBurdenResults.map((result) => (
+                        <tr
+                          key={result.annotation}
+                          style={{ backgroundColor: result.annotation === 'pLoF' ? 'rgba(198,40,40,0.06)' : result.annotation === 'missenseLC' ? 'rgba(249,168,37,0.08)' : undefined }}
+                        >
+                          <td style={{ padding: '3px 6px', fontWeight: 600, color: result.annotation === 'pLoF' ? '#c62828' : result.annotation === 'missenseLC' ? '#e68a00' : '#444' }}>
+                            {formatAnnotation(result.annotation)}
+                          </td>
+                          <PvalueCell value={result.pvalue} negLog10P={result.pvalue_neg_log10} annotation={result.annotation} />
+                          <PvalueCell value={result.pvalue_burden} negLog10P={result.pvalue_burden_neg_log10} annotation={result.annotation} />
+                          <PvalueCell value={result.pvalue_skat} negLog10P={result.pvalue_skat_neg_log10} annotation={result.annotation} />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+            {burdenGenes.length > 4 && (
+              <div style={{ fontSize: 10, color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', marginTop: 4 }}>
+                +{burdenGenes.length - 4} more genes with burden
+              </div>
             )}
-
-            {/* 2. Coding variants */}
-            {hasCoding && <CodingBadge gene={gene} />}
           </div>
         );
-      })}
+      })()}
 
-      {/* Additional implicated genes count */}
-      {implicatedGenes.length > 6 && (
-        <div style={{ color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', fontSize: 10, marginTop: 6 }}>
-          +{implicatedGenes.length - 6} more implicated genes
-        </div>
-      )}
+      {/* Section 2: Coding Variants */}
+      {(() => {
+        const codingGenes = implicatedGenes.filter(g => (g.lof_count || 0) > 0 || (g.missense_count || 0) > 0);
+        if (codingGenes.length === 0) return null;
+        const hasBurdenSection = implicatedGenes.some(g => g.burden_results?.some(isBurdenSignificant));
+        return (
+          <div style={{ marginTop: hasBurdenSection ? 4 : 0 }}>
+            {hasBurdenSection && <div style={{ borderTop: '1px solid var(--theme-border, #e0e0e0)', marginBottom: 8 }} />}
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--theme-text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+              Coding Variants
+            </div>
+            {codingGenes.slice(0, 4).map((gene, i) => (
+              <div key={gene.gene_id || i} style={{ marginBottom: i < Math.min(codingGenes.length, 4) - 1 ? 4 : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--theme-primary, #262262)', fontSize: 11 }}>
+                    {gene.gene_symbol}
+                  </span>
+                  <CodingBadge gene={gene} />
+                </div>
+              </div>
+            ))}
+            {codingGenes.length > 4 && (
+              <div style={{ fontSize: 10, color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', marginTop: 4 }}>
+                +{codingGenes.length - 4} more genes with coding variants
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 3. Locus info footer — peak P & position, other genes */}
       <div style={{
