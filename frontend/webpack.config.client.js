@@ -139,6 +139,7 @@ const getWebpackConfig = async () => {
         AUTH0_ENABLE: process.env.AUTH0_ENABLE || 'false',
         AUTH0_DOMAIN: process.env.AUTH0_DOMAIN || '',
         AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID || '',
+        CACHE_ENABLED: process.env.CACHE_ENABLED || (isDev ? 'false' : 'true'),
       }),
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, './src/client/index.html'),
