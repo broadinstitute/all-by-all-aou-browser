@@ -192,9 +192,16 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
 
   const hoveredFromHit = getHoveredFromHit();
 
+  // Z-ordering: ensure burden diamonds render on top of the regular GWAS dots
+  const sortedNodes = [...nodes].sort((a, b) => {
+    const aTop = a.isBurdenOnly || a.hasBurden ? 1 : 0;
+    const bTop = b.isBurdenOnly || b.hasBurden ? 1 : 0;
+    return aTop - bTop;
+  });
+
   return (
     <g ref={svgRef} className="manhattan-peak-labels" style={{ pointerEvents: 'all' }}>
-      {nodes.map((node) => {
+      {sortedNodes.map((node) => {
         // Peak dot position: in the plot area (below label area)
         // Add small offset to avoid drawing at the very edge
         const peakY = labelAreaHeight + Math.max(0.02, node.targetY) * plotHeight;
@@ -205,8 +212,8 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
         // Burden-only peaks get special styling
         const isBurdenOnly = node.isBurdenOnly;
         const isLabeled = node.isLabeled;
-        const dotSize = isBurdenOnly ? (isHovered ? 7 : 5) : (isHovered ? 5 : 3);
-        const burdenOnlyColor = '#7b1fa2'; // Purple for burden-only
+        const dotSize = isBurdenOnly ? (isHovered ? 10 : 7) : (isHovered ? 5 : 3);
+        const burdenOnlyColor = '#d500f9'; // Bright magenta/purple for strong visibility
 
         // Get label position: dragging > override > computed
         let labelX = node.x;
@@ -253,8 +260,8 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               <polygon
                 points={`${node.targetX},${peakY - dotSize} ${node.targetX + dotSize},${peakY} ${node.targetX},${peakY + dotSize} ${node.targetX - dotSize},${peakY}`}
                 fill={burdenOnlyColor}
-                stroke={isHovered ? '#4a0072' : undefined}
-                strokeWidth={isHovered ? 2 : undefined}
+                stroke="#ffffff"
+                strokeWidth={isHovered ? 2.5 : 1.5}
                 style={{ pointerEvents: 'none' }}
               />
             ) : (
@@ -323,7 +330,9 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 )}
                 <tspan>{node.label}</tspan>
                 {node.hasCoding && (
-                  <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold"> (C)</tspan>
+                  <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold">
+                    {node.implicatedGenes[0]?.bestCodingHgvsp ? ` (${node.implicatedGenes[0].bestCodingHgvsp})` : ' (C)'}
+                  </tspan>
                 )}
                 {node.implicatedCount > 1 && (
                   <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>

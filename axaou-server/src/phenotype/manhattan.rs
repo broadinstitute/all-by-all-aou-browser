@@ -78,6 +78,7 @@ struct PeakGeneRow {
     pub contig: String,
     pub peak_position: i32,
     pub peak_pvalue: f64,
+    pub variant_count: u32,
     pub gene_symbol: String,
     pub gene_id: String,
     pub distance_kb: f64,
@@ -85,6 +86,10 @@ struct PeakGeneRow {
     pub lof_count: u32,
     pub missense_count: u32,
     pub synonymous_count: u32,
+    pub best_coding_csq: String,
+    pub best_coding_hgvsp: String,
+    pub best_coding_hgvsc: String,
+    pub best_coding_ac: u32,
 }
 
 /// Burden result row from ClickHouse
@@ -140,6 +145,14 @@ pub struct GeneInLocus {
     pub missense_count: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synonymous_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_csq: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_hgvsp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_hgvsc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_ac: Option<u32>,
     /// Burden results for each annotation category (pLoF, missenseLC, etc.)
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
@@ -149,6 +162,7 @@ pub struct GeneInLocus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Peak {
     pub locus_id: String,
+    pub variant_count: u32,
     pub start: i32,
     pub stop: i32,
     pub contig: String,
@@ -408,7 +422,8 @@ pub(crate) async fn fetch_peak_annotations(
             SELECT
                 locus_id, contig, start, stop,
                 toInt32OrZero(splitByChar(':', lead_variant)[2]) as peak_position,
-                lead_pvalue as peak_pvalue
+                lead_pvalue as peak_pvalue,
+                toUInt32(exome_count + genome_count) as variant_count
             FROM loci
             WHERE phenotype = ? AND ancestry = ?
               AND (source = 'both' OR source = ?)
@@ -417,7 +432,7 @@ pub(crate) async fn fetch_peak_annotations(
         ),
         locus_genes AS (
             SELECT
-                p.locus_id, p.start, p.stop, p.contig, p.peak_position, p.peak_pvalue,
+                p.locus_id, p.start, p.stop, p.contig, p.peak_position, p.peak_pvalue, p.variant_count,
                 gm.gene_id, gm.symbol as gene_symbol,
                 abs(p.peak_position - (gm.start + gm.stop) / 2) as distance_to_peak
             FROM peaks p
@@ -434,7 +449,11 @@ pub(crate) async fn fetch_peak_annotations(
                 count(*) as coding_count,
                 countIf(ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost')) as lof_count,
                 countIf(ann.consequence = 'missense_variant') as missense_count,
-                countIf(ann.consequence = 'synonymous_variant') as synonymous_count
+                countIf(ann.consequence = 'synonymous_variant') as synonymous_count,
+                argMinIf(ann.consequence, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_csq,
+                argMinIf(ann.hgvsp, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_hgvsp,
+                argMinIf(ann.hgvsc, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_hgvsc,
+                argMinIf(ann.ac, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_ac
             FROM loci_variants lv
             JOIN {annotation_table} ann
                 ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
@@ -443,13 +462,17 @@ pub(crate) async fn fetch_peak_annotations(
             GROUP BY lv.locus_id, ann.gene_symbol
         )
         SELECT
-            lg.locus_id, lg.start, lg.stop, lg.contig, lg.peak_position, lg.peak_pvalue,
+            lg.locus_id, lg.start, lg.stop, lg.contig, lg.peak_position, lg.peak_pvalue, lg.variant_count,
             lg.gene_symbol, lg.gene_id,
             round(lg.distance_to_peak / 1000, 1) as distance_kb,
             toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
             toUInt32(coalesce(cv.lof_count, 0)) as lof_count,
             toUInt32(coalesce(cv.missense_count, 0)) as missense_count,
-            toUInt32(coalesce(cv.synonymous_count, 0)) as synonymous_count
+            toUInt32(coalesce(cv.synonymous_count, 0)) as synonymous_count,
+            coalesce(cv.best_coding_csq, '') as best_coding_csq,
+            coalesce(cv.best_coding_hgvsp, '') as best_coding_hgvsp,
+            coalesce(cv.best_coding_hgvsc, '') as best_coding_hgvsc,
+            toUInt32(coalesce(cv.best_coding_ac, 0)) as best_coding_ac
         FROM locus_genes lg
         LEFT JOIN coding_variants cv
             ON cv.locus_id = lg.locus_id AND cv.gene_symbol = lg.gene_symbol
@@ -548,6 +571,13 @@ pub(crate) async fn fetch_peak_annotations(
         // Helper to convert 0 to None for cleaner JSON
         let opt_count = |c: u32| if c > 0 { Some(c) } else { None };
 
+        let opt_string = |s: String| if s.is_empty() { None } else { Some(s) };
+        // Strip transcript prefix from HGVS (e.g., "ENSP00000380585.1:p.Ala402Cys" -> "p.Ala402Cys")
+        let strip_transcript = |s: String| {
+            if s.is_empty() { return None; }
+            Some(s.rsplit_once(':').map_or(s.clone(), |(_, after)| after.to_string()))
+        };
+
         match &mut current_peak {
             Some(peak) if peak.locus_id == key => {
                 // Add gene to existing peak
@@ -559,6 +589,10 @@ pub(crate) async fn fetch_peak_annotations(
                     lof_count: opt_count(row.lof_count),
                     missense_count: opt_count(row.missense_count),
                     synonymous_count: opt_count(row.synonymous_count),
+                    best_coding_csq: opt_string(row.best_coding_csq),
+                    best_coding_hgvsp: strip_transcript(row.best_coding_hgvsp),
+                    best_coding_hgvsc: strip_transcript(row.best_coding_hgvsc),
+                    best_coding_ac: opt_count(row.best_coding_ac),
                     burden_results,
                 });
             }
@@ -575,6 +609,7 @@ pub(crate) async fn fetch_peak_annotations(
                 };
                 current_peak = Some(Peak {
                     locus_id: row.locus_id,
+                    variant_count: row.variant_count,
                     start: row.start,
                     stop: row.stop,
                     contig: row.contig,
@@ -589,6 +624,10 @@ pub(crate) async fn fetch_peak_annotations(
                         lof_count: opt_count(row.lof_count),
                         missense_count: opt_count(row.missense_count),
                         synonymous_count: opt_count(row.synonymous_count),
+                        best_coding_csq: opt_string(row.best_coding_csq),
+                        best_coding_hgvsp: strip_transcript(row.best_coding_hgvsp),
+                        best_coding_hgvsc: strip_transcript(row.best_coding_hgvsc),
+                        best_coding_ac: opt_count(row.best_coding_ac),
                         burden_results,
                     }],
                 });
@@ -899,6 +938,7 @@ async fn get_gene_manhattan_overlay(
 
             Peak {
                 locus_id: format!("burden-{}", hit.id),
+                variant_count: 0,
                 start: hit.position,
                 stop: hit.position,
                 contig: hit.contig.clone(),
@@ -913,6 +953,10 @@ async fn get_gene_manhattan_overlay(
                     lof_count: None,
                     missense_count: None,
                     synonymous_count: None,
+                    best_coding_csq: None,
+                    best_coding_hgvsp: None,
+                    best_coding_hgvsc: None,
+                    best_coding_ac: None,
                     burden_results,
                 }],
             }

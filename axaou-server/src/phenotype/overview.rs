@@ -44,6 +44,14 @@ pub struct UnifiedGene {
     /// Coding hits from exome GWAS
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exome_coding_hits: Option<UnifiedCodingHits>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_csq: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_hgvsp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_hgvsc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_ac: Option<u32>,
     /// Burden test results
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
@@ -53,6 +61,7 @@ pub struct UnifiedGene {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedLocus {
     pub locus_id: String,
+    pub variant_count: u32,
     pub start: i32,
     pub stop: i32,
     pub contig: String,
@@ -116,6 +125,10 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
                     None
                 },
                 exome_coding_hits: if source == "exome" { coding_hits } else { None },
+                best_coding_csq: g.best_coding_csq.clone(),
+                best_coding_hgvsp: g.best_coding_hgvsp.clone(),
+                best_coding_hgvsc: g.best_coding_hgvsc.clone(),
+                best_coding_ac: g.best_coding_ac,
                 burden_results: g.burden_results.clone(),
             }
         })
@@ -123,6 +136,7 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
 
     UnifiedLocus {
         locus_id: peak.locus_id.clone(),
+        variant_count: peak.variant_count,
         start: peak.start,
         stop: peak.stop,
         contig: peak.contig.clone(),
@@ -164,6 +178,14 @@ fn merge_gene(
         } else if source == "exome" && coding_hits.is_some() {
             existing.exome_coding_hits = coding_hits;
         }
+        // Prioritize genome annotations for best coding info
+        if source == "genome" && new_gene.best_coding_hgvsp.is_some() {
+            existing.best_coding_csq = new_gene.best_coding_csq.clone();
+            existing.best_coding_hgvsp = new_gene.best_coding_hgvsp.clone();
+            existing.best_coding_hgvsc = new_gene.best_coding_hgvsc.clone();
+            existing.best_coding_ac = new_gene.best_coding_ac;
+        }
+
         // Merge burden results
         for br in &new_gene.burden_results {
             if !existing.burden_results.iter().any(|b| b.annotation == br.annotation) {
@@ -178,6 +200,10 @@ fn merge_gene(
             distance_kb: new_gene.distance_kb,
             genome_coding_hits: if source == "genome" { coding_hits.clone() } else { None },
             exome_coding_hits: if source == "exome" { coding_hits } else { None },
+            best_coding_csq: new_gene.best_coding_csq.clone(),
+            best_coding_hgvsp: new_gene.best_coding_hgvsp.clone(),
+            best_coding_hgvsc: new_gene.best_coding_hgvsc.clone(),
+            best_coding_ac: new_gene.best_coding_ac,
             burden_results: new_gene.burden_results.clone(),
         });
     }
@@ -281,6 +307,8 @@ pub async fn get_phenotype_overview(
             {
                 existing.pvalue_exome = Some(peak.pvalue);
             }
+            // Sum variant counts from both sources
+            existing.variant_count += peak.variant_count;
             // Merge genes
             for gene in &peak.genes {
                 merge_gene(&mut existing.genes, gene, "exome");
@@ -342,6 +370,7 @@ pub async fn get_phenotype_overview(
                 key.clone(),
                 UnifiedLocus {
                     locus_id: key,
+                    variant_count: 0,
                     start: first_row.gene_start_position,
                     stop: first_row.gene_start_position,
                     contig: first_row.contig.clone(),
@@ -354,6 +383,10 @@ pub async fn get_phenotype_overview(
                         distance_kb: 0.0,
                         genome_coding_hits: None,
                         exome_coding_hits: None,
+                        best_coding_csq: None,
+                        best_coding_hgvsp: None,
+                        best_coding_hgvsc: None,
+                        best_coding_ac: None,
                         burden_results,
                     }],
                 },

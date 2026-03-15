@@ -87,6 +87,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const [searchText, setSearchText] = useState('');
+  const [hideSingletons, setHideSingletons] = useState(true);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
   // Local slider value with debounced propagation to avoid layout thrash
   const [sliderValue, setSliderValue] = useState(topN);
@@ -164,11 +165,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     });
   }, [sortedLoci, searchText]);
 
-  // Filter to only loci with gene evidence
+  // Filter to only loci with gene evidence and optionally remove artifact singletons
   const filteredLoci = useMemo(() => {
-    if (!showOnlyImplicated) return searchFilteredLoci;
-    return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
-  }, [searchFilteredLoci, showOnlyImplicated]);
+    let result = searchFilteredLoci;
+    if (hideSingletons) {
+      result = result.filter((locus) => !locus.variant_count || locus.variant_count >= 3 || locus.genes.some(geneHasEvidence));
+    }
+    if (showOnlyImplicated) {
+      result = result.filter((locus) => locus.genes.some(geneHasEvidence));
+    }
+    return result;
+  }, [searchFilteredLoci, showOnlyImplicated, hideSingletons]);
 
   const handleSliderChange = useCallback((v: number) => {
     setSliderValue(v);
@@ -222,9 +229,9 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           />
           <span style={{ color: 'var(--theme-text)' }}>
             <strong>{filteredLoci.length}</strong>
-            {(showOnlyImplicated || searchText) ? ` / ${sortedLoci.length}` : ''} loci
+            {(showOnlyImplicated || hideSingletons || searchText) ? ` / ${sortedLoci.length}` : ''} loci
           </span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 8 }}>
             <input
               type="checkbox"
               checked={showOnlyImplicated}
@@ -232,6 +239,15 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
               style={{ cursor: 'pointer' }}
             />
             <span style={{ fontSize: 11 }}>Gene implicated</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 8 }}>
+            <input
+              type="checkbox"
+              checked={hideSingletons}
+              onChange={(e) => setHideSingletons(e.target.checked)}
+              style={{ cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 11 }} title="Hide peaks driven by < 3 variants (unless they have gene evidence)">Hide singletons</span>
           </label>
           {/* Label controls */}
           {customLabelMode ? (
@@ -459,8 +475,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                         {burdenTypes.includes('synonymous') && (
                           <span style={{ color: '#388e3c', marginLeft: 1 }} title="Synonymous burden">●</span>
                         )}
-                        {/* Coding counts inline - AoU dark blue */}
-                        {hasCoding && (
+                        {/* Specific Coding Variant details or generic counts fallback */}
+                        {hasCoding && g.best_coding_hgvsp && (
+                          <span style={{ fontSize: 10, marginLeft: 6, background: '#e3f2fd', color: '#1565c0', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                            {g.best_coding_hgvsp} {g.best_coding_ac ? `| AC:${g.best_coding_ac}` : ''}
+                          </span>
+                        )}
+                        {hasCoding && !g.best_coding_hgvsp && (
                           <span style={{ fontSize: 10, marginLeft: 2, color: '#262262', fontWeight: 500 }}>
                             {coding.lof > 0 && (
                               <span>({coding.lof}LOF)</span>

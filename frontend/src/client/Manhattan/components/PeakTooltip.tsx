@@ -211,29 +211,44 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                 {/* Coding variant badges */}
                 {hasCoding && (
                   <span style={{ display: 'flex', gap: '4px' }}>
-                    {lof > 0 && (
+                    {gene.best_coding_hgvsp ? (
                       <span style={{
-                        background: '#ffebee',
-                        color: '#c62828',
+                        background: '#e3f2fd',
+                        color: '#1565c0',
                         padding: '1px 5px',
                         borderRadius: '3px',
-                        fontSize: '9px',
+                        fontSize: '10px',
                         fontWeight: 600,
                       }}>
-                        {lof} LoF
+                        {gene.best_coding_hgvsp} {gene.best_coding_ac ? `| AC: ${gene.best_coding_ac}` : ''}
                       </span>
-                    )}
-                    {mis > 0 && (
-                      <span style={{
-                        background: '#fff8e1',
-                        color: '#f57f17',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        fontSize: '9px',
-                        fontWeight: 600,
-                      }}>
-                        {mis} Mis
-                      </span>
+                    ) : (
+                      <>
+                        {lof > 0 && (
+                          <span style={{
+                            background: '#ffebee',
+                            color: '#c62828',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            fontSize: '9px',
+                            fontWeight: 600,
+                          }}>
+                            {lof} LoF
+                          </span>
+                        )}
+                        {mis > 0 && (
+                          <span style={{
+                            background: '#fff8e1',
+                            color: '#f57f17',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            fontSize: '9px',
+                            fontWeight: 600,
+                          }}>
+                            {mis} Mis
+                          </span>
+                        )}
+                      </>
                     )}
                   </span>
                 )}

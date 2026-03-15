@@ -84,6 +84,10 @@ export interface GeneInLocus {
   missense_count?: number;
   /** Synonymous variant count */
   synonymous_count?: number;
+  best_coding_csq?: string;
+  best_coding_hgvsp?: string;
+  best_coding_hgvsc?: string;
+  best_coding_ac?: number;
   /** Burden test results for each annotation category */
   burden_results?: BurdenResult[];
 }
@@ -94,6 +98,8 @@ export interface GeneInLocus {
 export interface Peak {
   /** Unique locus identifier */
   locus_id: string;
+  /** Number of significant single variants in this locus */
+  variant_count: number;
   /** Locus start position */
   start: number;
   /** Locus stop position */
@@ -151,6 +157,10 @@ export interface UnifiedGene {
   genome_coding_hits?: UnifiedCodingHits;
   /** Coding hits from exome GWAS */
   exome_coding_hits?: UnifiedCodingHits;
+  best_coding_csq?: string;
+  best_coding_hgvsp?: string;
+  best_coding_hgvsc?: string;
+  best_coding_ac?: number;
   /** Burden test results */
   burden_results?: BurdenResult[];
 }
@@ -161,6 +171,8 @@ export interface UnifiedGene {
 export interface UnifiedLocus {
   /** Unique locus identifier */
   locus_id: string;
+  /** Number of significant single variants in this locus */
+  variant_count: number;
   /** Locus start position */
   start: number;
   /** Locus stop position */

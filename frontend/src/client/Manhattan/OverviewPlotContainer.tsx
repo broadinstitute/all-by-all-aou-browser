@@ -184,7 +184,14 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
       return bestA - bestB;
     });
-    return new Set(sorted.slice(0, topN).map((l) => `${l.contig}-${l.position}`));
+    // Auto-select: implicated loci first (up to 25), then fill remaining slots with top GWAS peaks
+    const effectiveLimit = topN === 10 ? 25 : topN;
+    const implicated = sorted.filter(l => isImplicated(l)).slice(0, effectiveLimit);
+    const implicatedIds = new Set(implicated.map(l => `${l.contig}-${l.position}`));
+    // Fill remaining slots with non-implicated GWAS peaks (sorted by p-value already)
+    const remaining = sorted.filter(l => !implicatedIds.has(`${l.contig}-${l.position}`));
+    const filled = [...implicated, ...remaining].slice(0, effectiveLimit);
+    return new Set(filled.map((l) => `${l.contig}-${l.position}`));
   }, [filteredLoci, topN, customLabelMode, selectedPeakIds]);
 
   // Toggle a peak label on/off. When transitioning from default→custom mode,

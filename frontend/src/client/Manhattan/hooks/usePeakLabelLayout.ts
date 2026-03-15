@@ -21,6 +21,7 @@ export interface ImplicatedGene {
   burdenTypes: string[];
   lofCount: number;
   missenseCount: number;
+  bestCodingHgvsp?: string;
 }
 
 export interface PeakLabelNode {
@@ -68,6 +69,7 @@ function estimateLabelWidth(
   label: string,
   burdenTypes: string[],
   hasCoding: boolean,
+  bestCodingHgvsp: string | undefined,
   implicatedCount: number,
   isBurdenOnly: boolean = false,
   isNearestOnly: boolean = false
@@ -79,10 +81,41 @@ function estimateLabelWidth(
   // Add space for burden dots (2 chars each: dot + space)
   if (burdenTypes.length > 0) text = '●'.repeat(burdenTypes.length) + ' ' + text;
   // Add space for coding indicator
-  if (hasCoding) text += ' (C)';
+  if (hasCoding) {
+    if (bestCodingHgvsp) text += ` (${bestCodingHgvsp})`;
+    else text += ' (C)';
+  }
   // Add space for multi-gene indicator
   if (implicatedCount > 1) text += ` +${implicatedCount - 1}`;
   return text.length * CHAR_WIDTH + LABEL_PADDING * 2;
+}
+
+// Minimal HGVSp parser to condense p.Val600Glu to V600E
+function parseHgvspLabel(hgvsp: string | undefined | null): string {
+  if (!hgvsp) return '';
+  const match = hgvsp.match(/p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})/);
+  if (match) {
+    const aa3to1: Record<string, string> = {
+      Ala: 'A', Arg: 'R', Asn: 'N', Asp: 'D', Cys: 'C',
+      Glu: 'E', Gln: 'Q', Gly: 'G', His: 'H', Ile: 'I',
+      Leu: 'L', Lys: 'K', Met: 'M', Phe: 'F', Pro: 'P',
+      Ser: 'S', Thr: 'T', Trp: 'W', Tyr: 'Y', Val: 'V', Ter: '*',
+    };
+    return `p.${aa3to1[match[1]] || match[1]}${match[2]}${aa3to1[match[3]] || match[3]}`;
+  }
+  const shortMatch = hgvsp.match(/p\.([A-Z])(\d+)([A-Z*])/);
+  if (shortMatch) return `p.${shortMatch[1]}${shortMatch[2]}${shortMatch[3]}`;
+  const synMatch = hgvsp.match(/p\.([A-Z][a-z]{2})(\d+)=/);
+  if (synMatch) {
+    const aa3to1: Record<string, string> = {
+      Ala: 'A', Arg: 'R', Asn: 'N', Asp: 'D', Cys: 'C',
+      Glu: 'E', Gln: 'Q', Gly: 'G', His: 'H', Ile: 'I',
+      Leu: 'L', Lys: 'K', Met: 'M', Phe: 'F', Pro: 'P',
+      Ser: 'S', Thr: 'T', Trp: 'W', Tyr: 'Y', Val: 'V',
+    };
+    return `p.${aa3to1[synMatch[1]] || synMatch[1]}${synMatch[2]}=`;
+  }
+  return hgvsp;
 }
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -100,6 +133,10 @@ interface PeakGene {
   lof_count?: number;
   missense_count?: number;
   distance_kb?: number;
+  best_coding_csq?: string;
+  best_coding_hgvsp?: string;
+  best_coding_hgvsc?: string;
+  best_coding_ac?: number;
 }
 
 /**
@@ -269,6 +306,7 @@ export function usePeakLabelLayout(
             burdenTypes: geneBurdenTypes,
             lofCount: geneLofCount,
             missenseCount: geneMissenseCount,
+            bestCodingHgvsp: g.best_coding_hgvsp ? parseHgvspLabel(g.best_coding_hgvsp) : (g.best_coding_hgvsc ? g.best_coding_hgvsc.split(':').pop() : undefined),
           });
         }
       }
@@ -282,9 +320,12 @@ export function usePeakLabelLayout(
       const codingCount = topGene.coding_variant_count || 0;
       const hasCoding = codingCount > 0;
 
+      // Pull best HGVS string
+      const bestCodingHgvsp = topGene.best_coding_hgvsp ? parseHgvspLabel(topGene.best_coding_hgvsp) : (topGene.best_coding_hgvsc ? topGene.best_coding_hgvsc.split(':').pop() : undefined);
+
       const isBurdenOnly = peak.isBurdenOnly ?? false;
       const isNearestOnly = !hasBurden && !hasCoding;
-      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, implicatedCount, isBurdenOnly, isNearestOnly);
+      const labelWidth = estimateLabelWidth(topGene.gene_symbol, burdenTypes, hasCoding, bestCodingHgvsp, implicatedCount, isBurdenOnly, isNearestOnly);
 
       // For angled labels, calculate collision radius
       const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);

@@ -92,11 +92,16 @@ function unifiedLociToPeaks(loci: UnifiedLocus[]): Peak[] {
         (g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0) || undefined,
       missense_count:
         (g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0) || undefined,
+      best_coding_csq: g.best_coding_csq,
+      best_coding_hgvsp: g.best_coding_hgvsp,
+      best_coding_hgvsc: g.best_coding_hgvsc,
+      best_coding_ac: g.best_coding_ac,
       burden_results: g.burden_results,
     }));
 
     return {
       locus_id: locus.locus_id,
+      variant_count: locus.variant_count,
       start: locus.start,
       stop: locus.stop,
       contig: locus.contig,
