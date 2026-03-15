@@ -173,19 +173,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
   }, [searchFilteredLoci, showOnlyImplicated]);
 
-  const hasActiveFilter = showOnlyImplicated || !!searchText.trim();
   const handleSliderChange = useCallback((v: number) => {
     setSliderValue(v);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      if (hasActiveFilter) {
-        const ids = new Set(filteredLoci.slice(0, v).map((l) => `${l.contig}-${l.position}`));
-        onSelectAllFiltered(ids);
-      } else {
-        onSetTopN(v);
-      }
+      onSetTopN(v);
     }, 250);
-  }, [onSetTopN, onSelectAllFiltered, hasActiveFilter, filteredLoci]);
+  }, [onSetTopN]);
 
   const handleSelectAllFiltered = useCallback(() => {
     const ids = new Set(filteredLoci.map((l) => `${l.contig}-${l.position}`));
