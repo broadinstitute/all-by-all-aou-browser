@@ -223,51 +223,33 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             onMouseEnter={(e) => handleMouseEnter(e, peakId, node)}
             onMouseMove={(e) => handleMouseMoveLabel(e, node)}
             onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              if (isDragging || justDraggedRef.current) return;
-              setHoveredPeakId(null);
-              onPeakHover?.(null);
-              if (isLabeled) {
-                // Labeled peaks: click navigates (existing behavior)
-                onPeakClick?.(node);
-              } else {
-                // Unlabeled (ghost) peaks: click toggles label on
-                onPeakToggle?.(peakId);
-              }
-            }}
             onContextMenu={(e) => {
               e.preventDefault();
               onPeakContextMenu?.(node, e.clientX, e.clientY);
             }}
-            style={{ cursor: onLabelDragEnd ? (isDragging ? 'grabbing' : 'pointer') : 'pointer' }}
           >
-            {/* Invisible wider hit area for easier hovering over peak dot */}
-            <circle cx={node.targetX} cy={peakY} r={12} fill="transparent" />
-
-            {/* Leader line and hit area - only for labeled peaks */}
-            {isLabeled && (
-              <>
-                <path
-                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
-                  stroke="transparent"
-                  strokeWidth={10}
-                  fill="none"
-                />
-                <path
-                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
-                  className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
-                  fill="none"
-                  style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2' } : hasOverride ? { stroke: '#666' } : undefined}
-                />
-              </>
-            )}
-            {/* Dot/shape at the peak position */}
+            {/* Peak dot: click toggles label on/off */}
+            {/* Invisible wider hit area for easier clicking */}
+            <circle
+              cx={node.targetX}
+              cy={peakY}
+              r={12}
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                if (isDragging || justDraggedRef.current) return;
+                setHoveredPeakId(null);
+                onPeakHover?.(null);
+                onPeakToggle?.(peakId);
+              }}
+            />
             {isBurdenOnly ? (
               <polygon
                 points={`${node.targetX},${peakY - dotSize} ${node.targetX + dotSize},${peakY} ${node.targetX},${peakY + dotSize} ${node.targetX - dotSize},${peakY}`}
                 fill={burdenOnlyColor}
                 stroke={isHovered ? '#4a0072' : undefined}
                 strokeWidth={isHovered ? 2 : undefined}
+                style={{ pointerEvents: 'none' }}
               />
             ) : (
               <circle
@@ -275,9 +257,34 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 cy={peakY}
                 r={dotSize}
                 className={`manhattan-peak-dot ${isHovered ? 'manhattan-peak-dot-hovered' : ''}`}
+                style={{ pointerEvents: 'none' }}
               />
             )}
-            {/* Gene label - only rendered for labeled peaks */}
+
+            {/* Leader line + label text: click navigates to locus/gene */}
+            {isLabeled && (
+              <>
+                <path
+                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
+                  stroke="transparent"
+                  strokeWidth={10}
+                  fill="none"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    if (isDragging || justDraggedRef.current) return;
+                    setHoveredPeakId(null);
+                    onPeakHover?.(null);
+                    onPeakClick?.(node);
+                  }}
+                />
+                <path
+                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
+                  className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
+                  fill="none"
+                  style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2', pointerEvents: 'none' } : hasOverride ? { stroke: '#666', pointerEvents: 'none' } : { pointerEvents: 'none' }}
+                />
+              </>
+            )}
             {isLabeled && (
               <text
                 x={labelX}
@@ -285,7 +292,15 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 className={`manhattan-peak-label ${node.hasBurden ? 'manhattan-peak-label-burden' : ''} ${isHovered ? 'manhattan-peak-label-hovered' : ''}`}
                 transform={`rotate(${LABEL_ANGLE}, ${labelX}, ${labelY})`}
                 textAnchor="start"
+                style={{ cursor: onLabelDragEnd ? (isDragging ? 'grabbing' : 'pointer') : 'pointer' }}
                 onMouseDown={(e) => handleDragStart(e, peakId, labelX, labelY)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isDragging || justDraggedRef.current) return;
+                  setHoveredPeakId(null);
+                  onPeakHover?.(null);
+                  onPeakClick?.(node);
+                }}
               >
                 {isBurdenOnly && (
                   <tspan fill={burdenOnlyColor} fontWeight="bold">◆ </tspan>
