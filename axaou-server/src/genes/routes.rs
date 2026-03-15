@@ -107,11 +107,29 @@ pub struct TopGenesQuery {
 pub async fn get_top_associations(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TopGenesQuery>,
-) -> Result<Json<LookupResult<GeneAssociationApi>>, AppError> {
+) -> Result<axum::response::Response, AppError> {
     let timer = QueryTimer::start();
     let limit = params.limit.unwrap_or(100000);
     let min_p = params.min_p.unwrap_or(0.0);
     let max_p = params.max_p.unwrap_or(1e-4);
+
+    let dv = state.data_version.as_deref().unwrap_or("none");
+    let cache_key = format!(
+        "top_genes:{}:{}:{}:{}:{}",
+        params.ancestry,
+        params.annotation.as_deref().unwrap_or("none"),
+        min_p,
+        max_p,
+        dv
+    );
+
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
+        return Ok(axum::response::Response::builder()
+            .status(axum::http::StatusCode::OK)
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(cached_bytes))
+            .unwrap());
+    }
 
     let base_query = format!(
         r#"
@@ -149,7 +167,20 @@ pub async fn get_top_associations(
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
     let api_rows: Vec<GeneAssociationApi> = rows.into_iter().map(|r| r.to_api()).collect();
-    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
+    let result = LookupResult::new(api_rows, timer.elapsed());
+    let json_bytes =
+        serde_json::to_vec(&result).map_err(|e| AppError::DataTransformError(e.to_string()))?;
+
+    state
+        .api_cache
+        .insert(cache_key, json_bytes.clone())
+        .await;
+
+    Ok(axum::response::Response::builder()
+        .status(axum::http::StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from(json_bytes))
+        .unwrap())
 }
 
 /// Response type for gene symbol list with IDs
@@ -300,8 +331,20 @@ pub async fn get_genes_in_interval(
 /// ordered by significant phenotype count descending.
 pub async fn get_genes_summary(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<LookupResult<GeneSummaryRow>>, AppError> {
+) -> Result<axum::response::Response, AppError> {
     let timer = QueryTimer::start();
+
+    let dv = state.data_version.as_deref().unwrap_or("none");
+    let cache_key = format!("genes_summary_all_{}", dv);
+
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
+        return Ok(axum::response::Response::builder()
+            .status(axum::http::StatusCode::OK)
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(cached_bytes))
+            .unwrap());
+    }
+
     let query =
         "SELECT * FROM gene_summary ORDER BY sig_phenos_variant_count DESC, gene_symbol ASC";
 
@@ -312,5 +355,18 @@ pub async fn get_genes_summary(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    Ok(Json(LookupResult::new(rows, timer.elapsed())))
+    let result = LookupResult::new(rows, timer.elapsed());
+    let json_bytes =
+        serde_json::to_vec(&result).map_err(|e| AppError::DataTransformError(e.to_string()))?;
+
+    state
+        .api_cache
+        .insert(cache_key, json_bytes.clone())
+        .await;
+
+    Ok(axum::response::Response::builder()
+        .status(axum::http::StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from(json_bytes))
+        .unwrap())
 }

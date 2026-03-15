@@ -192,7 +192,7 @@ pub struct TopAggregatedVariantsQuery {
 pub async fn get_top_variants_aggregated(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TopAggregatedVariantsQuery>,
-) -> Result<Json<LookupResult<crate::models::AggregatedVariantApi>>, AppError> {
+) -> Result<axum::response::Response, AppError> {
     let timer = QueryTimer::start();
     let min_p = params.min_p.unwrap_or(0.0);
     let max_p = params.max_p.unwrap_or(1e-6);
@@ -201,6 +201,26 @@ pub async fn get_top_variants_aggregated(
         0 => MAX_LIMIT,
         n => n.min(MAX_LIMIT),
     };
+
+    let dv = state.data_version.as_deref().unwrap_or("none");
+    let cache_key = format!(
+        "top_variants_agg:{}:{}:{}:{}:{}:{}:{}",
+        params.ancestry,
+        min_p,
+        max_p,
+        limit,
+        params.search.as_deref().unwrap_or("none"),
+        params.categories.as_deref().unwrap_or("none"),
+        dv
+    );
+
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
+        return Ok(axum::response::Response::builder()
+            .status(axum::http::StatusCode::OK)
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(cached_bytes))
+            .unwrap());
+    }
 
     let select_cols = r#"
         SELECT tva.xpos, tva.contig, tva.position, tva.ref, tva.alt,
@@ -342,5 +362,19 @@ pub async fn get_top_variants_aggregated(
 
     let api_rows: Vec<crate::models::AggregatedVariantApi> =
         rows.into_iter().map(|r| r.to_api()).collect();
-    Ok(Json(LookupResult::new(api_rows, timer.elapsed())))
+
+    let result = LookupResult::new(api_rows, timer.elapsed());
+    let json_bytes =
+        serde_json::to_vec(&result).map_err(|e| AppError::DataTransformError(e.to_string()))?;
+
+    state
+        .api_cache
+        .insert(cache_key, json_bytes.clone())
+        .await;
+
+    Ok(axum::response::Response::builder()
+        .status(axum::http::StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from(json_bytes))
+        .unwrap())
 }

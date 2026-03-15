@@ -236,9 +236,13 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     // Create Hail client for slow-path queries (caches up to 50 open tables)
     let hail_client = genohype_core::genomic::HailClient::new(50);
 
-    // Create in-memory cache for Manhattan plots (100MB max, ~1000 items)
-    let plot_cache = moka::future::Cache::builder()
-        .max_capacity(1000)
+    let data_version = api::extract_data_version();
+
+    // Create in-memory cache for Manhattan plots and API responses (~500MB max)
+    // weigher returns KB, so max_capacity is in KB units
+    let api_cache = moka::future::Cache::builder()
+        .max_capacity(500_000)
+        .time_to_live(std::time::Duration::from_secs(24 * 60 * 60))
         .weigher(|_key, value: &Vec<u8>| -> u32 {
             // Estimate weight as byte size in KB (1KB = 1 unit)
             (value.len() / 1024).max(1) as u32
@@ -252,7 +256,8 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         gene_queries,
         clickhouse: clickhouse_client,
         hail_client,
-        plot_cache,
+        api_cache,
+        data_version,
     });
 
     // Build the router with /api prefix to match proxy behavior
@@ -415,6 +420,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/admin/pipeline/stats",
                     get(admin::pipeline::get_pipeline_stats),
+                )
+                .route(
+                    "/admin/cache/clear",
+                    axum::routing::post(admin::pipeline::clear_cache),
                 ),
         )
         .layer(CompressionLayer::new())
@@ -424,7 +433,10 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .allow_methods(Any)
                 .allow_headers(Any),
         )
-        .with_state(state);
+        .with_state(state.clone());
+
+    // Warm the cache in the background for the heaviest queries
+    tokio::spawn(warm_cache(state));
 
     // Bind to configurable port
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -434,6 +446,135 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Pre-warm the API cache for the heaviest global queries.
+/// Runs in the background so the server can start serving immediately.
+async fn warm_cache(state: Arc<AppState>) {
+    use crate::clickhouse::models::{GeneAssociationRow, GeneSummaryRow, PhenotypeSummaryRow};
+    use crate::response::{LookupResult, QueryTimer};
+
+    let dv = state.data_version.as_deref().unwrap_or("none");
+
+    // 1. Phenotypes summary
+    let timer = QueryTimer::start();
+    match state
+        .clickhouse
+        .query("SELECT * FROM phenotype_summary ORDER BY sig_loci_count DESC, analysis_id ASC")
+        .fetch_all::<PhenotypeSummaryRow>()
+        .await
+    {
+        Ok(rows) => {
+            let key = format!("phenotypes_summary_all_{}", dv);
+            if let Ok(bytes) = serde_json::to_vec(&LookupResult::new(rows, timer.elapsed())) {
+                info!("Cache warm: phenotypes_summary ({} bytes)", bytes.len());
+                state.api_cache.insert(key, bytes).await;
+            }
+        }
+        Err(e) => tracing::warn!("Cache warm failed (phenotypes_summary): {}", e),
+    }
+
+    // 2. Genes summary
+    let timer = QueryTimer::start();
+    match state
+        .clickhouse
+        .query("SELECT * FROM gene_summary ORDER BY sig_phenos_variant_count DESC, gene_symbol ASC")
+        .fetch_all::<GeneSummaryRow>()
+        .await
+    {
+        Ok(rows) => {
+            let key = format!("genes_summary_all_{}", dv);
+            if let Ok(bytes) = serde_json::to_vec(&LookupResult::new(rows, timer.elapsed())) {
+                info!("Cache warm: genes_summary ({} bytes)", bytes.len());
+                state.api_cache.insert(key, bytes).await;
+            }
+        }
+        Err(e) => tracing::warn!("Cache warm failed (genes_summary): {}", e),
+    }
+
+    // 3. Top gene burden — warm the 3 annotation types for meta ancestry
+    for annotation in &["pLoF", "missenseLC", "synonymous"] {
+        let timer = QueryTimer::start();
+        let query = r#"
+            SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
+                   pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
+                   contig, gene_start_position, xpos
+            FROM gene_associations
+            WHERE ancestry = 'meta'
+              AND pvalue IS NOT NULL
+              AND pvalue >= 0
+              AND pvalue <= 0.0001
+              AND annotation = ?
+            ORDER BY pvalue ASC
+            LIMIT 100000
+        "#;
+        match state
+            .clickhouse
+            .query(query)
+            .bind(*annotation)
+            .fetch_all::<GeneAssociationRow>()
+            .await
+        {
+            Ok(rows) => {
+                let api_rows: Vec<crate::models::GeneAssociationApi> =
+                    rows.into_iter().map(|r| r.to_api()).collect();
+                let key = format!("top_genes:meta:{}:0:0.0001:{}", annotation, dv);
+                if let Ok(bytes) =
+                    serde_json::to_vec(&LookupResult::new(api_rows, timer.elapsed()))
+                {
+                    info!(
+                        "Cache warm: top_genes/{} ({} bytes)",
+                        annotation,
+                        bytes.len()
+                    );
+                    state.api_cache.insert(key, bytes).await;
+                }
+            }
+            Err(e) => tracing::warn!("Cache warm failed (top_genes/{}): {}", annotation, e),
+        }
+    }
+
+    // 4. Top variants aggregated — warm default meta query
+    let timer = QueryTimer::start();
+    let query = r#"
+        SELECT xpos, contig, position, ref, alt,
+               top_pvalue, top_neg_log10_p, top_phenotype, num_associations,
+               gene_id, gene_symbol, consequence,
+               '' AS matched_phenotype, 0.0 AS matched_pvalue
+        FROM top_variants_aggregated tva
+        WHERE tva.ancestry = 'meta'
+          AND tva.top_pvalue >= 0
+          AND tva.top_pvalue <= 0.000001
+          AND tva.top_phenotype NOT IN (
+              SELECT analysis_id FROM analysis_metadata
+              WHERE category = 'random_phenotype'
+                 OR description LIKE '%random%'
+          )
+        ORDER BY tva.num_associations DESC, tva.top_pvalue ASC
+        LIMIT 1000
+    "#;
+    match state
+        .clickhouse
+        .query(query)
+        .fetch_all::<crate::clickhouse::models::AggregatedVariantRow>()
+        .await
+    {
+        Ok(rows) => {
+            let api_rows: Vec<crate::models::AggregatedVariantApi> =
+                rows.into_iter().map(|r| r.to_api()).collect();
+            let key = format!(
+                "top_variants_agg:meta:0:0.000001:1000:none:none:{}",
+                dv
+            );
+            if let Ok(bytes) = serde_json::to_vec(&LookupResult::new(api_rows, timer.elapsed())) {
+                info!("Cache warm: top_variants_agg ({} bytes)", bytes.len());
+                state.api_cache.insert(key, bytes).await;
+            }
+        }
+        Err(e) => tracing::warn!("Cache warm failed (top_variants_agg): {}", e),
+    }
+
+    info!("Cache warming complete");
 }
 
 /// Discover analysis assets from GCS and save to JSON

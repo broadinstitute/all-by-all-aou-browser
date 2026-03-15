@@ -201,7 +201,7 @@ pub async fn get_phenotype_overview(
     let cache_key = format!("{}-{}-{}-overview-v2", analysis_id, ancestry, data_version);
 
     // Check cache first
-    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for overview: {}", cache_key);
         let response: UnifiedOverviewResponse = serde_json::from_slice(&cached_bytes)
             .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overview: {}", e)))?;
@@ -387,7 +387,7 @@ pub async fn get_phenotype_overview(
 
     // Cache the response as JSON bytes
     if let Ok(json_bytes) = serde_json::to_vec(&response) {
-        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        state.api_cache.insert(cache_key.clone(), json_bytes).await;
         debug!("Cached overview: {}", cache_key);
     }
 

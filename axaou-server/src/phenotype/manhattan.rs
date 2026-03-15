@@ -309,7 +309,7 @@ pub async fn get_manhattan_image(
     let cache_key = format!("{}-{}-{}-{}-{}-image", analysis_id, ancestry, plot_type, contig, data_version);
 
     // Check cache first
-    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for Manhattan image: {}", cache_key);
         return Ok(Response::builder()
             .status(StatusCode::OK)
@@ -363,7 +363,7 @@ pub async fn get_manhattan_image(
     let bytes_vec = bytes.to_vec();
 
     // Cache the bytes
-    state.plot_cache.insert(cache_key.clone(), bytes_vec.clone()).await;
+    state.api_cache.insert(cache_key.clone(), bytes_vec.clone()).await;
     debug!("Cached Manhattan image: {}", cache_key);
 
     Ok(Response::builder()
@@ -625,7 +625,7 @@ pub async fn get_manhattan_overlay(
     let cache_key = format!("{}-{}-{}-{}-{}-overlay-v2", analysis_id, ancestry, plot_type, contig, data_version);
 
     // Check cache first
-    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for Manhattan overlay: {}", cache_key);
         let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
             .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
@@ -782,7 +782,7 @@ pub async fn get_manhattan_overlay(
 
     // Cache the overlay as JSON bytes
     if let Ok(json_bytes) = serde_json::to_vec(&overlay) {
-        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        state.api_cache.insert(cache_key.clone(), json_bytes).await;
         debug!("Cached Manhattan overlay: {}", cache_key);
     }
 
@@ -801,7 +801,7 @@ async fn get_gene_manhattan_overlay(
     let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay-v2", analysis_id, ancestry, contig, data_version);
 
     // Check cache first
-    if let Some(cached_bytes) = state.plot_cache.get(&cache_key).await {
+    if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for gene Manhattan overlay: {}", cache_key);
         let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
             .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
@@ -935,7 +935,7 @@ async fn get_gene_manhattan_overlay(
 
     // Cache the overlay as JSON bytes
     if let Ok(json_bytes) = serde_json::to_vec(&overlay) {
-        state.plot_cache.insert(cache_key.clone(), json_bytes).await;
+        state.api_cache.insert(cache_key.clone(), json_bytes).await;
         debug!("Cached gene Manhattan overlay: {}", cache_key);
     }
 

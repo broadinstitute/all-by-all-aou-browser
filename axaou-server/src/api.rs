@@ -27,8 +27,10 @@ pub struct AppState {
     pub clickhouse: clickhouse::Client,
     /// Hail Table client for slow-path queries (directly from GCS)
     pub hail_client: genohype_core::genomic::HailClient,
-    /// In-memory cache for Manhattan plot data and images
-    pub plot_cache: moka::future::Cache<String, Vec<u8>>,
+    /// In-memory cache for Manhattan plot data, images, and API JSON responses
+    pub api_cache: moka::future::Cache<String, Vec<u8>>,
+    /// Current data version string extracted from config
+    pub data_version: Option<String>,
 }
 
 /// Query parameters for the /api/analyses endpoint
@@ -81,7 +83,7 @@ pub struct AxaouConfig {
 }
 
 /// Extract the data version (timestamp) from the output_dir in phenotype-data.toml
-fn extract_data_version() -> Option<String> {
+pub fn extract_data_version() -> Option<String> {
     use serde::Deserialize;
     use std::path::Path;
 

@@ -182,3 +182,16 @@ pub async fn get_pipeline_stats(
         summary,
     }))
 }
+
+/// Handler for POST /api/admin/cache/clear
+///
+/// Clears the in-memory API response and plot cache.
+pub async fn clear_cache(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state.api_cache.invalidate_all();
+    Ok(Json(serde_json::json!({
+        "status": "success",
+        "message": "API cache cleared successfully"
+    })))
+}
