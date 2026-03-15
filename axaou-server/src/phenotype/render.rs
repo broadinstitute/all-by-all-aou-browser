@@ -205,37 +205,147 @@ impl LocusRenderer {
     }
 
     /// Render variant points to the buffer, sorted by consequence severity (back-to-front).
+    ///
+    /// Uses direct pixel buffer manipulation instead of path-based anti-aliased
+    /// circle rasterization. "Other" (non-coding/unknown) variants are downsampled
+    /// by pixel column when dense, while Synonymous, Missense, and pLoF variants
+    /// are always drawn at full fidelity.
     pub fn draw_variants(&mut self, variants: &[RenderVariant]) {
         let scale = YScale::new(self.config.height);
+        let w = self.config.width as i32;
+        let h = self.config.height as i32;
 
-        // Z-Ordering: sort by category ascending so most severe variants draw last (on top)
-        let mut sorted_variants: Vec<&RenderVariant> = variants.iter().collect();
-        sorted_variants.sort_by_key(|v| ConsequenceCategory::from_str(v.consequence.as_deref()));
+        // Max "Other" category variants to draw per pixel column when downsampling
+        let max_other_per_column: usize = 8;
 
-        for v in sorted_variants {
+        // Separate variants by category: important ones (syn/mis/pLoF) are always
+        // drawn; "Other" variants are downsampled when there are too many.
+        let mut important: Vec<(f32, f32, f32, ConsequenceCategory)> = Vec::new();
+        let mut other_variants: Vec<(f32, f32, f32, ConsequenceCategory)> = Vec::new();
+
+        for v in variants {
+            let category = ConsequenceCategory::from_str(v.consequence.as_deref());
             let x = self.config.get_x(v.position);
-            // Skip points outside horizontal bounds
-            if x < -50.0 || x > (self.config.width as f32 + 50.0) {
+            if x < -50.0 || x > (w as f32 + 50.0) {
                 continue;
             }
-
             let y = scale.get_y(v.pvalue, v.neg_log10_p);
-
             let radius = compute_base_radius(v.af) * self.config.dpr;
-            let category = ConsequenceCategory::from_str(v.consequence.as_deref());
 
-            let mut paint = Paint::default();
-            paint.set_color(category.color());
-            paint.anti_alias = true;
+            match category {
+                ConsequenceCategory::Other => other_variants.push((x, y, radius, category)),
+                _ => important.push((x, y, radius, category)),
+            }
+        }
 
-            if let Some(path) = PathBuilder::from_circle(x, y, radius) {
-                self.pixmap.fill_path(
-                    &path,
-                    &paint,
-                    FillRule::Winding,
-                    Transform::identity(),
-                    None,
-                );
+        // Downsample "Other" variants by pixel column if there are many
+        let downsampled_other: Vec<(f32, f32, f32, ConsequenceCategory)> =
+            if other_variants.len() > (w as usize * 2) {
+                let mut columns: Vec<Vec<(f32, f32, f32, ConsequenceCategory)>> =
+                    (0..w).map(|_| Vec::new()).collect();
+
+                for pt in &other_variants {
+                    let col = pt.0.round() as i32;
+                    if col >= 0 && col < w {
+                        columns[col as usize].push(*pt);
+                    }
+                }
+
+                let mut result = Vec::with_capacity(w as usize * max_other_per_column);
+                for col_pts in &columns {
+                    if col_pts.len() <= max_other_per_column {
+                        result.extend_from_slice(col_pts);
+                    } else {
+                        // Evenly sample across the column's variants (sorted by y for
+                        // good visual distribution across the p-value axis)
+                        let mut sorted = col_pts.clone();
+                        sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                        let step = sorted.len() / max_other_per_column;
+                        for i in (0..sorted.len()).step_by(step.max(1)).take(max_other_per_column)
+                        {
+                            result.push(sorted[i]);
+                        }
+                    }
+                }
+                result
+            } else {
+                other_variants
+            };
+
+        // Build final draw list: downsampled Other first (back), then important on top
+        // Z-order: Other < Synonymous < Missense < pLoF
+        let mut draw_list = downsampled_other;
+        important.sort_by_key(|v| v.3);
+        draw_list.extend(important);
+
+        // Get mutable access to the pixel buffer (RGBA, premultiplied alpha)
+        let pixels = self.pixmap.data_mut();
+
+        for (cx, cy, r, category) in &draw_list {
+            let color = category.color();
+
+            // Pre-multiply alpha for direct pixel compositing
+            let alpha = color.alpha();
+            let src_r = (color.red() * alpha * 255.0) as u8;
+            let src_g = (color.green() * alpha * 255.0) as u8;
+            let src_b = (color.blue() * alpha * 255.0) as u8;
+            let src_a = (alpha * 255.0) as u8;
+
+            // Bounding box in pixel coordinates
+            let x0 = ((*cx - r - 1.0).floor() as i32).max(0);
+            let x1 = ((*cx + r + 1.0).ceil() as i32).min(w - 1);
+            let y0 = ((*cy - r - 1.0).floor() as i32).max(0);
+            let y1 = ((*cy + r + 1.0).ceil() as i32).min(h - 1);
+
+            for py in y0..=y1 {
+                let dy = py as f32 - cy;
+                let dy_sq = dy * dy;
+                let row_offset = (py * w) as usize;
+
+                for px in x0..=x1 {
+                    let dx = px as f32 - cx;
+                    let dist_sq = dx * dx + dy_sq;
+
+                    if dist_sq > (r + 1.0) * (r + 1.0) {
+                        continue;
+                    }
+
+                    // Compute coverage for anti-aliased edge (1px feather)
+                    let coverage = if dist_sq <= (r - 0.5) * (r - 0.5) {
+                        1.0_f32
+                    } else {
+                        let dist = dist_sq.sqrt();
+                        (r + 0.5 - dist).clamp(0.0, 1.0)
+                    };
+
+                    if coverage <= 0.0 {
+                        continue;
+                    }
+
+                    let idx = (row_offset + px as usize) * 4;
+
+                    // Source-over compositing with coverage
+                    let ca = (src_a as f32 * coverage) as u8;
+                    let cr = ((src_r as f32 * coverage) as u8).min(ca);
+                    let cg = ((src_g as f32 * coverage) as u8).min(ca);
+                    let cb = ((src_b as f32 * coverage) as u8).min(ca);
+
+                    let dst_a = pixels[idx + 3];
+                    if dst_a == 0 {
+                        // Fast path: destination is transparent
+                        pixels[idx] = cr;
+                        pixels[idx + 1] = cg;
+                        pixels[idx + 2] = cb;
+                        pixels[idx + 3] = ca;
+                    } else {
+                        // Source-over blend (premultiplied)
+                        let inv_a = 255 - ca;
+                        pixels[idx] = cr.saturating_add(((pixels[idx] as u16 * inv_a as u16) / 255) as u8);
+                        pixels[idx + 1] = cg.saturating_add(((pixels[idx + 1] as u16 * inv_a as u16) / 255) as u8);
+                        pixels[idx + 2] = cb.saturating_add(((pixels[idx + 2] as u16 * inv_a as u16) / 255) as u8);
+                        pixels[idx + 3] = ca.saturating_add(((dst_a as u16 * inv_a as u16) / 255) as u8);
+                    }
+                }
             }
         }
     }

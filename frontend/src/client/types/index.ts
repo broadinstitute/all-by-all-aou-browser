@@ -221,6 +221,18 @@ interface LocusMetadata {
   plot_gcs_uri: string;
 }
 
+/** Response from /api/phenotype/:id/region/render/overlay */
+interface RegionOverlayResponse {
+  /** Sidecar metadata for coordinate mapping */
+  sidecar: LocusPlotSidecar;
+  /** Significant variants for SVG overlay */
+  significant_hits: import('../Manhattan/types').SignificantHit[];
+  /** Number of significant hits */
+  hit_count: number;
+  /** Total variant count in the rendered region */
+  total_variant_count: number;
+}
+
 export {
   AxaouConfig,
   LookupResult,
@@ -252,5 +264,6 @@ export {
   LocusPlotSidecar,
   LocusPlotResponse,
   LocusMetadata,
+  RegionOverlayResponse,
   AggregatedVariantAssociation,
 }

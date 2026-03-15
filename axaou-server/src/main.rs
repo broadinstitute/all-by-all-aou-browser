@@ -328,6 +328,16 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                     get(phenotype::overview::get_phenotype_overview),
                 )
                 // --- Manhattan Plot Proxy Routes ---
+                // --- Region Render Routes (server-side locus PNG) ---
+                .route(
+                    "/phenotype/:analysis_id/region/render",
+                    get(phenotype::region_render::render_region_plot),
+                )
+                .route(
+                    "/phenotype/:analysis_id/region/render/overlay",
+                    get(phenotype::region_render::render_region_overlay),
+                )
+                // --- Manhattan Plot Proxy Routes ---
                 .route(
                     "/phenotype/:analysis_id/manhattan",
                     get(phenotype::manhattan::get_manhattan_data),

@@ -99,7 +99,7 @@ pub async fn get_locus_variants(
 
 /// Y-axis configuration for locus plot coordinate mapping
 /// Matches the hybrid linear-log scale used by hail-decoder
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YAxisConfig {
     /// Threshold where scale switches from linear to log (-log10(p) value)
     pub log_threshold: f64,
@@ -110,21 +110,21 @@ pub struct YAxisConfig {
 }
 
 /// Image dimensions
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageDimensions {
     pub width: u32,
     pub height: u32,
 }
 
 /// Significance threshold marker
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThresholdMarker {
     pub pvalue: f64,
     pub y_px: u32,
 }
 
 /// Sidecar metadata for locus plot coordinate mapping
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocusPlotSidecar {
     /// Image dimensions
     pub image: ImageDimensions,

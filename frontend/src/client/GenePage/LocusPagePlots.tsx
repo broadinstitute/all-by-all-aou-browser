@@ -11,7 +11,8 @@ import {
 } from 'd3-scale'
 
 import { LocusPvaluePlot, LeftPanel, getConsequencePriority, getTierFromPriority } from './LocusPvaluePlot'
-import { VariantJoined, LocusPlotResponse } from '../types'
+import { ServerRenderedLocusPlot } from './ServerRenderedLocusPlot'
+import { VariantJoined, LocusPlotResponse, RegionOverlayResponse } from '../types'
 import { getCategoryFromConsequence } from '../vepConsequences'
 import {
   GwasCatalogOption,
@@ -27,6 +28,8 @@ import { useRecoilValue, useRecoilState } from 'recoil'
 import styled from 'styled-components'
 import { useState } from 'react'
 import {
+  analysisIdAtom,
+  ancestryGroupAtom,
   regionIdAtom,
   selectedAnalysesColorsSelector,
   variantIdAtom,
@@ -200,6 +203,10 @@ type AssociationsInGeneProps = {
   variantId?: string
   /** Optional locus plot data for PNG-based rendering */
   locusPlotData?: LocusPlotResponse | null
+  /** Overlay data for server-rendered region view */
+  regionOverlay?: RegionOverlayResponse
+  /** Whether this is a large region using server-side rendering */
+  isLargeRegion?: boolean
 }
 
 const onVariantHoverLabel =
@@ -243,9 +250,11 @@ const onVariantHoverLabel =
       )[afLabel].toExponential(3)}`
     }
 
-export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsInGeneProps) => {
+export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, isLargeRegion }: AssociationsInGeneProps) => {
   const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
+  const analysisId = useRecoilValue(analysisIdAtom)
+  const ancestryGroup = useRecoilValue(ancestryGroupAtom)
 
   const isRegion = regionId !== undefined && regionId !== null
 
@@ -447,7 +456,29 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
           </button>
         )}
         <LocusPagePlotStyles>
-          {usePngPlot ? (
+          {isLargeRegion && analysisId ? (
+            // Server-rendered region view
+            <>
+              <div className='left-panel'>
+                <LeftPanel
+                  variantDatasets={[]}
+                  height={plotHeight}
+                  width={leftPanelWidth}
+                  axisTicks={axisTicks}
+                  labelZoneHeight={0}
+                  tierY={{}}
+                />
+              </div>
+              <ServerRenderedLocusPlot
+                analysisId={analysisId}
+                ancestryGroup={ancestryGroup}
+                contig={regionId ? regionId.split('-')[0] : 'chr1'}
+                regionOverlay={regionOverlay}
+                height={plotHeight}
+                onClickVariant={onPngVariantClick}
+              />
+            </>
+          ) : usePngPlot ? (
             // PNG-based locus plot with interactive overlay
             <>
               <div className='left-panel'>

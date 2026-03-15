@@ -44,6 +44,7 @@ import {
   GeneModels,
   VariantDataset,
   LocusPlotResponse,
+  RegionOverlayResponse,
 } from '../types'
 import GeneResultsTable from '../GeneResults/GeneResultsTable'
 
@@ -314,6 +315,10 @@ type LocusPageLayoutProps = {
   size: { width: number; height: number }
   /** Optional locus plot data for PNG-based rendering */
   locusPlotData?: LocusPlotResponse | null
+  /** Overlay data for server-rendered region view */
+  regionOverlay?: RegionOverlayResponse
+  /** Whether this is a large region using server-side rendering */
+  isLargeRegion?: boolean
 }
 
 // Main Component
@@ -326,6 +331,8 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   size,
   queryStates,
   locusPlotData,
+  regionOverlay,
+  isLargeRegion,
 }) => {
   const { width } = size
 
@@ -659,7 +666,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
             rightPanelWidth={0}
           >
             <>
-              <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} />
+              <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} regionOverlay={regionOverlay} isLargeRegion={isLargeRegion} />
               {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
             </>
           </RegionViewer>

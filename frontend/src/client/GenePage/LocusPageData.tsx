@@ -38,6 +38,7 @@ import {
   VariantDataset,
   LocusPlotResponse,
   LocusMetadata,
+  RegionOverlayResponse,
 } from '../types'
 import { LocusPageLayout } from './LocusPageLayout'
 
@@ -224,6 +225,24 @@ export const LocusPageDataContainer = () => {
   // Format regionId for API: "19-32216732-34497056" -> "19:32216732-34497056"
   const apiRegionId = regionId ? formatRegionIdForApi(regionId) : ''
 
+  // Determine if this is a large region that should use server-side rendering
+  let isLargeRegion = false
+  let rContig = ''
+  let rStart = 0
+  let rStop = 0
+
+  if (regionId) {
+    const parts = regionId.split('-')
+    if (parts.length >= 3) {
+      rContig = parts[0]
+      rStart = parseInt(parts[1], 10)
+      rStop = parseInt(parts[2], 10)
+      if (rStop - rStart > 100000) {
+        isLargeRegion = true
+      }
+    }
+  }
+
   const variantAnnotationRegionQueries = sequencingTypes.map(seqType =>
   ({
     url: `${axaouDevUrl}/variants/annotations/interval/chr${apiRegionId}?ancestry_group=${ancestryGroup}&sequencing_type=${seqType}&extended=true`,
@@ -231,7 +250,8 @@ export const LocusPageDataContainer = () => {
   })
   )
 
-  const regionQueries = [
+  // Base queries that both large and small regions need
+  const baseRegionQueries = [
     {
       url: `${axaouDevUrl}/genes/model/interval/chr${apiRegionId}`,
       name: 'geneModels',
@@ -240,14 +260,27 @@ export const LocusPageDataContainer = () => {
       url: `${axaouDevUrl}/genes/associations/interval/chr${apiRegionId}?analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id`,
       name: `geneAssociations`,
     },
-    ...sequencingTypes.map((seqType) => ({
-      url: `${axaouDevUrl}/variants/associations/interval/chr${apiRegionId}?ancestry_group=${ancestryGroup}&analysis_id=${analysisId}&sequencing_type=${seqType}`,
-      name: `variantAssociations-${analysisId}-${seqType}-${ancestryGroup}`,
-      queryMode: 'two_step',
-      queryModeMinItems: seqType == "genome" ? 2000 : Infinity
-    })),
-    ...variantAnnotationRegionQueries,
   ]
+
+  // For large regions, skip heavy variant queries and use lightweight overlay instead
+  const regionQueries = isLargeRegion
+    ? [
+        ...baseRegionQueries,
+        {
+          url: `${axaouDevUrl}/phenotype/${analysisId}/region/render/overlay?ancestry=${ancestryGroup}&contig=${rContig}&start=${rStart}&stop=${rStop}&threshold=5e-8`,
+          name: 'regionOverlay',
+        },
+      ]
+    : [
+        ...baseRegionQueries,
+        ...sequencingTypes.map((seqType) => ({
+          url: `${axaouDevUrl}/variants/associations/interval/chr${apiRegionId}?ancestry_group=${ancestryGroup}&analysis_id=${analysisId}&sequencing_type=${seqType}`,
+          name: `variantAssociations-${analysisId}-${seqType}-${ancestryGroup}`,
+          queryMode: 'two_step',
+          queryModeMinItems: seqType == "genome" ? 2000 : Infinity
+        })),
+        ...variantAnnotationRegionQueries,
+      ]
 
   // When we have a variantId but no gene or region, infer a region
   // from the variant ID so we can show the locus context.
@@ -282,7 +315,50 @@ export const LocusPageDataContainer = () => {
 
   const analysesMetadata = queryStates.analysesMetadata?.data
 
+  const regionOverlay = queryStates.regionOverlay?.data as RegionOverlayResponse | undefined
+
   const variantDatasets = useMemo(() => {
+    // For large regions, build lightweight variant datasets from the overlay's
+    // significant hits instead of fetching + processing the full variant set.
+    if (isLargeRegion) {
+      if (!regionOverlay?.significant_hits?.length) return []
+
+      const data: VariantJoined[] = regionOverlay.significant_hits.map((hit: any) => {
+        const parts = hit.id.replace(/^chr/, '').split('-')
+        const contig = parts[0] ? (parts[0].startsWith('chr') ? parts[0] : `chr${parts[0]}`) : hit.contig
+        const position = hit.position || (parts[1] ? parseInt(parts[1], 10) : 0)
+
+        return {
+          variant_id: hit.id,
+          locus: { contig, position },
+          ref: parts[2] || '',
+          alt: parts[3] || '',
+          pvalue: hit.pvalue,
+          beta: hit.beta ?? 0,
+          se: hit.se ?? 0,
+          af: hit.af ?? 0,
+          consequence: hit.consequence || 'unknown',
+          gene_symbol: hit.gene_symbol || '',
+          hgvsp: hit.hgvsp || '',
+          hgvsc: hit.hgvsc || '',
+          sequencing_type: 'combined',
+          ancestry_group: ancestryGroup,
+          analysis_id: analysisId,
+          analysis_description: analysisId,
+          logp: -Math.log10(hit.pvalue),
+          allele_count: hit.ac ?? undefined,
+          allele_frequency: hit.af ?? undefined,
+        } as any as VariantJoined
+      })
+
+      return [{
+        sequencingType: 'combined',
+        ancestryGroup,
+        analysisId: analysisId!,
+        data,
+      }]
+    }
+
     let datasets: VariantDataset[] = []
     datasets = processVariants({
       analysisId,
@@ -292,7 +368,7 @@ export const LocusPageDataContainer = () => {
     });
 
     return datasets
-  }, [geneId, regionId, selectedAnalysesList, analysisId, analysesMetadata, queryStates, ancestryGroup]);
+  }, [geneId, regionId, selectedAnalysesList, analysisId, analysesMetadata, queryStates, ancestryGroup, isLargeRegion, regionOverlay]);
 
   const geneModels = queryStates.geneModels?.data || []
 
@@ -500,6 +576,8 @@ export const LocusPageDataContainer = () => {
       variantId={variantId || "my-variant"}
       queryStates={queryStates}
       locusPlotData={locusPlotData}
+      regionOverlay={regionOverlay}
+      isLargeRegion={isLargeRegion}
     />
   )
 }
