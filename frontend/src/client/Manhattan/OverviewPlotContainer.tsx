@@ -77,11 +77,6 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     setCustomLabelMode(false);
   }, []);
 
-  const selectAllFiltered = useCallback((ids: Set<string>) => {
-    setCustomLabelMode(true);
-    setSelectedPeakIds(ids);
-  }, []);
-
   const handleGeneClick = useCallback((geneId: string) => {
     goToGene(geneId, { fromPhenotype: true });
   }, [goToGene]);
@@ -276,7 +271,6 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             onSetTopN={handleSetTopN}
             onClearSelection={clearSelection}
             onResetToDefault={resetToDefault}
-            onSelectAllFiltered={selectAllFiltered}
           />
         </div>
       )}

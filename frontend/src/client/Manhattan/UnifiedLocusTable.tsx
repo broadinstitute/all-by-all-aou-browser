@@ -28,8 +28,6 @@ export interface UnifiedLocusTableProps {
   onClearSelection: () => void;
   /** Reset to default mode */
   onResetToDefault: () => void;
-  /** Select all filtered loci */
-  onSelectAllFiltered: (ids: Set<string>) => void;
 }
 
 /**
@@ -85,7 +83,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   onSetTopN,
   onClearSelection,
   onResetToDefault,
-  onSelectAllFiltered,
 }) => {
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
@@ -182,9 +179,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   }, [onSetTopN]);
 
   const handleSelectAllFiltered = useCallback(() => {
-    const ids = new Set(filteredLoci.map((l) => `${l.contig}-${l.position}`));
-    onSelectAllFiltered(ids);
-  }, [filteredLoci, onSelectAllFiltered]);
+    onSetTopN(filteredLoci.length);
+  }, [filteredLoci, onSetTopN]);
 
   const showMoreRows = useCallback(() => {
     setVisibleRowCount((prev) => prev + 100);
