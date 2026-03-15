@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useLayoutEffect, useRef } from 'react'
 import styled from 'styled-components'
 import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useHistory } from 'react-router-dom'
 import { HalfPage } from './UserInterface'
 import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedState'
+import { initialUrlState } from './initialUrlState'
 
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopVariantsPhewas from './VariantResults/TopVariantsPhewas'
@@ -55,15 +57,38 @@ const TABS: { key: TopResultsTab; label: string }[] = [
   { key: 'single-variants', label: 'Top Single Variants' },
 ]
 
+const VALID_TABS = new Set<string>(['all-phenotypes', 'all-genes', 'gene-burden', 'single-variants'])
+
 export const TopResultsLayout = ({ size }: any) => {
   const [activeTab, setActiveTab] = useRecoilState(topResultsTabAtom)
   const setResultLayout = useSetRecoilState(resultLayoutAtom)
+  const history = useHistory()
+  const hasInitialized = useRef(false)
+
+  // On mount, read the tab from the initial URL state (captured at module load time)
+  // to work around recoil-sync lazy initialization race condition where syncDefault
+  // overwrites the URL value before this atom initializes
+  useLayoutEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true
+      const urlTab = initialUrlState.topResultsTab
+      if (urlTab && VALID_TABS.has(urlTab) && urlTab !== activeTab) {
+        setActiveTab(urlTab as TopResultsTab)
+      }
+    }
+  }, [])
 
   const handleTabClick = (tab: TopResultsTab) => {
     setActiveTab(tab)
-    if (tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes') {
-      setResultLayout('full')
-    }
+    const layout = (tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes') ? 'full' : undefined
+    if (layout) setResultLayout(layout)
+
+    // Push state to URL so refresh preserves the active tab
+    const stateStr = new URLSearchParams(window.location.search).get('state')
+    const state = stateStr ? JSON.parse(stateStr) : {}
+    state.topResultsTab = tab
+    if (layout) state.resultLayout = layout
+    history.replace({ pathname: '/app', search: `?state=${encodeURIComponent(JSON.stringify(state))}` })
   }
 
   return (

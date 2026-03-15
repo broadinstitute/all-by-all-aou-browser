@@ -12,6 +12,17 @@ import {
 
 export type NavMode = 'split' | 'full' | 'newTab';
 
+/**
+ * Build a location descriptor for use in <Link to={...}> components.
+ * Returns {pathname, search} so React Router handles encoding correctly.
+ */
+export function buildStateUrl(stateUpdates: Record<string, string | null>): { pathname: string; search: string } {
+  return {
+    pathname: '/app',
+    search: `?state=${encodeURIComponent(JSON.stringify(stateUpdates))}`,
+  };
+}
+
 export function useAppNavigation() {
   const setGeneId = useSetRecoilState(geneIdAtom);
   const setRegionId = useSetRecoilState(regionIdAtom);

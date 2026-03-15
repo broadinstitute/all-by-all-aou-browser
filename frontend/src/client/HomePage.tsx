@@ -4,8 +4,7 @@ import { isBrowser } from 'react-device-detect'
 import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
 import { Page, Button, ExternalLink } from '@gnomad/ui'
-import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom } from './sharedState'
+import { buildStateUrl } from './hooks/useAppNavigation'
 import { datasetCounts } from './utils'
 import { Link } from 'react-router-dom'
 
@@ -104,15 +103,13 @@ const Version = styled.ul`
 
 export const browserVersion = process.env.VERSION
 
-export const defaultBrowseLink = {
-  pathname: '/app',
-}
+const browseResultsUrl = buildStateUrl({
+  resultIndex: 'top-associations',
+  resultLayout: 'full',
+  topResultsTab: 'all-phenotypes',
+});
 
 export default function HomePageComponent() {
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultsLayout = useSetRecoilState(resultLayoutAtom);
-  const setTopResultsTab = useSetRecoilState(topResultsTabAtom);
-
   return (
     <HomePage>
       <HomeContent>
@@ -124,15 +121,10 @@ export default function HomePageComponent() {
           </p>
           {isBrowser ? (
             <>
-              <Link to={"/app"}>
+              <Link to={browseResultsUrl}>
                 <Button
                   id='homepage-browse-link'
                   style={{ marginBottom: 20, marginTop: 0, fontSize: 16 }}
-                  onClick={() => {
-                    setResultIndex('top-associations');
-                    setResultsLayout('full');
-                    setTopResultsTab('all-phenotypes');
-                  }}
                 >
                   Browse Results
                 </Button>
