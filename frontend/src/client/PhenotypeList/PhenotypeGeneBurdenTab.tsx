@@ -11,6 +11,7 @@ import type { QQPoint } from '../VariantResults/PrecomputedQQPlot';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, burdenSetAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
+import { useRestoreFromUrl } from '../initialUrlState';
 
 const Container = styled.div`
   width: 100%;
@@ -216,12 +217,15 @@ const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
   { key: 'skat', label: 'SKAT' },
 ];
 
+const VALID_VIEW_MODES = new Set<string>(['standard', 'overlay', 'heatmap', 'qqplot'])
+
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const { goToGene } = useAppNavigation();
 
   const [viewMode, setViewMode] = useRecoilState<any>(geneBurdenViewModeAtom);
+  useRestoreFromUrl(geneBurdenViewModeAtom, 'geneBurdenViewMode', VALID_VIEW_MODES);
   const [sortKey, setSortKey] = useState<SortKey>('pvalue');
   const [sortDesc, setSortDesc] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

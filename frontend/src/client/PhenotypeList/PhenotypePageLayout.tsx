@@ -13,6 +13,7 @@ import type { SignificantHit } from '../Manhattan/types';
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query';
 import { analysisIdAtom, ancestryGroupAtom, showQQOverlayAtom, phenotypeTabAtom, phenotypePlotViewAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
+import { useRestoreFromUrl } from '../initialUrlState';
 import { AnalysisMetadata } from '../types';
 import {
   AttributeCards,
@@ -185,6 +186,9 @@ interface PhenotypePageLayoutProps {
   size: Size;
 }
 
+const VALID_PHENOTYPE_TABS = new Set<string>(['overview', 'gene-burden', 'exome-variants', 'genome-variants'])
+const VALID_PLOT_VIEWS = new Set<string>(['manhattan', 'qq'])
+
 export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }) => {
   const [activeTab, setActiveTab] = useRecoilState<any>(phenotypeTabAtom);
   const [plotView, setPlotView] = useRecoilState<any>(phenotypePlotViewAtom);
@@ -192,6 +196,9 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const analysisId = useRecoilValue(analysisIdAtom);
   const { goToGene, goToRegion, goToVariant } = useAppNavigation();
+
+  useRestoreFromUrl(phenotypeTabAtom, 'phenotypeTab', VALID_PHENOTYPE_TABS);
+  useRestoreFromUrl(phenotypePlotViewAtom, 'phenotypePlotView', VALID_PLOT_VIEWS);
 
   interface Data {
     analysisMetadata: AnalysisMetadata[] | null;

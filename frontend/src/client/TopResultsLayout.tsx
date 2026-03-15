@@ -1,10 +1,10 @@
-import React, { useLayoutEffect, useRef } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { useHistory } from 'react-router-dom'
 import { HalfPage } from './UserInterface'
 import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedState'
-import { initialUrlState } from './initialUrlState'
+import { useRestoreFromUrl } from './initialUrlState'
 
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopVariantsPhewas from './VariantResults/TopVariantsPhewas'
@@ -63,20 +63,8 @@ export const TopResultsLayout = ({ size }: any) => {
   const [activeTab, setActiveTab] = useRecoilState(topResultsTabAtom)
   const setResultLayout = useSetRecoilState(resultLayoutAtom)
   const history = useHistory()
-  const hasInitialized = useRef(false)
 
-  // On mount, read the tab from the initial URL state (captured at module load time)
-  // to work around recoil-sync lazy initialization race condition where syncDefault
-  // overwrites the URL value before this atom initializes
-  useLayoutEffect(() => {
-    if (!hasInitialized.current) {
-      hasInitialized.current = true
-      const urlTab = initialUrlState.topResultsTab
-      if (urlTab && VALID_TABS.has(urlTab) && urlTab !== activeTab) {
-        setActiveTab(urlTab as TopResultsTab)
-      }
-    }
-  }, [])
+  useRestoreFromUrl(topResultsTabAtom, 'topResultsTab', VALID_TABS)
 
   const handleTabClick = (tab: TopResultsTab) => {
     setActiveTab(tab)
