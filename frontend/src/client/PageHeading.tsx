@@ -6,10 +6,12 @@ const SearchBarWrapper = styled.div`
 import { useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
-import { buildStateUrl } from './hooks/useAppNavigation'
+import { useSetRecoilState } from 'recoil'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, TopResultsTab } from './sharedState'
+import { useAppNavigation, buildStateUrl } from './hooks/useAppNavigation'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
-import { Link } from 'react-router-dom'
+import { Link, useHistory } from 'react-router-dom'
 
 // @ts-ignore
 import AoULogo from './assets/AoU_Logo.svg'
@@ -219,6 +221,20 @@ const resultsUrl = buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-phen
 
 const PageHeading = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const setResultIndex = useSetRecoilState(resultIndexAtom)
+  const setResultsLayout = useSetRecoilState(resultLayoutAtom)
+  const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
+  const { clearAll, switchAnalysis } = useAppNavigation()
+  const history = useHistory()
+
+  const goToResults = (tab: TopResultsTab = 'all-phenotypes') => {
+    setTopResultsTab(tab)
+    setResultIndex('top-associations')
+    setResultsLayout('full')
+    clearAll()
+    switchAnalysis(null)
+    history.push(buildStateUrl({ ...resultsBaseState, topResultsTab: tab }))
+  }
 
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen)
   const closeDropdown = () => setDropdownOpen(false)
@@ -254,14 +270,14 @@ const PageHeading = () => {
             Walkthrough
           </PageHeadingRouterLink>
           <ResultsDropdownWrapper>
-            <PageHeadingRouterLink to={resultsUrl}>
+            <PageHeadingRouterLink to={resultsUrl} onClick={(e: any) => { e.preventDefault(); goToResults() }}>
               Results
             </PageHeadingRouterLink>
             <ResultsSubmenu className="results-submenu">
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-phenotypes' })}>All Phenotypes</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-genes' })}>All Genes</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'gene-burden' })}>Gene Burden</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'single-variants' })}>Single Variants</Link>
+              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-phenotypes' })} onClick={(e) => { e.preventDefault(); goToResults('all-phenotypes') }}>All Phenotypes</Link>
+              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-genes' })} onClick={(e) => { e.preventDefault(); goToResults('all-genes') }}>All Genes</Link>
+              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'gene-burden' })} onClick={(e) => { e.preventDefault(); goToResults('gene-burden') }}>Gene Burden</Link>
+              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'single-variants' })} onClick={(e) => { e.preventDefault(); goToResults('single-variants') }}>Single Variants</Link>
             </ResultsSubmenu>
           </ResultsDropdownWrapper>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
@@ -280,7 +296,7 @@ const PageHeading = () => {
             Walkthrough
           </PageHeadingRouterLink>
 
-          <PageHeadingRouterLink to={resultsUrl} onClick={closeDropdown}>
+          <PageHeadingRouterLink to={resultsUrl} onClick={(e: any) => { e.preventDefault(); goToResults(); closeDropdown() }}>
             Results
           </PageHeadingRouterLink>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
