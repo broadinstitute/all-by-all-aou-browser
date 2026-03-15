@@ -228,6 +228,9 @@ const PhewasBetaPlot = ({
 
     ctx.transform(1, 0, 0, 1, pointPadding, margin.top)
 
+    // Fade alpha adapts to point count: more points → more aggressive fading
+    const fadeAlpha = Math.max(0.3, Math.min(0.8, 0.8 - (points.length - 50) * (0.5 / 1950)))
+
     for (let i = 0; i < points.length; i += 1) {
       const point = points[i]
 
@@ -238,29 +241,41 @@ const PhewasBetaPlot = ({
         ctx.fill()
       }
 
+      let isActiveGene = true
+      if (phewasType === 'topHit' && point.data.gene_id) {
+        isActiveGene = point.data.gene_id === activeGene
+      } else if (point.data.gene_id) {
+        isActiveGene = point.data.gene_id === activeGene
+      }
+      const isActiveAnalysis = !!(activeAnalyses && activeAnalyses.includes(point.data.analysis_id))
+      const isSelected = isActiveGene && isActiveAnalysis
+
+      const hasSelection = !!(activeAnalyses && activeAnalyses.length > 0 && (phewasType !== 'topHit' || activeGene))
+
+      ctx.globalAlpha = (hasSelection && !isSelected) ? fadeAlpha : 1.0;
+
       ctx.beginPath()
 
       ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false)
       ctx.fillStyle = pointColor(point.data)
       ctx.fill()
 
-      let isActiveGene = true
-      if (point.data.gene_id) {
-        isActiveGene = point.data.gene_id === activeGene
-      }
-
-      if (isActiveGene && activeAnalyses && activeAnalyses.includes(point.data.analysis_id)) {
+      if (isSelected) {
         ctx.beginPath()
         ctx.arc(point.x, point.y, 10, 0, 2 * Math.PI, false)
-        ctx.strokeStyle = 'blue'
+        ctx.strokeStyle = '#c62828' // Red highlight
         ctx.lineWidth = 1.5
         ctx.stroke()
-
+      } else if (showStroke) {
+        ctx.beginPath()
+        ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false)
         ctx.strokeStyle = 'black'
+        ctx.lineWidth = 0.1
+        ctx.stroke()
       }
-      ctx.lineWidth = 0.1
-      showStroke && ctx.stroke()
     }
+
+    ctx.globalAlpha = 1.0;
 
     ctx.restore()
 
@@ -286,7 +301,6 @@ const PhewasBetaPlot = ({
     return points.map(p => {
       let labelText = p.data.description || p.data.gene_symbol || ''
       if (phewasType === 'topHit') labelText = `${p.data.gene_symbol} - ${p.data.description}`
-      if (labelText.length > 25) labelText = labelText.substring(0, 25) + '...'
       // Use composite ID for topHit mode to match individual gene-phenotype pairs
       const id = (phewasType === 'topHit' && p.data.gene_id)
         ? `${p.data.gene_id}:${p.data.analysis_id}`

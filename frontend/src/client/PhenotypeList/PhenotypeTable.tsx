@@ -529,14 +529,20 @@ export const getPhenotypeColumns = ({
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const { goToPhenotype, openDetailPane } = useAppNavigation()
+        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
+        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
-          goToPhenotype(row.analysis_id)
+          setSelectedAnalyses([row.analysis_id])
+          setShowSelectOnly(false)
+          goToPhenotype(row.analysis_id, { keepContext: true, resultIndex: 'gene-phewas' })
           openDetailPane()
         }
 
         return (
-          <RightArrow onClick={handleClick} />
+          <Link className='grid-cell-content' onClick={handleClick}>
+            <RightArrow onClick={handleClick} />
+          </Link>
         )
       },
     },
@@ -598,14 +604,20 @@ export const getPhenotypeColumns = ({
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const { goToGene, switchAnalysis } = useAppNavigation()
+        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
+        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
+          setSelectedAnalyses([row.analysis_id])
+          setShowSelectOnly(false)
           switchAnalysis(row.analysis_id)
           goToGene(row.gene_id, { fromPhenotype: true, keepVariant: true })
         }
 
         return (
-          <RightArrow onClick={handleClick} />
+          <Link className='grid-cell-content' onClick={handleClick}>
+            <RightArrow onClick={handleClick} />
+          </Link>
         )
       },
     },

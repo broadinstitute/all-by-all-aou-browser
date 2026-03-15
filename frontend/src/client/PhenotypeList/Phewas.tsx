@@ -6,7 +6,7 @@
 /* eslint-disable no-shadow */
 /* eslint-disable camelcase */
 import sortBy from 'lodash/sortBy'
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
 import { TooltipHint as TooltipHintBase, TooltipAnchor } from '@gnomad/ui'
@@ -172,7 +172,7 @@ const Phewas = ({
 
   const [sortKey, updateSortKey] = useState('pvalue')
 
-  const [plotSortKey, setPlotSortKey] = useState(phewasType === 'topHit' ? 'description' : 'pvalue')
+  const [plotSortKey, setPlotSortKey] = useState('description')
   // Log-log scale is always enabled
 
   const [sortDirection, updateSortAscending] = useState('ascending')
@@ -216,12 +216,15 @@ const Phewas = ({
   const [hasInitializedLabels, setHasInitializedLabels] = useState(false)
 
   // Clear labels when the active analysis changes
+  // For topHit mode, don't reset initialization — the update effect handles label changes
   React.useEffect(() => {
-    setLabeledPhenoIds(new Set())
+    if (phewasType !== 'topHit') {
+      setLabeledPhenoIds(new Set())
+      setHasInitializedLabels(false)
+    }
     setPvalLabelOverrides({})
     setBetaLabelOverrides({})
-    setHasInitializedLabels(false)
-  }, [analysisId])
+  }, [analysisId, phewasType])
 
   // Generate unique row ID - for topHit mode, combine gene_id and analysis_id
   const getRowId = React.useCallback((row: any) => {
@@ -236,9 +239,7 @@ const Phewas = ({
     if (!hasInitializedLabels && uniquePhenotypes && uniquePhenotypes.length > 0) {
       const initials = new Set<string>()
       if (phewasType === 'topHit') {
-        // For top results page: only label the single top hit
-        const topHit = [...uniquePhenotypes].sort((a: any, b: any) => a.pvalue - b.pvalue)[0]
-        if (topHit) initials.add(getRowId(topHit))
+        // For top results page: start with no labels until user clicks an arrow
       } else {
         // For other pages: label the current/primary phenotype
         uniquePhenotypes.forEach((p: any) => {
@@ -252,28 +253,36 @@ const Phewas = ({
     }
   }, [uniquePhenotypes, hasInitializedLabels, getRowId, analysisId, phewasType])
 
+  // Track previous topHit selection so we can swap it out
+  const prevTopHitSelectionRef = useRef<string | null>(null)
+
   // Update label when active/primary phenotype changes (via "show" button)
-  // For topHit mode: clear all labels (user can manually add via checkbox)
+  // For topHit mode: replace previous selection label with the new one
   // For other modes: add the active phenotype to existing labels
   React.useEffect(() => {
     if (!uniquePhenotypes || uniquePhenotypes.length === 0) return
-    if (phewasType === 'topHit') {
-      // For topHit, clear labels when switching phenotypes
-      // (table click only updates analysisId, not geneId, so we can't reliably match)
-      setLabeledPhenoIds(new Set())
-    } else {
-      // For other modes, add to existing labels
-      setLabeledPhenoIds((prev) => {
-        const next = new Set(prev)
+    setLabeledPhenoIds((prev) => {
+      const next = new Set(prev)
+      if (phewasType === 'topHit') {
+        if (geneIdOrName && analysisId) {
+          // Remove previous selection before adding new one
+          if (prevTopHitSelectionRef.current) {
+            next.delete(prevTopHitSelectionRef.current)
+          }
+          const newId = `${geneIdOrName}:${analysisId}`
+          next.add(newId)
+          prevTopHitSelectionRef.current = newId
+        }
+      } else {
         uniquePhenotypes.forEach((p: any) => {
           if (p.analysis_id === analysisId) {
             next.add(getRowId(p))
           }
         })
-        return next
-      })
-    }
-  }, [analysisId, uniquePhenotypes, getRowId, phewasType])
+      }
+      return next
+    })
+  }, [analysisId, geneIdOrName, uniquePhenotypes, getRowId, phewasType])
 
   const handlePvalDragEnd = React.useCallback((id: string, x: number, y: number) => {
     setPvalLabelOverrides((prev) => ({ ...prev, [id]: { x, y } }))
