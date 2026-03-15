@@ -313,7 +313,7 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
         </main>
         <footer>
           <p>
-            <em>All of Us</em> and the <em>All of Us</em> logo are registered service marks of the <a href="https://www.hhs.gov/">U.S. Department of Health and Human Services</a>. The <em>All of Us</em> platform and the All by All browser are for research only and do not provide medical advice, diagnosis, or treatment. Please review our <Link to="/privacy-policy">Privacy Policy</Link>. Copyright © 2024.
+            <em>All of Us</em> and the <em>All of Us</em> logo are registered service marks of the <a href="https://www.hhs.gov/">U.S. Department of Health and Human Services</a>. The <em>All of Us</em> platform and the All by All browser are for research only and do not provide medical advice, diagnosis, or treatment. Please review our <Link to="/privacy-policy">Privacy Policy</Link>. Copyright © 2026.
             {showLogout && <LogoutButton />}
           </p>
         </footer>
