@@ -498,7 +498,6 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData }: AssociationsI
                 rightPanelWidth={rightPanelWidth}
                 pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
                 applyStroke={!isRegion}
-                reverseConsequenceSort={isRegion}
                 onClickPoint={onClickVariant}
                 thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
                 pointLabel={onVariantHoverLabel({

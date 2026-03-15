@@ -344,7 +344,6 @@ export const LocusPvaluePlot = ({
   showLollipopLabels = true,
   lollipopPvalueThreshold = 1e-4,
   variantLabels = {},
-  reverseConsequenceSort = false,
   labelZoneHeight = 0,
   tierY = {},
   labelOverrides = {},
@@ -353,7 +352,6 @@ export const LocusPvaluePlot = ({
   showLollipopLabels?: boolean;
   lollipopPvalueThreshold?: number;
   variantLabels?: Record<string, string>;
-  reverseConsequenceSort?: boolean;
   labelZoneHeight?: number;
   tierY?: Record<string, number>;
   labelOverrides?: Record<string, {x: number, y: number}>;
@@ -399,10 +397,7 @@ export const LocusPvaluePlot = ({
       }
     })
   ).sort((a, b) => {
-    const sortValue = sortVariantsByConsequence(a.data, b.data)
-    // Reverse sort for region pages (when reverseConsequenceSort is true)
-    // to account for different compositing behavior
-    return reverseConsequenceSort ? -sortValue : sortValue
+    return sortVariantsByConsequence(a.data, b.data)
   })
 
   const scale = window.devicePixelRatio || 2
@@ -503,12 +498,49 @@ export const LocusPvaluePlot = ({
     ctx.transform(1, 0, 0, 1, margin.left, margin.top)
 
 
-    for (let i = 0; i < points.length; i += 1) {
-      const point = points[i]
+    // Split into two arrays to guarantee highlighted points always draw on top
+    const normalPoints = [];
+    const highlightPoints = [];
 
+    for (let i = 0; i < points.length; i += 1) {
+      const point = points[i];
+      const isExplicitlySelected = selectedVariantId && point.data.variant_id === selectedVariantId;
+      const isHovered = activeVariant && point.data.variant_id === activeVariant;
+      const isActiveAnalysis = activeAnalysis && activeVariant && point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant;
+
+      if (isExplicitlySelected || isHovered || isActiveAnalysis) {
+        highlightPoints.push(point);
+      } else {
+        normalPoints.push(point);
+      }
+    }
+
+    // Pass 1: Draw normal points
+    for (let i = 0; i < normalPoints.length; i += 1) {
       renderPoint({
         ctx,
-        point,
+        point: normalPoints[i],
+        selectedVariant,
+        selectedVariantId,
+        activeVariant,
+        activeAnalysis,
+        margin,
+        alleleFrequencyScale,
+        pointColor,
+        transparency,
+        betaScale,
+        height,
+        applyStroke,
+        gwasCatalogOption,
+        theme,
+      })
+    }
+
+    // Pass 2: Draw highlighted points so they sit on top
+    for (let i = 0; i < highlightPoints.length; i += 1) {
+      renderPoint({
+        ctx,
+        point: highlightPoints[i],
         selectedVariant,
         selectedVariantId,
         activeVariant,

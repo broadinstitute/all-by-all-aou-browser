@@ -80,7 +80,7 @@ export const renderPoint = ({
   let currentStrokeColor = strokeColor;
   let currentStrokeWidth = 0.5;
   let doStroke = applyStroke && shouldStroke;
-  let compositeOp: GlobalCompositeOperation = 'destination-over';
+  let compositeOp: GlobalCompositeOperation = 'source-over';
 
   if (isExplicitlySelected) {
     compositeOp = 'source-over';
@@ -112,7 +112,7 @@ export const renderPoint = ({
     currentStrokeColor = '#333';
     currentStrokeWidth = 1.5;
   } else {
-    compositeOp = 'destination-over';
+    compositeOp = 'source-over';
     fillColor = transparentize(transparency[1], fillColor);
     if (shouldStroke) {
       doStroke = true;
