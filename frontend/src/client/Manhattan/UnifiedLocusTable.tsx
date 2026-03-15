@@ -242,15 +242,6 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             />
             <span style={{ fontSize: 11 }}>Gene implicated</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 8 }}>
-            <input
-              type="checkbox"
-              checked={hideSingletons}
-              onChange={(e) => onSetHideSingletons(e.target.checked)}
-              style={{ cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 11 }} title="Hide peaks driven by < 3 variants (unless they have gene evidence)">Hide singletons</span>
-          </label>
           {/* Label controls */}
           {customLabelMode ? (
             <span style={{ color: 'var(--theme-primary, #262262)' }}>

@@ -213,7 +213,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
         const isBurdenOnly = node.isBurdenOnly;
         const showDiamond = node.hasBurden;
         const isLabeled = node.isLabeled;
-        const dotSize = showDiamond ? (isHovered ? 10 : 7) : (isHovered ? 5 : 3);
+        const dotSize = showDiamond ? (isHovered ? 10 : 7) : (isHovered ? 6 : 4);
         const burdenColor = '#d500f9'; // Bright magenta/purple for strong visibility
 
         // Get label position: dragging > override > computed

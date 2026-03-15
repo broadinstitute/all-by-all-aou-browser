@@ -43,7 +43,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
   const [customLabelMode, setCustomLabelMode] = useState(false);
   const [topN, setTopN] = useState(10);
-  const [hideSingletons, setHideSingletons] = useState(true);
+  const [hideSingletons, setHideSingletons] = useState(false);
 
   interface Data {
     overviewData: UnifiedOverviewResponse | null;
@@ -171,8 +171,9 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   }, [data, selectedContig]);
 
   // Apply singleton filter (shared between plot and table)
+  // Only filter singletons in genome-wide view; in chromosome view show all peaks
   const filteredLoci = useMemo(() => {
-    if (!hideSingletons) return contigFilteredLoci;
+    if (!hideSingletons || selectedContig !== 'all') return contigFilteredLoci;
     return contigFilteredLoci.filter((locus) =>
       !locus.variant_count || locus.variant_count >= 3 ||
       locus.genes.some((g) => {
@@ -186,7 +187,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         return hasBurden || coding > 0;
       })
     );
-  }, [contigFilteredLoci, hideSingletons]);
+  }, [contigFilteredLoci, hideSingletons, selectedContig]);
 
   // Compute the default labeled IDs (mirrors the hook's implicated-first sort)
   // Used when transitioning from default→custom mode so the base set matches what's displayed
