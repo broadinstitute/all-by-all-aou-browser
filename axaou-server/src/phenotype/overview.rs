@@ -52,6 +52,12 @@ pub struct UnifiedGene {
     pub best_coding_hgvsc: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub best_coding_ac: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_variant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_pvalue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_beta: Option<f64>,
     /// Burden test results
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
@@ -129,6 +135,9 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
                 best_coding_hgvsp: g.best_coding_hgvsp.clone(),
                 best_coding_hgvsc: g.best_coding_hgvsc.clone(),
                 best_coding_ac: g.best_coding_ac,
+                best_coding_variant_id: g.best_coding_variant_id.clone(),
+                best_coding_pvalue: g.best_coding_pvalue,
+                best_coding_beta: g.best_coding_beta,
                 burden_results: g.burden_results.clone(),
             }
         })
@@ -184,6 +193,9 @@ fn merge_gene(
             existing.best_coding_hgvsp = new_gene.best_coding_hgvsp.clone();
             existing.best_coding_hgvsc = new_gene.best_coding_hgvsc.clone();
             existing.best_coding_ac = new_gene.best_coding_ac;
+            existing.best_coding_variant_id = new_gene.best_coding_variant_id.clone();
+            existing.best_coding_pvalue = new_gene.best_coding_pvalue;
+            existing.best_coding_beta = new_gene.best_coding_beta;
         }
 
         // Merge burden results
@@ -204,6 +216,9 @@ fn merge_gene(
             best_coding_hgvsp: new_gene.best_coding_hgvsp.clone(),
             best_coding_hgvsc: new_gene.best_coding_hgvsc.clone(),
             best_coding_ac: new_gene.best_coding_ac,
+            best_coding_variant_id: new_gene.best_coding_variant_id.clone(),
+            best_coding_pvalue: new_gene.best_coding_pvalue,
+            best_coding_beta: new_gene.best_coding_beta,
             burden_results: new_gene.burden_results.clone(),
         });
     }
@@ -387,6 +402,9 @@ pub async fn get_phenotype_overview(
                         best_coding_hgvsp: None,
                         best_coding_hgvsc: None,
                         best_coding_ac: None,
+                        best_coding_variant_id: None,
+                        best_coding_pvalue: None,
+                        best_coding_beta: None,
                         burden_results,
                     }],
                 },

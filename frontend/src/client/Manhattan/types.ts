@@ -88,6 +88,9 @@ export interface GeneInLocus {
   best_coding_hgvsp?: string;
   best_coding_hgvsc?: string;
   best_coding_ac?: number;
+  best_coding_variant_id?: string;
+  best_coding_pvalue?: number;
+  best_coding_beta?: number;
   /** Burden test results for each annotation category */
   burden_results?: BurdenResult[];
 }
@@ -161,6 +164,9 @@ export interface UnifiedGene {
   best_coding_hgvsp?: string;
   best_coding_hgvsc?: string;
   best_coding_ac?: number;
+  best_coding_variant_id?: string;
+  best_coding_pvalue?: number;
+  best_coding_beta?: number;
   /** Burden test results */
   burden_results?: BurdenResult[];
 }

@@ -80,7 +80,7 @@ export const LocusGeneContextMenu: React.FC<LocusGeneContextMenuProps> = ({
       indicators.push(<span key="plof" style={{ color: '#d32f2f', marginLeft: 4 }}>●</span>);
     }
     if (g.burdenTypes?.includes('missenseLC')) {
-      indicators.push(<span key="miss" style={{ color: '#f9a825', marginLeft: 4 }}>●</span>);
+      indicators.push(<span key="miss" style={{ color: '#e68a00', marginLeft: 4 }}>●</span>);
     }
     if (g.hasCoding) {
       indicators.push(<span key="coding" style={{ fontSize: 10, marginLeft: 4 }}>(C)</span>);
@@ -168,7 +168,7 @@ export const LocusGeneContextMenu: React.FC<LocusGeneContextMenuProps> = ({
       <>
         GENE: {g.geneSymbol}
         {g.burdenTypes?.includes('pLoF') && <span style={{ color: '#d32f2f', marginLeft: 4 }}>●</span>}
-        {g.burdenTypes?.includes('missenseLC') && <span style={{ color: '#f9a825', marginLeft: 4 }}>●</span>}
+        {g.burdenTypes?.includes('missenseLC') && <span style={{ color: '#e68a00', marginLeft: 4 }}>●</span>}
         {g.hasCoding && <span style={{ fontSize: 10, marginLeft: 4 }}>(C)</span>}
       </>
     );

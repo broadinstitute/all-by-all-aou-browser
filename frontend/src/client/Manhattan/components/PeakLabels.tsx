@@ -209,11 +209,12 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
         const isHovered = hoveredPeakId === peakId || hoveredFromHit === peakId;
         const isDragging = dragState?.id === peakId;
 
-        // Burden-only peaks get special styling
+        // Burden peaks get diamond styling (both burden-only and GWAS+burden)
         const isBurdenOnly = node.isBurdenOnly;
+        const showDiamond = node.hasBurden;
         const isLabeled = node.isLabeled;
-        const dotSize = isBurdenOnly ? (isHovered ? 10 : 7) : (isHovered ? 5 : 3);
-        const burdenOnlyColor = '#d500f9'; // Bright magenta/purple for strong visibility
+        const dotSize = showDiamond ? (isHovered ? 10 : 7) : (isHovered ? 5 : 3);
+        const burdenColor = '#d500f9'; // Bright magenta/purple for strong visibility
 
         // Get label position: dragging > override > computed
         let labelX = node.x;
@@ -256,10 +257,10 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 onPeakToggle?.(peakId, currentLabeledIds);
               }}
             />
-            {isBurdenOnly ? (
+            {showDiamond ? (
               <polygon
                 points={`${node.targetX},${peakY - dotSize} ${node.targetX + dotSize},${peakY} ${node.targetX},${peakY + dotSize} ${node.targetX - dotSize},${peakY}`}
-                fill={burdenOnlyColor}
+                fill={burdenColor}
                 stroke="#ffffff"
                 strokeWidth={isHovered ? 2.5 : 1.5}
                 style={{ pointerEvents: 'none' }}
@@ -294,7 +295,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                   d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
                   className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
                   fill="none"
-                  style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2', pointerEvents: 'none' } : hasOverride ? { stroke: '#666', pointerEvents: 'none' } : { pointerEvents: 'none' }}
+                  style={showDiamond ? { stroke: burdenColor, strokeDasharray: isBurdenOnly ? '3,2' : undefined, pointerEvents: 'none' } : hasOverride ? { stroke: '#666', pointerEvents: 'none' } : { pointerEvents: 'none' }}
                 />
               </>
             )}
@@ -316,24 +317,35 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 }}
               >
                 {isBurdenOnly && (
-                  <tspan fill={burdenOnlyColor} fontWeight="bold">◆ </tspan>
+                  <tspan fill={burdenColor} fontWeight="bold">◆ </tspan>
                 )}
                 {node.burdenTypes.includes('pLoF') && (
                   <tspan fill="#d32f2f">●</tspan>
                 )}
                 {node.burdenTypes.includes('missenseLC') && (
-                  <tspan fill="#f9a825">●</tspan>
+                  <tspan fill="#e68a00">●</tspan>
                 )}
                 {node.burdenTypes.length > 0 && ' '}
                 {node.isNearestOnly && (
                   <tspan fill="var(--theme-text-muted, #888)" fontStyle="italic">nearest: </tspan>
                 )}
                 <tspan>{node.label}</tspan>
-                {node.hasCoding && (
-                  <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold">
-                    {node.implicatedGenes[0]?.bestCodingHgvsp ? ` (${node.implicatedGenes[0].bestCodingHgvsp})` : ' (C)'}
-                  </tspan>
-                )}
+                {node.hasCoding && (() => {
+                  const topGene = node.peak.genes.find(g => g.gene_symbol === node.label);
+                  const hgvsp = node.implicatedGenes[0]?.bestCodingHgvsp;
+                  const pval = topGene?.best_coding_pvalue;
+                  const beta = topGene?.best_coding_beta;
+                  const codingColor = node.lofCount > 0 ? "#c62828" : "#e68a00";
+                  return hgvsp ? (
+                    <>
+                      <tspan fill={codingColor} fontWeight="bold">{` (${hgvsp}`}</tspan>
+                      {beta !== undefined && <tspan fill={beta > 0 ? '#2e7d32' : '#c62828'} fontWeight="bold">{beta > 0 ? '↑' : '↓'}</tspan>}
+                      <tspan fill={codingColor} fontWeight="bold">{')'}</tspan>
+                    </>
+                  ) : (
+                    <tspan fill={codingColor} fontWeight="bold"> (C)</tspan>
+                  );
+                })()}
                 {node.implicatedCount > 1 && (
                   <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>
                 )}

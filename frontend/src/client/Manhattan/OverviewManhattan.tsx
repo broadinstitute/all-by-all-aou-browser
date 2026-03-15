@@ -96,6 +96,9 @@ function unifiedLociToPeaks(loci: UnifiedLocus[]): Peak[] {
       best_coding_hgvsp: g.best_coding_hgvsp,
       best_coding_hgvsc: g.best_coding_hgvsc,
       best_coding_ac: g.best_coding_ac,
+      best_coding_variant_id: g.best_coding_variant_id,
+      best_coding_pvalue: g.best_coding_pvalue,
+      best_coding_beta: g.best_coding_beta,
       burden_results: g.burden_results,
     }));
 
@@ -299,7 +302,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
               <span style={{ color: '#d32f2f' }}>●</span> pLoF
             </span>
             <span style={{ color: 'var(--theme-text-muted)' }}>
-              <span style={{ color: '#f9a825' }}>●</span> Missense
+              <span style={{ color: '#e68a00' }}>●</span> Missense
             </span>
             <span style={{ color: 'var(--theme-text-muted)' }}>
               <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only

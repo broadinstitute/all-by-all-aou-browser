@@ -82,7 +82,7 @@ function estimateLabelWidth(
   if (burdenTypes.length > 0) text = '●'.repeat(burdenTypes.length) + ' ' + text;
   // Add space for coding indicator
   if (hasCoding) {
-    if (bestCodingHgvsp) text += ` (${bestCodingHgvsp})`;
+    if (bestCodingHgvsp) text += ` (${bestCodingHgvsp}↑)`;
     else text += ' (C)';
   }
   // Add space for multi-gene indicator
@@ -286,7 +286,9 @@ export function usePeakLabelLayout(
         const geneBurdenTypes: string[] = [];
         if (g.burden_results) {
           for (const b of g.burden_results) {
-            if ((b.pvalue ?? Infinity) < SIG_THRESHOLD) {
+            if ((b.pvalue ?? Infinity) < SIG_THRESHOLD ||
+                (b.pvalue_burden ?? Infinity) < SIG_THRESHOLD ||
+                (b.pvalue_skat ?? Infinity) < SIG_THRESHOLD) {
               burdenTypesSet.add(b.annotation);
               geneBurdenTypes.push(b.annotation);
             }

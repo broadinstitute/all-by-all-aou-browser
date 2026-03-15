@@ -34,7 +34,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
-  const { goToGene } = useAppNavigation();
+  const { goToGene, openInNewTab } = useAppNavigation();
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
@@ -43,6 +43,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
   const [customLabelMode, setCustomLabelMode] = useState(false);
   const [topN, setTopN] = useState(10);
+  const [hideSingletons, setHideSingletons] = useState(true);
 
   interface Data {
     overviewData: UnifiedOverviewResponse | null;
@@ -80,6 +81,16 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const handleGeneClick = useCallback((geneId: string) => {
     goToGene(geneId, { fromPhenotype: true });
   }, [goToGene]);
+
+  const handleVariantClick = useCallback((variantId: string) => {
+    openInNewTab({
+      variantId,
+      analysisId,
+      resultIndex: 'variant-phewas',
+      resultLayout: 'full',
+      regionId: null,
+    });
+  }, [openInNewTab, analysisId]);
 
   const handlePeakClick = useCallback(
     (node: any) => {
@@ -149,7 +160,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const data = queryStates.overviewData?.data ?? null;
 
   // Filter loci by selected chromosome (must be called unconditionally for hooks rules)
-  const filteredLoci = useMemo(() => {
+  const contigFilteredLoci = useMemo(() => {
     if (!data) return [];
     if (selectedContig === 'all') return data.unified_loci;
     // Normalize to match backend format which generally uses 'chrN'
@@ -158,6 +169,24 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       : `chr${selectedContig}`;
     return data.unified_loci.filter((l) => l.contig === targetContig);
   }, [data, selectedContig]);
+
+  // Apply singleton filter (shared between plot and table)
+  const filteredLoci = useMemo(() => {
+    if (!hideSingletons) return contigFilteredLoci;
+    return contigFilteredLoci.filter((locus) =>
+      !locus.variant_count || locus.variant_count >= 3 ||
+      locus.genes.some((g) => {
+        const hasBurden = (g.burden_results ?? []).some((b) =>
+          ((b.pvalue ?? Infinity) < 2.5e-6) ||
+          ((b.pvalue_burden ?? Infinity) < 2.5e-6) ||
+          ((b.pvalue_skat ?? Infinity) < 2.5e-6)
+        );
+        const coding = (g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0) +
+          (g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0);
+        return hasBurden || coding > 0;
+      })
+    );
+  }, [contigFilteredLoci, hideSingletons]);
 
   // Compute the default labeled IDs (mirrors the hook's implicated-first sort)
   // Used when transitioning from default→custom mode so the base set matches what's displayed
@@ -271,6 +300,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             unifiedLoci={filteredLoci}
             onLocusClick={handleLocusClick}
             onGeneClick={handleGeneClick}
+            onVariantClick={handleVariantClick}
             selectedPeakIds={selectedPeakIds}
             onTogglePeak={togglePeak}
             customLabelMode={customLabelMode}
@@ -278,6 +308,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             onSetTopN={handleSetTopN}
             onClearSelection={clearSelection}
             onResetToDefault={resetToDefault}
+            hideSingletons={hideSingletons}
+            onSetHideSingletons={setHideSingletons}
           />
         </div>
       )}

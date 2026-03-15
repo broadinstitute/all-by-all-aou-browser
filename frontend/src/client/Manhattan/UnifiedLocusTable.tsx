@@ -14,6 +14,8 @@ export interface UnifiedLocusTableProps {
   onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
+  /** Callback when a coding variant is clicked (opens split view) */
+  onVariantClick?: (variantId: string) => void;
   /** Set of selected peak IDs for custom labeling */
   selectedPeakIds: Set<string>;
   /** Callback to toggle a peak selection - passes filtered loci for initialization */
@@ -22,6 +24,10 @@ export interface UnifiedLocusTableProps {
   customLabelMode: boolean;
   /** Number of top peaks to label in default mode */
   topN: number;
+  /** Whether to hide singleton loci (controlled by parent) */
+  hideSingletons: boolean;
+  /** Callback to toggle singleton filter */
+  onSetHideSingletons: (v: boolean) => void;
   /** Set number of top peaks to label (exits custom mode) */
   onSetTopN: (n: number) => void;
   /** Clear all selections */
@@ -76,6 +82,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   unifiedLoci,
   onLocusClick,
   onGeneClick,
+  onVariantClick,
   selectedPeakIds,
   onTogglePeak,
   customLabelMode,
@@ -83,11 +90,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   onSetTopN,
   onClearSelection,
   onResetToDefault,
+  hideSingletons,
+  onSetHideSingletons,
 }) => {
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const [searchText, setSearchText] = useState('');
-  const [hideSingletons, setHideSingletons] = useState(true);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
   // Local slider value with debounced propagation to avoid layout thrash
   const [sliderValue, setSliderValue] = useState(topN);
@@ -165,17 +173,11 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     });
   }, [sortedLoci, searchText]);
 
-  // Filter to only loci with gene evidence and optionally remove artifact singletons
+  // Filter to only loci with gene evidence (singleton filtering is handled by parent)
   const filteredLoci = useMemo(() => {
-    let result = searchFilteredLoci;
-    if (hideSingletons) {
-      result = result.filter((locus) => !locus.variant_count || locus.variant_count >= 3 || locus.genes.some(geneHasEvidence));
-    }
-    if (showOnlyImplicated) {
-      result = result.filter((locus) => locus.genes.some(geneHasEvidence));
-    }
-    return result;
-  }, [searchFilteredLoci, showOnlyImplicated, hideSingletons]);
+    if (!showOnlyImplicated) return searchFilteredLoci;
+    return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
+  }, [searchFilteredLoci, showOnlyImplicated]);
 
   const handleSliderChange = useCallback((v: number) => {
     setSliderValue(v);
@@ -229,7 +231,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
           />
           <span style={{ color: 'var(--theme-text)' }}>
             <strong>{filteredLoci.length}</strong>
-            {(showOnlyImplicated || hideSingletons || searchText) ? ` / ${sortedLoci.length}` : ''} loci
+            {(showOnlyImplicated || searchText) ? ` / ${sortedLoci.length}` : ''} loci
           </span>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 8 }}>
             <input
@@ -244,7 +246,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             <input
               type="checkbox"
               checked={hideSingletons}
-              onChange={(e) => setHideSingletons(e.target.checked)}
+              onChange={(e) => onSetHideSingletons(e.target.checked)}
               style={{ cursor: 'pointer' }}
             />
             <span style={{ fontSize: 11 }} title="Hide peaks driven by < 3 variants (unless they have gene evidence)">Hide singletons</span>
@@ -470,17 +472,29 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                           <span style={{ color: '#d32f2f', marginLeft: 2 }} title="pLoF burden">●</span>
                         )}
                         {burdenTypes.includes('missenseLC') && (
-                          <span style={{ color: '#f9a825', marginLeft: 1 }} title="Missense burden">●</span>
+                          <span style={{ color: '#e68a00', marginLeft: 1 }} title="Missense burden">●</span>
                         )}
                         {burdenTypes.includes('synonymous') && (
                           <span style={{ color: '#388e3c', marginLeft: 1 }} title="Synonymous burden">●</span>
                         )}
                         {/* Specific Coding Variant details or generic counts fallback */}
-                        {hasCoding && g.best_coding_hgvsp && (
-                          <span style={{ fontSize: 10, marginLeft: 6, background: '#e3f2fd', color: '#1565c0', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
-                            {g.best_coding_hgvsp} {g.best_coding_ac ? `| AC:${g.best_coding_ac}` : ''}
-                          </span>
-                        )}
+                        {hasCoding && g.best_coding_hgvsp && (() => {
+                          const isLof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost'].includes(g.best_coding_csq ?? '');
+                          const color = isLof ? '#c62828' : '#e68a00';
+                          const variantId = g.best_coding_variant_id;
+                          return (
+                            <span
+                              style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline' : undefined, textDecorationStyle: 'dotted' as const, textUnderlineOffset: '2px' }}
+                              onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId); } : undefined}
+                              title={variantId ?? undefined}
+                            >
+                              {g.best_coding_hgvsp}
+                              {g.best_coding_pvalue ? ` P=${g.best_coding_pvalue < 0.001 ? g.best_coding_pvalue.toExponential(1) : g.best_coding_pvalue.toPrecision(2)}` : ''}
+                              {g.best_coding_beta !== undefined && <span style={{ color: g.best_coding_beta > 0 ? '#2e7d32' : '#c62828' }}>{g.best_coding_beta > 0 ? ' ↑' : ' ↓'}</span>}
+                              {g.best_coding_ac ? ` AC:${g.best_coding_ac}` : ''}
+                            </span>
+                          );
+                        })()}
                         {hasCoding && !g.best_coding_hgvsp && (
                           <span style={{ fontSize: 10, marginLeft: 2, color: '#262262', fontWeight: 500 }}>
                             {coding.lof > 0 && (

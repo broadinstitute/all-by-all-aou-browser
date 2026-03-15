@@ -687,7 +687,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     <span style={{ color: '#d32f2f' }}>●</span> pLoF
                   </span>
                   <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
-                    <span style={{ color: '#f9a825' }}>●</span> Missense
+                    <span style={{ color: '#e68a00' }}>●</span> Missense
                   </span>
                   <span style={{ fontSize: 10, color: 'var(--theme-text-muted)' }}>
                     <span style={{ color: '#7b1fa2' }}>◆</span> Burden-only
@@ -847,7 +847,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                   <span style={{ color: '#d32f2f', marginLeft: 2 }} title="pLoF burden">●</span>
                                 )}
                                 {burdenTypes.includes('missenseLC') && (
-                                  <span style={{ color: '#f9a825', marginLeft: 1 }} title="Missense burden">●</span>
+                                  <span style={{ color: '#e68a00', marginLeft: 1 }} title="Missense burden">●</span>
                                 )}
                                 {burdenTypes.includes('synonymous') && (
                                   <span style={{ color: '#388e3c', marginLeft: 1 }} title="Synonymous burden">●</span>

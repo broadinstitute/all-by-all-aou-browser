@@ -12,14 +12,7 @@ interface PeakTooltipProps {
 // Burden significance threshold (consistent with the rest of the app)
 const SIG_THRESHOLD = 2.5e-6;
 
-/**
- * Get color for p-value based on burden significance
- */
-const getPvalueColor = (p: number | undefined): 'red' | 'yellow' | 'none' => {
-  if (p === undefined || p === null) return 'none';
-  if (p < SIG_THRESHOLD) return 'red';
-  return 'none';
-};
+const LOF_CSQS = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost'];
 
 /**
  * Check if a burden result has any significant p-value
@@ -53,12 +46,9 @@ const formatAnnotation = (ann: string): string => {
 
 /**
  * Format p-value for display
- * @param p - the p-value
- * @param negLog10P - optional precise -log10(p) for extremely small values
  */
 const formatPvalue = (p: number | undefined, negLog10P?: number): string => {
   if (p === undefined || p === null) return '—';
-  // Use neg_log10_p for precise display of extremely small p-values
   if (negLog10P !== undefined && negLog10P > 100) {
     return `1e-${Math.round(negLog10P)}`;
   }
@@ -68,17 +58,16 @@ const formatPvalue = (p: number | undefined, negLog10P?: number): string => {
 };
 
 /**
- * P-value cell with color-coded indicator (red for pLoF sig, yellow for missense sig)
+ * P-value cell with color-coded indicator
  */
 const PvalueCell: React.FC<{ value: number | undefined; negLog10P?: number; annotation?: string }> = ({ value, negLog10P, annotation }) => {
   const isSignificant = value !== undefined && value < SIG_THRESHOLD;
   const formatted = formatPvalue(value, negLog10P);
 
-  // Color based on annotation type when significant
   const dotColor = isSignificant
-    ? (annotation === 'pLoF' ? '#c62828' : annotation === 'missenseLC' ? '#f9a825' : 'var(--theme-text-muted, #666)')
+    ? (annotation === 'pLoF' ? '#c62828' : annotation === 'missenseLC' ? '#e68a00' : 'var(--theme-text-muted, #666)')
     : undefined;
-  const textColor = isSignificant ? 'var(--theme-text, #333)' : 'var(--theme-text-muted, #666)';
+  const textColor = isSignificant ? 'var(--theme-text, #333)' : 'var(--theme-text-muted, #aaa)';
   const fontWeight = isSignificant ? 600 : 400;
 
   return (
@@ -96,12 +85,86 @@ const PvalueCell: React.FC<{ value: number | undefined; negLog10P?: number; anno
 };
 
 /**
- * Tooltip showing implicated genes in a GWAS locus (those with significant burden or coding variants).
+ * Format consequence for display
+ */
+const formatConsequence = (csq: string): string => {
+  switch (csq) {
+    case 'stop_gained': return 'Stop gained';
+    case 'frameshift_variant': return 'Frameshift';
+    case 'splice_acceptor_variant': return 'Splice acceptor';
+    case 'splice_donor_variant': return 'Splice donor';
+    case 'start_lost': return 'Start lost';
+    case 'stop_lost': return 'Stop lost';
+    case 'missense_variant': return 'Missense';
+    case 'synonymous_variant': return 'Synonymous';
+    default: return csq;
+  }
+};
+
+/**
+ * Coding variant badge component
+ */
+const CodingBadge: React.FC<{ gene: GeneInLocus }> = ({ gene }) => {
+  if (!gene.best_coding_hgvsp && !gene.best_coding_hgvsc) {
+    // Fallback to counts
+    const lof = gene.lof_count || 0;
+    const mis = gene.missense_count || 0;
+    if (lof === 0 && mis === 0) return null;
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {lof > 0 && (
+          <span style={{ background: '#fbe9e7', color: '#c62828', padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
+            {lof} LoF
+          </span>
+        )}
+        {mis > 0 && (
+          <span style={{ background: '#fff8e1', color: '#e68a00', padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
+            {mis} Missense
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const isLof = LOF_CSQS.includes(gene.best_coding_csq ?? '');
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      background: isLof ? '#fbe9e7' : '#fff8e1',
+      color: isLof ? '#c62828' : '#b8860b',
+      padding: '3px 8px',
+      borderRadius: 4,
+      fontSize: 10,
+      fontWeight: 600,
+    }}>
+      <span>{gene.best_coding_hgvsp || gene.best_coding_hgvsc}</span>
+      {gene.best_coding_csq && (
+        <span style={{ fontWeight: 400, opacity: 0.8 }}>{formatConsequence(gene.best_coding_csq)}</span>
+      )}
+      {gene.best_coding_pvalue !== undefined && (
+        <span style={{ fontWeight: 400, opacity: 0.8 }}>
+          P={gene.best_coding_pvalue < 0.001 ? gene.best_coding_pvalue.toExponential(2) : gene.best_coding_pvalue.toPrecision(3)}
+        </span>
+      )}
+      {gene.best_coding_beta !== undefined && (
+        <span style={{ color: gene.best_coding_beta > 0 ? '#2e7d32' : '#c62828', fontWeight: 700 }}>{gene.best_coding_beta > 0 ? '↑' : '↓'}</span>
+      )}
+      {gene.best_coding_ac !== undefined && gene.best_coding_ac > 0 && (
+        <span style={{ fontWeight: 400, opacity: 0.8 }}>AC: {gene.best_coding_ac}</span>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Tooltip showing implicated genes in a GWAS locus.
+ * Priority: burden analysis > coding variants > peak P & nearest gene.
  */
 export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerWidth }) => {
   const { peak } = node;
 
-  // Filter to only show genes with evidence (significant burden or coding variants)
   const implicatedGenes = peak.genes.filter(geneHasEvidence);
   const otherGenesCount = peak.genes.length - implicatedGenes.length;
 
@@ -115,23 +178,15 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
     right: shouldFlip ? containerWidth - x + 10 : undefined,
     backgroundColor: 'var(--theme-surface, rgba(255, 255, 255, 0.98))',
     color: 'var(--theme-text, #333)',
-    padding: '12px',
+    padding: '12px 14px',
     borderRadius: '6px',
     fontSize: '11px',
     lineHeight: '1.4',
     pointerEvents: 'none',
     zIndex: 1001,
-    minWidth: '380px',
+    minWidth: '360px',
     maxWidth: '550px',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-  };
-
-  const headerStyle: React.CSSProperties = {
-    fontWeight: 600,
-    fontSize: '12px',
-    marginBottom: '10px',
-    paddingBottom: '8px',
-    borderBottom: '1px solid var(--theme-border, #e0e0e0)',
   };
 
   const tableStyle: React.CSSProperties = {
@@ -156,111 +211,53 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
 
   return (
     <div style={style} className="manhattan-peak-tooltip">
-      {/* Header */}
-      <div style={headerStyle}>
-        <div style={{ color: 'var(--theme-text-muted, #666)', fontSize: '10px', marginBottom: '2px' }}>
-          {peak.contig}:{peak.position.toLocaleString()}
-        </div>
-        <div>
-          Peak P = <span style={{ color: '#d32f2f', fontWeight: 700 }}>{formatPvalue(peak.pvalue, peak.neg_log10_p)}</span>
-        </div>
-      </div>
-
-      {/* Show message if no implicated genes */}
+      {/* Implicated genes — each as a section */}
       {implicatedGenes.length === 0 && (
-        <div style={{ color: 'var(--theme-text-muted, #666)', fontStyle: 'italic', fontSize: '11px' }}>
-          No genes with significant burden tests or coding variants in this locus.
-          <br />
-          <span style={{ fontSize: '10px' }}>({peak.genes.length} nearby genes without evidence)</span>
-        </div>
+        <>
+          {/* No evidence — show nearest gene and peak info */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--theme-primary, #262262)', marginBottom: 4 }}>
+            {peak.genes[0]?.gene_symbol ?? 'Unknown'}
+            <span style={{ fontWeight: 400, color: 'var(--theme-text-muted, #888)', fontSize: 10, marginLeft: 8 }}>
+              Nearest gene
+            </span>
+          </div>
+          <div style={{ color: 'var(--theme-text-muted, #666)', fontStyle: 'italic', fontSize: 10, marginBottom: 8 }}>
+            No significant burden tests or coding variants in this locus.
+          </div>
+        </>
       )}
 
-      {/* Implicated genes */}
       {implicatedGenes.slice(0, 6).map((gene, geneIndex) => {
-        const lof = gene.lof_count || 0;
-        const mis = gene.missense_count || 0;
-        const hasCoding = lof > 0 || mis > 0;
-
-        // Only show significant burden results
         const sigBurdenResults = gene.burden_results?.filter(isBurdenSignificant) || [];
+        const hasCoding = (gene.lof_count || 0) > 0 || (gene.missense_count || 0) > 0;
 
         return (
           <div
             key={gene.gene_id || geneIndex}
             style={{
-              marginBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? '12px' : 0,
+              marginBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? 10 : 0,
+              paddingBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? 10 : 0,
+              borderBottom: geneIndex < Math.min(implicatedGenes.length, 6) - 1 ? '1px solid var(--theme-border, #eee)' : undefined,
             }}
           >
-            {/* Gene header with coding variant counts */}
+            {/* Gene header */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '6px',
-              padding: '4px 0',
-              borderBottom: sigBurdenResults.length > 0 ? '1px solid #eee' : undefined,
+              alignItems: 'baseline',
+              marginBottom: sigBurdenResults.length > 0 || hasCoding ? 6 : 0,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  fontWeight: 700,
-                  color: 'var(--theme-primary, #262262)',
-                  fontSize: '12px',
-                }}>
-                  {gene.gene_symbol}
-                </span>
-                {/* Coding variant badges */}
-                {hasCoding && (
-                  <span style={{ display: 'flex', gap: '4px' }}>
-                    {gene.best_coding_hgvsp ? (
-                      <span style={{
-                        background: '#e3f2fd',
-                        color: '#1565c0',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                      }}>
-                        {gene.best_coding_hgvsp} {gene.best_coding_ac ? `| AC: ${gene.best_coding_ac}` : ''}
-                      </span>
-                    ) : (
-                      <>
-                        {lof > 0 && (
-                          <span style={{
-                            background: '#ffebee',
-                            color: '#c62828',
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            fontSize: '9px',
-                            fontWeight: 600,
-                          }}>
-                            {lof} LoF
-                          </span>
-                        )}
-                        {mis > 0 && (
-                          <span style={{
-                            background: '#fff8e1',
-                            color: '#f57f17',
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            fontSize: '9px',
-                            fontWeight: 600,
-                          }}>
-                            {mis} Mis
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-              <div style={{ color: 'var(--theme-text-muted, #888)', fontSize: '10px' }}>
-                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb
-              </div>
+              <span style={{ fontWeight: 700, color: 'var(--theme-primary, #262262)', fontSize: 13 }}>
+                {gene.gene_symbol}
+              </span>
+              <span style={{ color: 'var(--theme-text-muted, #888)', fontSize: 10 }}>
+                {gene.distance_kb < 1 ? '<1' : Math.round(gene.distance_kb)}kb from peak
+              </span>
             </div>
 
-            {/* Significant burden results table */}
+            {/* 1. Burden analysis table (highest priority) */}
             {sigBurdenResults.length > 0 && (
-              <table style={tableStyle}>
+              <table style={{ ...tableStyle, marginBottom: hasCoding ? 6 : 0 }}>
                 <thead>
                   <tr>
                     <th style={thLeftStyle}>Burden Test</th>
@@ -278,10 +275,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                         : undefined;
 
                     return (
-                      <tr
-                        key={result.annotation}
-                        style={{ backgroundColor: bgColor }}
-                      >
+                      <tr key={result.annotation} style={{ backgroundColor: bgColor }}>
                         <td style={{
                           padding: '3px 6px',
                           fontWeight: 600,
@@ -298,36 +292,44 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                 </tbody>
               </table>
             )}
+
+            {/* 2. Coding variants */}
+            {hasCoding && <CodingBadge gene={gene} />}
           </div>
         );
       })}
 
-      {/* Additional counts */}
-      {(implicatedGenes.length > 6 || otherGenesCount > 0) && (
-        <div style={{ color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', marginTop: '8px', fontSize: '10px' }}>
-          {implicatedGenes.length > 6 && (
-            <span>+{implicatedGenes.length - 6} more implicated genes</span>
-          )}
-          {implicatedGenes.length > 6 && otherGenesCount > 0 && ' • '}
-          {otherGenesCount > 0 && (
-            <span>{otherGenesCount} other gene{otherGenesCount > 1 ? 's' : ''} nearby</span>
-          )}
+      {/* Additional implicated genes count */}
+      {implicatedGenes.length > 6 && (
+        <div style={{ color: 'var(--theme-text-muted, #888)', fontStyle: 'italic', fontSize: 10, marginTop: 6 }}>
+          +{implicatedGenes.length - 6} more implicated genes
         </div>
       )}
 
-      {/* Legend */}
+      {/* 3. Locus info footer — peak P & position, other genes */}
       <div style={{
-        marginTop: '10px',
-        paddingTop: '8px',
+        marginTop: 10,
+        paddingTop: 8,
         borderTop: '1px solid var(--theme-border, #e0e0e0)',
-        fontSize: '9px',
-        color: 'var(--theme-text-muted, #888)',
         display: 'flex',
-        gap: '12px',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        fontSize: 10,
+        color: 'var(--theme-text-muted, #666)',
       }}>
-        <span><span style={{ color: '#c62828' }}>●</span> pLoF burden P &lt; 2.5e-6</span>
-        <span><span style={{ color: '#f9a825' }}>●</span> Missense burden P &lt; 2.5e-6</span>
+        <span>
+          {node.isBurdenOnly ? 'Burden' : 'Lead variant'} P = <span style={{ color: '#d32f2f', fontWeight: 700 }}>{formatPvalue(peak.pvalue, peak.neg_log10_p)}</span>
+        </span>
+        <span>{peak.contig}:{peak.position.toLocaleString()}</span>
       </div>
+      {otherGenesCount > 0 && (
+        <div style={{ fontSize: 10, color: 'var(--theme-text-muted, #aaa)', marginTop: 2 }}>
+          {peak.genes
+            .filter((g) => !geneHasEvidence(g))
+            .map((g) => g.gene_symbol)
+            .join(', ')}
+        </div>
+      )}
     </div>
   );
 };

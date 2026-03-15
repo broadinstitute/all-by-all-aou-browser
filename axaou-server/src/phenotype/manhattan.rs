@@ -90,6 +90,9 @@ struct PeakGeneRow {
     pub best_coding_hgvsp: String,
     pub best_coding_hgvsc: String,
     pub best_coding_ac: u32,
+    pub best_coding_variant_id: String,
+    pub best_coding_pvalue: f64,
+    pub best_coding_beta: f64,
 }
 
 /// Burden result row from ClickHouse
@@ -153,6 +156,12 @@ pub struct GeneInLocus {
     pub best_coding_hgvsc: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub best_coding_ac: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_variant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_pvalue: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub best_coding_beta: Option<f64>,
     /// Burden results for each annotation category (pLoF, missenseLC, etc.)
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub burden_results: Vec<BurdenResult>,
@@ -453,7 +462,18 @@ pub(crate) async fn fetch_peak_annotations(
                 argMinIf(ann.consequence, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_csq,
                 argMinIf(ann.hgvsp, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_hgvsp,
                 argMinIf(ann.hgvsc, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_hgvsc,
-                argMinIf(ann.ac, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_ac
+                argMinIf(ann.ac, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_ac,
+                argMinIf(
+                    concat('chr',
+                        multiIf(intDiv(lv.xpos, 1000000000) <= 22, toString(intDiv(lv.xpos, 1000000000)),
+                                intDiv(lv.xpos, 1000000000) = 23, 'X',
+                                intDiv(lv.xpos, 1000000000) = 24, 'Y', 'M'),
+                        '-', toString(lv.xpos % 1000000000), '-', lv.ref, '-', lv.alt),
+                    lv.pvalue,
+                    ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')
+                ) as best_coding_variant_id,
+                minIf(lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_pvalue,
+                argMinIf(lv.beta, lv.pvalue, ann.consequence IN ('stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'missense_variant')) as best_coding_beta
             FROM loci_variants lv
             JOIN {annotation_table} ann
                 ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
@@ -472,7 +492,10 @@ pub(crate) async fn fetch_peak_annotations(
             coalesce(cv.best_coding_csq, '') as best_coding_csq,
             coalesce(cv.best_coding_hgvsp, '') as best_coding_hgvsp,
             coalesce(cv.best_coding_hgvsc, '') as best_coding_hgvsc,
-            toUInt32(coalesce(cv.best_coding_ac, 0)) as best_coding_ac
+            toUInt32(coalesce(cv.best_coding_ac, 0)) as best_coding_ac,
+            coalesce(cv.best_coding_variant_id, '') as best_coding_variant_id,
+            coalesce(cv.best_coding_pvalue, 0) as best_coding_pvalue,
+            coalesce(cv.best_coding_beta, 0) as best_coding_beta
         FROM locus_genes lg
         LEFT JOIN coding_variants cv
             ON cv.locus_id = lg.locus_id AND cv.gene_symbol = lg.gene_symbol
@@ -572,6 +595,7 @@ pub(crate) async fn fetch_peak_annotations(
         let opt_count = |c: u32| if c > 0 { Some(c) } else { None };
 
         let opt_string = |s: String| if s.is_empty() { None } else { Some(s) };
+        let opt_f64 = |v: f64| if v == 0.0 { None } else { Some(v) };
         // Strip transcript prefix from HGVS (e.g., "ENSP00000380585.1:p.Ala402Cys" -> "p.Ala402Cys")
         let strip_transcript = |s: String| {
             if s.is_empty() { return None; }
@@ -593,6 +617,9 @@ pub(crate) async fn fetch_peak_annotations(
                     best_coding_hgvsp: strip_transcript(row.best_coding_hgvsp),
                     best_coding_hgvsc: strip_transcript(row.best_coding_hgvsc),
                     best_coding_ac: opt_count(row.best_coding_ac),
+                    best_coding_variant_id: opt_string(row.best_coding_variant_id),
+                    best_coding_pvalue: opt_f64(row.best_coding_pvalue),
+                    best_coding_beta: opt_f64(row.best_coding_beta),
                     burden_results,
                 });
             }
@@ -628,6 +655,9 @@ pub(crate) async fn fetch_peak_annotations(
                         best_coding_hgvsp: strip_transcript(row.best_coding_hgvsp),
                         best_coding_hgvsc: strip_transcript(row.best_coding_hgvsc),
                         best_coding_ac: opt_count(row.best_coding_ac),
+                        best_coding_variant_id: opt_string(row.best_coding_variant_id),
+                        best_coding_pvalue: opt_f64(row.best_coding_pvalue),
+                        best_coding_beta: opt_f64(row.best_coding_beta),
                         burden_results,
                     }],
                 });
@@ -957,6 +987,9 @@ async fn get_gene_manhattan_overlay(
                     best_coding_hgvsp: None,
                     best_coding_hgvsc: None,
                     best_coding_ac: None,
+                    best_coding_variant_id: None,
+                    best_coding_pvalue: None,
+                    best_coding_beta: None,
                     burden_results,
                 }],
             }
