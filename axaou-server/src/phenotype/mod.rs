@@ -8,5 +8,6 @@ pub mod manhattan;
 pub mod overview;
 pub mod plots;
 pub mod qq;
+pub mod render;
 pub mod significant;
 pub mod summary;
