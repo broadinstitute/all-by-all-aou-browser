@@ -243,16 +243,6 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
     }
   };
 
-  const handlePeakClick = (node: any) => {
-    if (node.peak) {
-      const windowSize = 500000; // fallback ±500kb
-      const start = node.peak.start ?? Math.max(0, node.peak.position - windowSize);
-      const stop = node.peak.stop ?? (node.peak.position + windowSize);
-      const regionId = `${node.peak.contig}-${start}-${stop}`;
-      goToRegion(regionId, { fromPhenotype: true });
-    }
-  };
-
   const handleOverviewLocusClick = (contig: string, position: number, start?: number, stop?: number) => {
     const windowSize = 500000; // fallback ±500kb
     const regionStart = start ?? Math.max(0, position - windowSize);
@@ -312,7 +302,6 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
               analysisId={analysisMetadataPrepared.analysis_id}
               plotType={tabConfig.plotType}
               onHitClick={handleHitClick}
-              onPeakClick={handlePeakClick}
               inset={showQQOverlay ? (w, h) => (
                 <PrecomputedQQMini
                   analysisId={analysisMetadataPrepared.analysis_id}

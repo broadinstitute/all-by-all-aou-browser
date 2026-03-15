@@ -245,6 +245,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         customLabelMode={customLabelMode}
         topN={topN}
         onPeakClick={handlePeakClick}
+        onPeakToggle={(peakId) => togglePeak(peakId, filteredLoci)}
         showYAxis={true}
         contig={selectedContig}
         onResetContig={() => setSelectedContig('all')}

@@ -30,6 +30,8 @@ export interface OverviewManhattanProps {
   topN?: number;
   /** Callback when a peak label is clicked */
   onPeakClick?: (node: PeakLabelNode) => void;
+  /** Callback when a ghost peak dot is clicked to toggle its label */
+  onPeakToggle?: (peakId: string) => void;
   /** Show Y-axis with -log10(p) labels */
   showYAxis?: boolean;
   /** Currently selected chromosome ('all' for genome-wide view) */
@@ -120,6 +122,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   customLabelMode = false,
   topN = 10,
   onPeakClick,
+  onPeakToggle,
   showYAxis = true,
   contig = 'all',
   onResetContig,
@@ -163,19 +166,16 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   // Convert unified loci to peaks format for label layout
   const peaks = useMemo(() => unifiedLociToPeaks(unifiedLoci), [unifiedLoci]);
 
-  // Filter peaks for labeling: if in custom mode, show only selected peaks
-  const peaksForLabels = useMemo(() => {
-    if (!customLabelMode || !selectedPeakIds) return peaks;
-    return peaks.filter((p) => selectedPeakIds.has(`${p.contig}-${p.position}`));
-  }, [peaks, selectedPeakIds, customLabelMode]);
-
   // Compute peak label positions and required label area height
+  // All peaks are passed; the hook determines which are labeled vs ghost
   const { nodes: peakLabelNodes, labelAreaHeight } = usePeakLabelLayout(
-    peaksForLabels,
+    peaks,
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : topN
+    customLabelMode ? 500 : topN,
+    customLabelMode,
+    selectedPeakIds ?? new Set(),
   );
 
   // Observe image size changes for responsive scaling
@@ -477,6 +477,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                 hoveredHitPosition={null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                onPeakToggle={onPeakToggle}
                 onPeakContextMenu={(node, clientX, clientY) => {
                   setContextMenu({
                     x: clientX,

@@ -15,8 +15,10 @@ export interface PeakLabelsProps {
   plotHeight: number;
   /** Height of the label area above the plot */
   labelAreaHeight: number;
-  /** Callback when a peak is clicked */
+  /** Callback when a peak label is clicked (for navigation) */
   onPeakClick?: (node: PeakLabelNode) => void;
+  /** Callback when a peak dot is clicked to toggle its label on/off */
+  onPeakToggle?: (peakId: string) => void;
   /** Currently hovered hit from the main overlay (contig-position format) */
   hoveredHitPosition?: { contig: string; position: number } | null;
   /** Callback when hovering a peak label - includes cursor position for tooltip */
@@ -58,6 +60,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
   plotHeight,
   labelAreaHeight,
   onPeakClick,
+  onPeakToggle,
   hoveredHitPosition,
   onPeakHover,
   onPeakContextMenu,
@@ -195,6 +198,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
 
         // Burden-only peaks get special styling
         const isBurdenOnly = node.isBurdenOnly;
+        const isLabeled = node.isLabeled;
         const dotSize = isBurdenOnly ? (isHovered ? 7 : 5) : (isHovered ? 5 : 3);
         const burdenOnlyColor = '#7b1fa2'; // Purple for burden-only
 
@@ -221,10 +225,15 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             onMouseLeave={handleMouseLeave}
             onClick={() => {
               if (isDragging || justDraggedRef.current) return;
-              // Clear hover/tooltip before navigating to avoid frozen tooltip
               setHoveredPeakId(null);
               onPeakHover?.(null);
-              onPeakClick?.(node);
+              if (isLabeled) {
+                // Labeled peaks: click navigates (existing behavior)
+                onPeakClick?.(node);
+              } else {
+                // Unlabeled (ghost) peaks: click toggles label on
+                onPeakToggle?.(peakId);
+              }
             }}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -232,23 +241,28 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
             }}
             style={{ cursor: onLabelDragEnd ? (isDragging ? 'grabbing' : 'pointer') : 'pointer' }}
           >
-            {/* Invisible wider hit area for easier hovering */}
-            <path
-              d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
-              stroke="transparent"
-              strokeWidth={10}
-              fill="none"
-            />
-            {/* Leader line from label down to peak */}
-            <path
-              d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
-              className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
-              fill="none"
-              style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2' } : hasOverride ? { stroke: '#666' } : undefined}
-            />
+            {/* Invisible wider hit area for easier hovering over peak dot */}
+            <circle cx={node.targetX} cy={peakY} r={12} fill="transparent" />
+
+            {/* Leader line and hit area - only for labeled peaks */}
+            {isLabeled && (
+              <>
+                <path
+                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
+                  stroke="transparent"
+                  strokeWidth={10}
+                  fill="none"
+                />
+                <path
+                  d={getPathFn(labelX, labelY + 4, node.targetX, peakY)}
+                  className={`manhattan-peak-line ${isHovered ? 'manhattan-peak-line-hovered' : ''}`}
+                  fill="none"
+                  style={isBurdenOnly ? { stroke: burdenOnlyColor, strokeDasharray: '3,2' } : hasOverride ? { stroke: '#666' } : undefined}
+                />
+              </>
+            )}
             {/* Dot/shape at the peak position */}
             {isBurdenOnly ? (
-              // Diamond shape for burden-only peaks
               <polygon
                 points={`${node.targetX},${peakY - dotSize} ${node.targetX + dotSize},${peakY} ${node.targetX},${peakY + dotSize} ${node.targetX - dotSize},${peakY}`}
                 fill={burdenOnlyColor}
@@ -256,7 +270,6 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 strokeWidth={isHovered ? 2 : undefined}
               />
             ) : (
-              // Circle for regular GWAS peaks
               <circle
                 cx={node.targetX}
                 cy={peakY}
@@ -264,41 +277,38 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 className={`manhattan-peak-dot ${isHovered ? 'manhattan-peak-dot-hovered' : ''}`}
               />
             )}
-            {/* Gene label - angled with burden dots, coding indicator, multi-gene count */}
-            <text
-              x={labelX}
-              y={labelY}
-              className={`manhattan-peak-label ${node.hasBurden ? 'manhattan-peak-label-burden' : ''} ${isHovered ? 'manhattan-peak-label-hovered' : ''}`}
-              transform={`rotate(${LABEL_ANGLE}, ${labelX}, ${labelY})`}
-              textAnchor="start"
-              onMouseDown={(e) => handleDragStart(e, peakId, labelX, labelY)}
-            >
-              {/* Burden-only indicator */}
-              {isBurdenOnly && (
-                <tspan fill={burdenOnlyColor} fontWeight="bold">◆ </tspan>
-              )}
-              {/* Burden type dots - pLoF in red, missense in yellow */}
-              {node.burdenTypes.includes('pLoF') && (
-                <tspan fill="#d32f2f">●</tspan>
-              )}
-              {node.burdenTypes.includes('missenseLC') && (
-                <tspan fill="#f9a825">●</tspan>
-              )}
-              {node.burdenTypes.length > 0 && ' '}
-              {/* Gene symbol */}
-              {node.isNearestOnly && (
-                <tspan fill="var(--theme-text-muted, #888)" fontStyle="italic">nearest: </tspan>
-              )}
-              <tspan>{node.label}</tspan>
-              {/* Coding indicator: red if pLoF exists, else yellow/orange for missense */}
-              {node.hasCoding && (
-                <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold"> (C)</tspan>
-              )}
-              {/* Multi-gene indicator */}
-              {node.implicatedCount > 1 && (
-                <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>
-              )}
-            </text>
+            {/* Gene label - only rendered for labeled peaks */}
+            {isLabeled && (
+              <text
+                x={labelX}
+                y={labelY}
+                className={`manhattan-peak-label ${node.hasBurden ? 'manhattan-peak-label-burden' : ''} ${isHovered ? 'manhattan-peak-label-hovered' : ''}`}
+                transform={`rotate(${LABEL_ANGLE}, ${labelX}, ${labelY})`}
+                textAnchor="start"
+                onMouseDown={(e) => handleDragStart(e, peakId, labelX, labelY)}
+              >
+                {isBurdenOnly && (
+                  <tspan fill={burdenOnlyColor} fontWeight="bold">◆ </tspan>
+                )}
+                {node.burdenTypes.includes('pLoF') && (
+                  <tspan fill="#d32f2f">●</tspan>
+                )}
+                {node.burdenTypes.includes('missenseLC') && (
+                  <tspan fill="#f9a825">●</tspan>
+                )}
+                {node.burdenTypes.length > 0 && ' '}
+                {node.isNearestOnly && (
+                  <tspan fill="var(--theme-text-muted, #888)" fontStyle="italic">nearest: </tspan>
+                )}
+                <tspan>{node.label}</tspan>
+                {node.hasCoding && (
+                  <tspan fill={node.lofCount > 0 ? "#c62828" : "#f9a825"} fontWeight="bold"> (C)</tspan>
+                )}
+                {node.implicatedCount > 1 && (
+                  <tspan fill="#666"> +{node.implicatedCount - 1}</tspan>
+                )}
+              </text>
+            )}
           </g>
         );
       })}

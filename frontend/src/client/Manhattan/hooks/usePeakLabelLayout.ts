@@ -52,6 +52,8 @@ export interface PeakLabelNode {
   isBurdenOnly: boolean;
   /** All genes with burden or coding evidence in this peak */
   implicatedGenes: ImplicatedGene[];
+  /** Whether this peak should have its label text rendered (vs just a hoverable dot) */
+  isLabeled: boolean;
 }
 
 export interface PeakLabelLayout {
@@ -167,6 +169,8 @@ export function usePeakLabelLayout(
   height: number,
   contig: string = 'all',
   maxLabels: number = 25,
+  customLabelMode: boolean = false,
+  selectedPeakIds: Set<string> = new Set(),
   exclusionZone?: ExclusionZone
 ): PeakLabelLayout {
   const layout = getChromosomeLayout(contig);
@@ -185,11 +189,7 @@ export function usePeakLabelLayout(
           return peakContig === contig;
         });
 
-    // Separate GWAS peaks from burden-only peaks
-    const gwasPeaks = filteredPeaks.filter((p) => !p.isBurdenOnly);
-    const burdenOnlyPeaks = filteredPeaks.filter((p) => p.isBurdenOnly);
-
-    // Sort GWAS peaks: implicated (burden or coding evidence) first, then by p-value
+    // Check if a peak has implicated genes (burden or coding evidence)
     const isImplicated = (p: Peak): boolean =>
       p.genes.some((g) => {
         const hasBurden = g.burden_results?.some((b) =>
@@ -201,36 +201,29 @@ export function usePeakLabelLayout(
         return hasBurden || hasCoding;
       });
 
-    // Take top N GWAS peaks, prioritizing implicated
-    const topGwasPeaks = [...gwasPeaks]
-      .sort((a, b) => {
-        const aImpl = isImplicated(a);
-        const bImpl = isImplicated(b);
-        if (aImpl !== bImpl) return aImpl ? -1 : 1;
-        return a.pvalue - b.pvalue;
-      })
-      .slice(0, maxLabels);
+    // Determine which peaks should be labeled
+    const labeledPeakIds = new Set<string>();
 
-    // Include ALL burden-only peaks with significant pLoF or missense burden
-    const SIG_BURDEN_THRESHOLD = 2.5e-6;
-    const significantBurdenOnlyPeaks = burdenOnlyPeaks.filter((p) =>
-      p.genes.some((g) =>
-        g.burden_results?.some((b) =>
-          (b.annotation === 'pLoF' || b.annotation === 'missenseLC') &&
-          ((b.pvalue !== undefined && b.pvalue < SIG_BURDEN_THRESHOLD) ||
-           (b.pvalue_burden !== undefined && b.pvalue_burden < SIG_BURDEN_THRESHOLD) ||
-           (b.pvalue_skat !== undefined && b.pvalue_skat < SIG_BURDEN_THRESHOLD))
-        )
-      )
-    );
-
-    // Combine: top GWAS peaks + all significant burden-only peaks
-    const topPeaks = [...topGwasPeaks, ...significantBurdenOnlyPeaks]
-      .sort((a, b) => a.pvalue - b.pvalue);
+    if (customLabelMode) {
+      selectedPeakIds.forEach(id => labeledPeakIds.add(id));
+    } else {
+      // Combine all peaks (GWAS + burden-only) and take top N overall,
+      // prioritizing implicated peaks then by p-value
+      const allCandidates = [...filteredPeaks]
+        .sort((a, b) => {
+          const aImpl = isImplicated(a);
+          const bImpl = isImplicated(b);
+          if (aImpl !== bImpl) return aImpl ? -1 : 1;
+          return a.pvalue - b.pvalue;
+        })
+        .slice(0, maxLabels);
+      allCandidates.forEach(p => labeledPeakIds.add(`${p.contig}-${p.position}`));
+    }
 
     const nodes: PeakLabelNode[] = [];
 
-    for (const peak of topPeaks) {
+    // Process ALL filtered peaks (not just top ones)
+    for (const peak of filteredPeaks) {
       const xNorm = layout.getX(peak.contig, peak.position);
       const yNorm = yScale.getY(peak.pvalue, peak.neg_log10_p);
 
@@ -302,6 +295,9 @@ export function usePeakLabelLayout(
       const targetX = xNorm * width;
       const targetY = yNorm; // Store normalized Y for now
 
+      const peakId = `${peak.contig}-${peak.position}`;
+      const isLabeled = labeledPeakIds.has(peakId);
+
       nodes.push({
         peak,
         targetX,
@@ -322,6 +318,7 @@ export function usePeakLabelLayout(
         implicatedCount,
         isBurdenOnly,
         implicatedGenes,
+        isLabeled,
       });
     }
 
@@ -332,44 +329,45 @@ export function usePeakLabelLayout(
     // Sort by x position
     nodes.sort((a, b) => a.targetX - b.targetX);
 
+    // Extract ONLY labeled nodes for D3 force simulation
+    const labeledNodes = nodes.filter(n => n.isLabeled);
+
+    if (labeledNodes.length === 0) {
+      // No labeled nodes — no label area needed, but still return all nodes for ghost dots
+      return { nodes, labelAreaHeight: 0 };
+    }
+
     // Initial pass: position labels at a baseline closer to the data
-    // Lower baseline (50 instead of 100) keeps labels closer to peaks
     const baseline = 50;
-    for (const node of nodes) {
+    for (const node of labeledNodes) {
       node.y = baseline;
     }
 
-    // Run force simulation - labels will spread out to avoid collisions
-    // Lower forceX strength allows more horizontal spreading
-    // Higher forceY strength keeps labels anchored near the baseline
+    // Run force simulation on labeled nodes only
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const simulation = d3Force.forceSimulation(nodes as any)
+    const simulation = d3Force.forceSimulation(labeledNodes as any)
       .force('x', d3Force.forceX((d: PeakLabelNode) => d.targetX).strength(0.2))
       .force('y', d3Force.forceY(baseline).strength(0.1))
       .force('collide', d3Force.forceCollide((d: PeakLabelNode) => d.collisionRadius * 1.2).strength(1).iterations(6))
       .stop();
 
-    // Run simulation with more iterations for better convergence
     for (let i = 0; i < 400; i++) {
       simulation.tick();
     }
 
-    // Resolve any remaining overlaps
-    resolveOverlaps(nodes);
+    resolveOverlaps(labeledNodes);
 
     // Push labels out of the exclusion zone (e.g., QQ inset area)
     if (exclusionZone) {
       const ez = exclusionZone;
-      for (const node of nodes) {
+      for (const node of labeledNodes) {
         const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
         const labelRight = node.x + node.labelWidth * Math.cos(angleRad);
         const labelTop = node.y - node.labelWidth * Math.sin(angleRad);
         const labelBottom = node.y + LABEL_HEIGHT * Math.cos(angleRad);
 
-        // Check if label overlaps with the exclusion zone
         if (labelRight > ez.x && node.x < ez.x + ez.width &&
             labelBottom > ez.y && labelTop < ez.y + ez.height) {
-          // If exclusion zone is on the left side of the screen, push right. Otherwise push left.
           if (ez.x < width / 2) {
              node.x = ez.x + ez.width + MIN_LABEL_SPACING;
           } else {
@@ -377,35 +375,26 @@ export function usePeakLabelLayout(
           }
         }
       }
-      // Re-resolve overlaps after pushing
-      resolveOverlaps(nodes);
+      resolveOverlaps(labeledNodes);
     }
 
-    // Find the vertical extent of labels, accounting for angled text
-    // For -45 degree rotation, text extends up-left from anchor point
+    // Find the vertical extent of labeled nodes only
     const angleRad = Math.abs(LABEL_ANGLE * Math.PI / 180);
     let minY = Infinity;
     let maxY = -Infinity;
-    for (const node of nodes) {
-      // Angled label extends upward by: labelWidth * sin(angle)
+    for (const node of labeledNodes) {
       const upwardExtent = node.labelWidth * Math.sin(angleRad);
-      // And downward by approximately LABEL_HEIGHT * cos(angle)
       const downwardExtent = LABEL_HEIGHT * Math.cos(angleRad);
-
       minY = Math.min(minY, node.y - upwardExtent);
       maxY = Math.max(maxY, node.y + downwardExtent);
     }
 
-    // Calculate required label area height
     const labelExtent = maxY - minY;
     const labelAreaHeight = Math.ceil(labelExtent + TOP_PADDING + BOTTOM_PADDING);
 
-    // Shift all labels so that the topmost point is at TOP_PADDING
     const shift = TOP_PADDING - minY;
-    for (const node of nodes) {
+    for (const node of labeledNodes) {
       node.y += shift;
-      // Clamp X within bounds (account for angled label extending both directions)
-      // With -45° rotation and textAnchor="start", text extends up-right from anchor
       const rightExtent = node.labelWidth * Math.cos(angleRad);
       const leftMargin = 10;
       const rightMargin = Math.max(10, rightExtent);
@@ -413,7 +402,7 @@ export function usePeakLabelLayout(
     }
 
     return { nodes, labelAreaHeight };
-  }, [peaks, width, height, layout, yScale, contig, maxLabels, exclusionZone]);
+  }, [peaks, width, height, layout, yScale, contig, maxLabels, customLabelMode, selectedPeakIds, exclusionZone]);
 }
 
 /**

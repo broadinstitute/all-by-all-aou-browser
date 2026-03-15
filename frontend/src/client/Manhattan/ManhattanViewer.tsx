@@ -180,23 +180,16 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     [overlay.significant_hits, contig]
   );
 
-  // Filter peaks for labeling: if in custom mode, show only selected peaks
-  // Otherwise show all peaks (hook will limit to maxLabels)
-  const peaksForLabels = useMemo(() => {
-    if (!overlay.peaks) return undefined;
-    if (!customLabelMode) return overlay.peaks;
-    // Custom mode - show only selected peaks (no maxLabels limit)
-    return overlay.peaks.filter((p) => selectedPeakIds.has(`${p.contig}-${p.position}`));
-  }, [overlay.peaks, selectedPeakIds, customLabelMode]);
-
   // Compute peak label positions and required label area height
-  // When in custom mode, use high maxLabels to show all selected
+  // All peaks are passed; the hook determines which are labeled vs ghost
   const { nodes: peakLabelNodes, labelAreaHeight } = usePeakLabelLayout(
-    peaksForLabels,
+    overlay.peaks,
     dimensions.width,
     dimensions.height,
     contig,
-    customLabelMode ? 500 : 10, // No limit when user-selected
+    customLabelMode ? 500 : 10,
+    customLabelMode,
+    selectedPeakIds,
   );
 
   // Default inset to top-right corner of the plot image
@@ -247,9 +240,13 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
 
   // Stable callbacks for peak selection
   const togglePeak = useCallback((peakId: string) => {
-    setCustomLabelMode(true);
     setSelectedPeakIds((prev) => {
-      const next = new Set(prev);
+      let baseSet = prev;
+      if (!customLabelMode) {
+        // Initialize base set from the currently auto-labeled nodes
+        baseSet = new Set(peakLabelNodes.filter(n => n.isLabeled).map(n => `${n.peak.contig}-${n.peak.position}`));
+      }
+      const next = new Set(baseSet);
       if (next.has(peakId)) {
         next.delete(peakId);
       } else {
@@ -257,7 +254,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       }
       return next;
     });
-  }, []);
+    setCustomLabelMode(true);
+  }, [customLabelMode, peakLabelNodes]);
 
   const clearSelection = useCallback(() => {
     setSelectedPeakIds(new Set());
@@ -507,6 +505,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                 hoveredHitPosition={hoveredHit ? { contig: hoveredHit.contig, position: hoveredHit.position } : null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                onPeakToggle={togglePeak}
                 labelOverrides={labelOverrides}
                 onLabelDragEnd={handleLabelDragEnd}
                 onPeakContextMenu={(node, clientX, clientY) => {
