@@ -1,7 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
 import { useRecoilState, useSetRecoilState } from 'recoil'
-import { useHistory } from 'react-router-dom'
 import { HalfPage } from './UserInterface'
 import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedState'
 import { useRestoreFromUrl } from './initialUrlState'
@@ -62,7 +61,6 @@ const VALID_TABS = new Set<string>(['all-phenotypes', 'all-genes', 'gene-burden'
 export const TopResultsLayout = ({ size }: any) => {
   const [activeTab, setActiveTab] = useRecoilState(topResultsTabAtom)
   const setResultLayout = useSetRecoilState(resultLayoutAtom)
-  const history = useHistory()
 
   useRestoreFromUrl(topResultsTabAtom, 'topResultsTab', VALID_TABS)
 
@@ -70,13 +68,6 @@ export const TopResultsLayout = ({ size }: any) => {
     setActiveTab(tab)
     const layout = (tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes') ? 'full' : undefined
     if (layout) setResultLayout(layout)
-
-    // Push state to URL so refresh preserves the active tab
-    const stateStr = new URLSearchParams(window.location.search).get('state')
-    const state = stateStr ? JSON.parse(stateStr) : {}
-    state.topResultsTab = tab
-    if (layout) state.resultLayout = layout
-    history.replace({ pathname: '/app', search: `?state=${encodeURIComponent(JSON.stringify(state))}` })
   }
 
   return (

@@ -5,10 +5,10 @@ import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
 import { Page, Button, ExternalLink } from '@gnomad/ui'
 import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom } from './sharedState'
-import { useAppNavigation, buildStateUrl } from './hooks/useAppNavigation'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, geneIdAtom, regionIdAtom, variantIdAtom, analysisIdAtom } from './sharedState'
+import { buildStateUrl } from './hooks/useAppNavigation'
 import { datasetCounts } from './utils'
-import { Link, useHistory } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 const HomePage = styled(Page)`
   overflow-y: scroll;
@@ -112,21 +112,23 @@ const browseResultsUrl = buildStateUrl({
 });
 
 export default function HomePageComponent() {
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultsLayout = useSetRecoilState(resultLayoutAtom);
-  const setTopResultsTab = useSetRecoilState(topResultsTabAtom);
-  const { clearAll, switchAnalysis } = useAppNavigation();
-  const history = useHistory();
+  const setResultIndex = useSetRecoilState(resultIndexAtom)
+  const setResultLayout = useSetRecoilState(resultLayoutAtom)
+  const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
+  const setGeneId = useSetRecoilState(geneIdAtom)
+  const setRegionId = useSetRecoilState(regionIdAtom)
+  const setVariantId = useSetRecoilState(variantIdAtom)
+  const setAnalysisId = useSetRecoilState(analysisIdAtom)
 
-  const handleBrowseResults = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setResultIndex('top-associations');
-    setResultsLayout('full');
-    setTopResultsTab('all-phenotypes');
-    clearAll();
-    switchAnalysis(null);
-    history.push(browseResultsUrl);
-  };
+  const handleBrowseResults = () => {
+    setResultIndex('top-associations')
+    setResultLayout('full')
+    setTopResultsTab('all-phenotypes')
+    setGeneId(null)
+    setRegionId(null)
+    setVariantId(null)
+    setAnalysisId(null)
+  }
 
   return (
     <HomePage>
