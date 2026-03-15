@@ -110,9 +110,10 @@ const annotationLabels: Record<AnnotationCategory, string> = {
 interface BurdenSetSelectorProps {
   burdenSet: string
   setBurdenSet: (value: string) => void
+  showDots?: boolean
 }
 
-const BurdenSetSelector: React.FC<BurdenSetSelectorProps> = ({ burdenSet, setBurdenSet }) => {
+const BurdenSetSelector: React.FC<BurdenSetSelectorProps> = ({ burdenSet, setBurdenSet, showDots = true }) => {
   const mafSignificance = useRecoilValue(mafSignificanceAtom)
 
   // Check if any MAF has a hit for this annotation category
@@ -133,13 +134,15 @@ const BurdenSetSelector: React.FC<BurdenSetSelectorProps> = ({ burdenSet, setBur
         const hasHit = hasAnyHit(opt.category)
         return (
           <MafOptionWrapper key={opt.value}>
-            <MafSignificanceDots>
-              {hasHit ? (
-                <SignificanceDot $color={greenThresholdColor} title={`${opt.label}: has significant hit`} />
-              ) : (
-                <EmptyDot title={`${opt.label}: no significant hits`} />
-              )}
-            </MafSignificanceDots>
+            {showDots && (
+              <MafSignificanceDots>
+                {hasHit ? (
+                  <SignificanceDot $color={greenThresholdColor} title={`${opt.label}: has significant hit`} />
+                ) : (
+                  <EmptyDot title={`${opt.label}: no significant hits`} />
+                )}
+              </MafSignificanceDots>
+            )}
             <MafButton
               $active={burdenSet === opt.value}
               onClick={() => setBurdenSet(opt.value)}
@@ -157,9 +160,10 @@ const BurdenSetSelector: React.FC<BurdenSetSelectorProps> = ({ burdenSet, setBur
 interface BurdenTestSelectorProps {
   pValueType: string
   setPValueType: (value: any) => void
+  showDots?: boolean
 }
 
-const BurdenTestSelector: React.FC<BurdenTestSelectorProps> = ({ pValueType, setPValueType }) => {
+const BurdenTestSelector: React.FC<BurdenTestSelectorProps> = ({ pValueType, setPValueType, showDots = true }) => {
   const burdenTestSignificance = useRecoilValue(burdenTestSignificanceAtom)
 
   const testOptions: { value: string; label: string; testKey: BurdenTestType }[] = [
@@ -177,17 +181,19 @@ const BurdenTestSelector: React.FC<BurdenTestSelectorProps> = ({ pValueType, set
           const sigForTest = burdenTestSignificance[opt.testKey]
           return (
             <MafOptionWrapper key={opt.value}>
-              <MafSignificanceDots>
-                {annotationOrder.map((annot) => {
-                  const hasHit = sigForTest[annot] !== 'none'
-                  const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
-                  return hasHit ? (
-                    <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
-                  ) : (
-                    <EmptyDot key={annot} title={tooltip} />
-                  )
-                })}
-              </MafSignificanceDots>
+              {showDots && (
+                <MafSignificanceDots>
+                  {annotationOrder.map((annot) => {
+                    const hasHit = sigForTest[annot] !== 'none'
+                    const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
+                    return hasHit ? (
+                      <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
+                    ) : (
+                      <EmptyDot key={annot} title={tooltip} />
+                    )
+                  })}
+                </MafSignificanceDots>
+              )}
               <MafButton
                 $active={pValueType === opt.value}
                 onClick={() => setPValueType(opt.value)}
@@ -205,9 +211,10 @@ const BurdenTestSelector: React.FC<BurdenTestSelectorProps> = ({ pValueType, set
 interface MafSelectorProps {
   selectedMaf: number
   setSelectedMaf: (value: number) => void
+  showDots?: boolean
 }
 
-const MafSelector: React.FC<MafSelectorProps> = ({ selectedMaf, setSelectedMaf }) => {
+const MafSelector: React.FC<MafSelectorProps> = ({ selectedMaf, setSelectedMaf, showDots = true }) => {
   const mafSignificance = useRecoilValue(mafSignificanceAtom)
 
   const mafOptions: { value: MafOption; label: string }[] = [
@@ -226,17 +233,19 @@ const MafSelector: React.FC<MafSelectorProps> = ({ selectedMaf, setSelectedMaf }
           const sigForMaf = mafSignificance[opt.value]
           return (
             <MafOptionWrapper key={opt.value}>
-              <MafSignificanceDots>
-                {annotationOrder.map((annot) => {
-                  const hasHit = sigForMaf[annot] !== 'none'
-                  const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
-                  return hasHit ? (
-                    <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
-                  ) : (
-                    <EmptyDot key={annot} title={tooltip} />
-                  )
-                })}
-              </MafSignificanceDots>
+              {showDots && (
+                <MafSignificanceDots>
+                  {annotationOrder.map((annot) => {
+                    const hasHit = sigForMaf[annot] !== 'none'
+                    const tooltip = `${annotationLabels[annot]}: ${hasHit ? 'significant' : 'not significant'}`
+                    return hasHit ? (
+                      <SignificanceDot key={annot} $color={annotationColors[annot]} title={tooltip} />
+                    ) : (
+                      <EmptyDot key={annot} title={tooltip} />
+                    )
+                  })}
+                </MafSignificanceDots>
+              )}
               <MafButton
                 $active={selectedMaf === opt.value}
                 onClick={() => setSelectedMaf(opt.value)}
@@ -458,8 +467,8 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
       {isGenePhewas && (
         <ControlsSection>
           <ControlsSectionTitle>Burden set</ControlsSectionTitle>
-          <BurdenSetSelector burdenSet={burdenSet} setBurdenSet={setBurdenSet} />
-          <MafSelector selectedMaf={selectedMaf} setSelectedMaf={setSelectedMaf} />
+          <BurdenSetSelector burdenSet={burdenSet} setBurdenSet={setBurdenSet} showDots={phewasType !== 'topHit'} />
+          <MafSelector selectedMaf={selectedMaf} setSelectedMaf={setSelectedMaf} showDots={phewasType !== 'topHit'} />
         </ControlsSection>
       )}
 
@@ -467,7 +476,7 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
       {isGenePhewas && (
         <ControlsSection>
           <ControlsSectionTitle>Burden test</ControlsSectionTitle>
-          <BurdenTestSelector pValueType={pValueType} setPValueType={setPValueType} />
+          <BurdenTestSelector pValueType={pValueType} setPValueType={setPValueType} showDots={phewasType !== 'topHit'} />
         </ControlsSection>
       )}
 

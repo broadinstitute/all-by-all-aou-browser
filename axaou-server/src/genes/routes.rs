@@ -109,9 +109,9 @@ pub async fn get_top_associations(
     Query(params): Query<TopGenesQuery>,
 ) -> Result<Json<LookupResult<GeneAssociationApi>>, AppError> {
     let timer = QueryTimer::start();
-    let limit = params.limit.unwrap_or(100);
+    let limit = params.limit.unwrap_or(100000);
     let min_p = params.min_p.unwrap_or(0.0);
-    let max_p = params.max_p.unwrap_or(1e-6);
+    let max_p = params.max_p.unwrap_or(1e-4);
 
     let base_query = format!(
         r#"

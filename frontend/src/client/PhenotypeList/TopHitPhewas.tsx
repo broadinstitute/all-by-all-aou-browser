@@ -72,13 +72,14 @@ const Titles = styled(TitlesBase)`
 
 interface GenePhewasLayoutProps {
   topHitPhenotypes: GenePhewasAnnotated[] | null
+  totalCount: number
   categories: AnalysisCategories[]
   onPointClick: any
   size: { width: number; height: number }
 }
 
 const TopHitPhewasLayout = withSize()(
-  ({ topHitPhenotypes, categories, onPointClick, size }: GenePhewasLayoutProps) => {
+  ({ topHitPhenotypes, totalCount, categories, onPointClick, size }: GenePhewasLayoutProps) => {
     const burdenSet = useRecoilValue(burdenSetAtom)
     const pValueType = useRecoilValue(pValueTypeAtom)
     const analyses = useRecoilValue(selectedAnalyses)
@@ -132,6 +133,9 @@ const TopHitPhewasLayout = withSize()(
         <Titles>
           <h3 className='app-section-title top-hit-phewas' style={{ width: '100%', marginTop: 0 }}>
             <strong>Top {burdenSet} gene burden associations</strong>
+            <span style={{ fontWeight: 'normal', fontSize: '13px', color: 'var(--theme-text-muted, #888)', marginLeft: 12 }}>
+              {totalCount.toLocaleString()} associations
+            </span>
           </h3>
         </Titles>
         <Phewas
@@ -167,7 +171,7 @@ const TopHitPhewas: React.FC<Props> = () => {
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
       { url: `${axaouDevUrl}/categories`, name: 'categories' },
       {
-        url: `${axaouDevUrl}/genes/top-associations?ancestry=${ancestryGroup}&annotation=${burdenSet}&limit=5000`,
+        url: `${axaouDevUrl}/genes/top-associations?ancestry=${ancestryGroup}&annotation=${burdenSet}&limit=100000`,
         name: 'geneAssociations',
       },
       { url: `${axaouDevUrl}/config`, name: 'config' },
@@ -225,6 +229,7 @@ const TopHitPhewas: React.FC<Props> = () => {
     <Container>
       <TopHitPhewasLayout
         topHitPhenotypes={uniquePhenotypes || []}
+        totalCount={geneAssociations.data.length}
         categories={categoriesPrepared || []}
         onPointClick={onPointClick}
       />

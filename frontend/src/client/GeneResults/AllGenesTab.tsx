@@ -85,7 +85,7 @@ interface Data {
 const AllGenesTab = () => {
   const { openInNewTab } = useAppNavigation()
   const [searchText, setSearchText] = useState('')
-  const [sortKey, setSortKey] = useState('sig_phenos_variant_count')
+  const [sortKey, setSortKey] = useState('sig_phenos_burden_plof')
   const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>('descending')
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -229,12 +229,6 @@ const AllGenesTab = () => {
 
   return (
     <Container>
-      {aggregates && (
-        <CompactHeader>
-          <DetailItem><span className="label">Implicated Genes</span><span className="value">{aggregates.totalGenes.toLocaleString()}</span></DetailItem>
-        </CompactHeader>
-      )}
-
       <ControlsRow>
         <SearchInput
           placeholder="Search gene symbol or ID..."

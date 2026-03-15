@@ -172,7 +172,7 @@ const Phewas = ({
 
   const [sortKey, updateSortKey] = useState('pvalue')
 
-  const [plotSortKey, setPlotSortKey] = useState('pvalue')
+  const [plotSortKey, setPlotSortKey] = useState(phewasType === 'topHit' ? 'description' : 'pvalue')
   // Log-log scale is always enabled
 
   const [sortDirection, updateSortAscending] = useState('ascending')
@@ -330,9 +330,21 @@ const Phewas = ({
 
   const [pValueType, setPValueType] = useRecoilState(pValueTypeAtom)
 
+  // Keep sort key in sync when the burden test type changes
+  const pValueFieldNames = Object.values(pValueTypeToPValueKeyName) as string[]
+  React.useEffect(() => {
+    const currentPvalField = pValueTypeToPValueKeyName[pValueType]
+    if (pValueFieldNames.includes(sortKey)) {
+      updateSortKey(currentPvalField)
+    }
+    if (pValueFieldNames.includes(plotSortKey)) {
+      setPlotSortKey(currentPvalField)
+    }
+  }, [pValueType])
+
   const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
 
-  const [plotType, setPlotType] = useState('Both')
+  const [plotType, setPlotType] = useState(phewasType === 'topHit' ? 'P-value' : 'Both')
   const [useDirectionalShapes, setUseDirectionalShapes] = useState(false)
 
   // Calculate individual plot heights based on total and plot type
@@ -344,7 +356,7 @@ const Phewas = ({
       if (originalColumn.displayId === 'pvalue') {
         const column = { ...originalColumn }
         column.key = 'pvalue'
-        column.sortKey = pValueType
+        column.sortKey = pValueTypeToPValueKeyName[pValueType]
         let columnHeading
         if (pValueType === P_VALUE_BURDEN) {
           columnHeading = 'P-Value (Burden)'
