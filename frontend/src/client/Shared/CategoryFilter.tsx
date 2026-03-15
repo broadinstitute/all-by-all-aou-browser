@@ -19,9 +19,10 @@ interface CategoryFilterProps {
 const CategoryList = styled.div`
   overflow-y: auto;
   background: var(--theme-surface, #fff);
-  height: 100%;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 `
 
 const CategoryHeader = styled.div`

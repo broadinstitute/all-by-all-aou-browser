@@ -60,39 +60,6 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     cacheEnabled,
   });
 
-  // Stable callbacks for peak selection
-  const togglePeak = useCallback((peakId: string, allFilteredLoci?: UnifiedLocus[]) => {
-    // If entering custom mode for the first time, initialize with top 10 peaks
-    if (!customLabelMode && allFilteredLoci) {
-      const sortedLoci = [...allFilteredLoci].sort((a, b) => {
-        const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
-        const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
-        return bestA - bestB;
-      });
-      const top10Ids = new Set(sortedLoci.slice(0, topN).map((l) => `${l.contig}-${l.position}`));
-      // Apply the toggle to the initialized set
-      if (top10Ids.has(peakId)) {
-        top10Ids.delete(peakId);
-      } else {
-        top10Ids.add(peakId);
-      }
-      setSelectedPeakIds(top10Ids);
-      setCustomLabelMode(true);
-      return;
-    }
-
-    setCustomLabelMode(true);
-    setSelectedPeakIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(peakId)) {
-        next.delete(peakId);
-      } else {
-        next.add(peakId);
-      }
-      return next;
-    });
-  }, [customLabelMode, topN]);
-
   const clearSelection = useCallback(() => {
     setTopN(0);
     setSelectedPeakIds(new Set());
@@ -197,6 +164,50 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     return data.unified_loci.filter((l) => l.contig === targetContig);
   }, [data, selectedContig]);
 
+  // Compute the default labeled IDs (mirrors the hook's implicated-first sort)
+  // Used when transitioning from default→custom mode so the base set matches what's displayed
+  const SIG_THRESHOLD = 2.5e-6;
+  const defaultLabeledIds = useMemo(() => {
+    if (customLabelMode) return selectedPeakIds;
+    const isImplicated = (l: UnifiedLocus): boolean =>
+      l.genes.some((g) => {
+        const hasBurden = g.burden_results?.some((b) =>
+          ((b.pvalue ?? Infinity) < SIG_THRESHOLD) ||
+          ((b.pvalue_burden ?? Infinity) < SIG_THRESHOLD) ||
+          ((b.pvalue_skat ?? Infinity) < SIG_THRESHOLD)
+        );
+        const hasCoding =
+          ((g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0)) > 0 ||
+          ((g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0)) > 0;
+        return hasBurden || hasCoding;
+      });
+    const sorted = [...filteredLoci].sort((a, b) => {
+      const aImpl = isImplicated(a);
+      const bImpl = isImplicated(b);
+      if (aImpl !== bImpl) return aImpl ? -1 : 1;
+      const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
+      const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
+      return bestA - bestB;
+    });
+    return new Set(sorted.slice(0, topN).map((l) => `${l.contig}-${l.position}`));
+  }, [filteredLoci, topN, customLabelMode, selectedPeakIds]);
+
+  // Toggle a peak label on/off. When transitioning from default→custom mode,
+  // initializes from currentLabeledIds (from plot nodes) or defaultLabeledIds (for table).
+  const togglePeak = useCallback((peakId: string, currentLabeledIds?: Set<string>) => {
+    setSelectedPeakIds((prev) => {
+      const baseSet = customLabelMode ? prev : (currentLabeledIds ?? defaultLabeledIds);
+      const next = new Set(baseSet);
+      if (next.has(peakId)) {
+        next.delete(peakId);
+      } else {
+        next.add(peakId);
+      }
+      return next;
+    });
+    setCustomLabelMode(true);
+  }, [customLabelMode, defaultLabeledIds]);
+
   // Construct full image URLs with optional contig parameter and data version for cache-busting
   const contigParam = selectedContig !== 'all' ? `&contig=${selectedContig}` : '';
   const versionParam = `&v=${dataVersion}`;
@@ -245,7 +256,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         customLabelMode={customLabelMode}
         topN={topN}
         onPeakClick={handlePeakClick}
-        onPeakToggle={(peakId) => togglePeak(peakId, filteredLoci)}
+        onPeakToggle={(peakId, currentLabeledIds) => togglePeak(peakId, currentLabeledIds)}
         showYAxis={true}
         contig={selectedContig}
         onResetContig={() => setSelectedContig('all')}

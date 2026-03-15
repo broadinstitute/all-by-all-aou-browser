@@ -503,7 +503,7 @@ export const SuperManhattanPlot: React.FC<SuperManhattanPlotProps> = ({
         </CanvasContainer>
       </PlotArea>
       <div style={{ marginLeft: 50 }}>
-        {dimensions.width > 0 && <ChromosomeLabels width={dimensions.width} contig="all" />}
+        {dimensions.width > 0 && <ChromosomeLabels width={dimensions.width} contig="all" xRange={xRange} />}
         <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--theme-text-muted, #666)', marginTop: 2 }}>Chromosome</div>
       </div>
       <LegendContainer>

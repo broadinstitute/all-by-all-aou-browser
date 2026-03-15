@@ -227,6 +227,8 @@ const AllPhenotypesTab = () => {
   const [yAxis, setYAxis] = useState<YAxisField>('sig_loci_count')
   const [colorBy, setColorBy] = useState<ColorByField>('category')
 
+  const [hoveredPoint, setHoveredPoint] = useState<{ d: PhenotypeSummaryRow; cx: number; cy: number } | null>(null)
+
   const [viewport, setViewport] = useState<Viewport | null>(null)
   const [brushStart, setBrushStart] = useState<{ x: number; y: number } | null>(null)
   const [brushEnd, setBrushEnd] = useState<{ x: number; y: number } | null>(null)
@@ -301,7 +303,6 @@ const AllPhenotypesTab = () => {
     if (!data || data.length === 0) return null
     return {
       totalPhenotypes: data.length,
-      totalCases: sum(data, (d: PhenotypeSummaryRow) => d.n_cases),
       totalSigVariants: sum(data, (d: PhenotypeSummaryRow) => d.sig_variants_count),
       totalSigLoci: sum(data, (d: PhenotypeSummaryRow) => d.sig_loci_count),
       totalSigGenes: sum(data, (d: PhenotypeSummaryRow) => d.sig_genes_count),
@@ -551,7 +552,6 @@ const AllPhenotypesTab = () => {
       {aggregates && (
         <CompactHeader>
           <DetailItem><span className="label">Phenotypes</span><span className="value">{aggregates.totalPhenotypes.toLocaleString()}</span></DetailItem>
-          <DetailItem><span className="label">Total Cases</span><span className="value">{aggregates.totalCases.toLocaleString()}</span></DetailItem>
           <DetailItem><span className="label">Sig Variants</span><span className="value">{aggregates.totalSigVariants.toLocaleString()}</span></DetailItem>
           <DetailItem><span className="label">Sig Loci</span><span className="value">{aggregates.totalSigLoci.toLocaleString()}</span></DetailItem>
           <DetailItem><span className="label">Sig Genes</span><span className="value">{aggregates.totalSigGenes.toLocaleString()}</span></DetailItem>
@@ -650,8 +650,35 @@ const AllPhenotypesTab = () => {
             const xLabel = X_AXIS_OPTIONS.find(o => o.value === xAxis)?.label || ''
             const yLabel = Y_AXIS_OPTIONS.find(o => o.value === yAxis)?.label || ''
 
+            const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+              if (isDragging.current) return
+              const svg = e.currentTarget
+              const rect = svg.getBoundingClientRect()
+              const svgX = (e.clientX - rect.left) / rect.width * w - pad.left
+              const svgY = (e.clientY - rect.top) / rect.height * h - pad.top
+
+              let nearest: { d: PhenotypeSummaryRow; cx: number; cy: number; dist: number } | null = null
+              for (const d of plotData) {
+                const xv = getFieldValue(d, xAxis)!
+                const yv = getFieldValue(d, yAxis)!
+                const px = xScale(xv)
+                const py = yScale(yv)
+                if (px < 0 || px > innerW || py < 0 || py > innerH) continue
+                const dist = Math.sqrt((px - svgX) ** 2 + (py - svgY) ** 2)
+                if (dist < 15 && (!nearest || dist < nearest.dist)) {
+                  nearest = { d, cx: px, cy: py, dist }
+                }
+              }
+              setHoveredPoint(nearest ? { d: nearest.d, cx: nearest.cx, cy: nearest.cy } : null)
+            }
+
             return (
-              <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: '100%', overflow: 'visible', userSelect: 'none' }}>
+              <svg
+                viewBox={`0 0 ${w} ${h}`}
+                style={{ width: '100%', height: '100%', overflow: 'visible', userSelect: 'none' }}
+                onMouseMove={handleSvgMouseMove}
+                onMouseLeave={() => setHoveredPoint(null)}
+              >
                 <g transform={`translate(${pad.left},${pad.top})`}>
                   {yTicks.map(t => (
                     <line key={`yg-${t}`} x1={0} y1={yScale(t)} x2={innerW} y2={yScale(t)} stroke="#eee" />
@@ -685,18 +712,46 @@ const AllPhenotypesTab = () => {
                     const cy = yScale(yv)
                     if (cx < 0 || cx > innerW || cy < 0 || cy > innerH) return null
                     const color = getColor(d)
+                    const isHovered = hoveredPoint?.d.analysis_id === d.analysis_id
                     return (
                       <circle
                         key={d.analysis_id}
-                        cx={cx} cy={cy} r={3}
-                        fill={color} opacity={0.6}
+                        cx={cx} cy={cy} r={isHovered ? 4 : 1.5}
+                        fill={color} opacity={isHovered ? 1 : 0.8}
+                        stroke={isHovered ? '#333' : 'none'}
+                        strokeWidth={isHovered ? 1 : 0}
                         style={{ cursor: 'pointer' }}
                         onClick={(e) => { e.stopPropagation(); handleRowClick(d) }}
-                      >
-                        <title>{d.description} ({yLabel}: {yAxis === 'lambda_gc_exome' && yv != null ? yv.toFixed(3) : yv?.toLocaleString()}, {xLabel}: {xv.toLocaleString()})</title>
-                      </circle>
+                      />
                     )
                   })}
+
+                  {hoveredPoint && (() => {
+                    const { d, cx, cy } = hoveredPoint
+                    const xv = getFieldValue(d, xAxis)!
+                    const yv = getFieldValue(d, yAxis)!
+                    const label = d.description
+                    const detail = `${yLabel}: ${yAxis === 'lambda_gc_exome' ? yv.toFixed(3) : yv.toLocaleString()} | ${xLabel}: ${xv.toLocaleString()}`
+                    const labelWidth = Math.max(label.length, detail.length) * 5.5 + 16
+                    const tooltipH = 32
+                    // Position tooltip: flip if near edges
+                    const tx = cx + labelWidth + 10 > innerW ? cx - labelWidth - 8 : cx + 8
+                    const ty = cy - tooltipH - 4 < 0 ? cy + 8 : cy - tooltipH - 4
+                    return (
+                      <g style={{ pointerEvents: 'none' }}>
+                        <rect
+                          x={tx} y={ty}
+                          width={labelWidth} height={tooltipH}
+                          rx={3}
+                          fill="rgba(255, 255, 255, 0.95)"
+                          stroke="#ccc"
+                          strokeWidth={1}
+                        />
+                        <text x={tx + 6} y={ty + 13} fontSize="10" fontWeight={500} fill="#333">{label}</text>
+                        <text x={tx + 6} y={ty + 25} fontSize="9" fill="#666">{detail}</text>
+                      </g>
+                    )
+                  })()}
                 </g>
               </svg>
             )

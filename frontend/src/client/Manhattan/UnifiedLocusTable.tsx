@@ -17,7 +17,7 @@ export interface UnifiedLocusTableProps {
   /** Set of selected peak IDs for custom labeling */
   selectedPeakIds: Set<string>;
   /** Callback to toggle a peak selection - passes filtered loci for initialization */
-  onTogglePeak: (peakId: string, filteredLoci?: UnifiedLocus[]) => void;
+  onTogglePeak: (peakId: string, currentLabeledIds?: Set<string>) => void;
   /** Whether in custom label mode */
   customLabelMode: boolean;
   /** Number of top peaks to label in default mode */
@@ -379,7 +379,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   <input
                     type="checkbox"
                     checked={hasLabel}
-                    onChange={() => onTogglePeak(locusId, sortedLoci)}
+                    onChange={() => onTogglePeak(locusId)}
                     title={hasLabel ? 'Remove label' : 'Add label'}
                     style={{ cursor: 'pointer' }}
                   />

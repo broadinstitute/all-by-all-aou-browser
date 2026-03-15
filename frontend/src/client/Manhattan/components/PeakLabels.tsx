@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { PeakLabelNode } from '../hooks/usePeakLabelLayout';
 
 const LABEL_ANGLE = -45; // Degrees
@@ -17,8 +17,9 @@ export interface PeakLabelsProps {
   labelAreaHeight: number;
   /** Callback when a peak label is clicked (for navigation) */
   onPeakClick?: (node: PeakLabelNode) => void;
-  /** Callback when a peak dot is clicked to toggle its label on/off */
-  onPeakToggle?: (peakId: string) => void;
+  /** Callback when a peak dot is clicked to toggle its label on/off.
+   *  Second arg is the set of currently labeled peak IDs (for initializing custom mode). */
+  onPeakToggle?: (peakId: string, currentLabeledIds: Set<string>) => void;
   /** Currently hovered hit from the main overlay (contig-position format) */
   hoveredHitPosition?: { contig: string; position: number } | null;
   /** Callback when hovering a peak label - includes cursor position for tooltip */
@@ -70,6 +71,11 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
 }) => {
   // Choose path function based on stem style
   const getPathFn = useDogLegStems ? getDogLegPath : getStraightPath;
+  // Memoize the set of currently labeled peak IDs for toggle initialization
+  const currentLabeledIds = useMemo(
+    () => new Set(nodes.filter(n => n.isLabeled).map(n => `${n.peak.contig}-${n.peak.position}`)),
+    [nodes]
+  );
   const [hoveredPeakId, setHoveredPeakId] = useState<string | null>(null);
   // Drag state: track which node is being dragged and current position
   const [dragState, setDragState] = useState<{
@@ -240,7 +246,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
                 if (isDragging || justDraggedRef.current) return;
                 setHoveredPeakId(null);
                 onPeakHover?.(null);
-                onPeakToggle?.(peakId);
+                onPeakToggle?.(peakId, currentLabeledIds);
               }}
             />
             {isBurdenOnly ? (

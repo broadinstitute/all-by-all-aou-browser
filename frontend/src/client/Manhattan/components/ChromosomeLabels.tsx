@@ -10,6 +10,8 @@ export interface ChromosomeLabelsProps {
   contig?: string;
   /** Callback when a chromosome label is clicked */
   onContigClick?: (contig: string) => void;
+  /** Normalized x range for viewport zoom (default: { min: 0, max: 1 }) */
+  xRange?: { min: number; max: number };
 }
 
 /**
@@ -22,10 +24,13 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
   height = 24,
   contig = 'all',
   onContigClick,
+  xRange = { min: 0, max: 1 },
 }) => {
   const layout = getChromosomeLayout(contig);
 
   if (width === 0) return null;
+
+  const xSpan = xRange.max - xRange.min;
 
   return (
     <div
@@ -37,18 +42,25 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
         marginTop: 4,
         fontSize: 11,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        overflow: 'hidden',
       }}
     >
       {layout.chromosomes.map((chrom) => {
-        // Calculate center position for the label
+        // Map normalized positions through viewport xRange
         const centerNormalized = (chrom.startNormalized + chrom.endNormalized) / 2;
-        const centerPx = centerNormalized * width;
+        const centerView = (centerNormalized - xRange.min) / xSpan;
+        const centerPx = centerView * width;
 
-        // For genome-wide view, skip label if chromosome is too narrow
-        const chromWidthPx = (chrom.endNormalized - chrom.startNormalized) * width;
+        // Skip labels that are outside the visible range
+        if (centerPx < -20 || centerPx > width + 20) return null;
+
+        // Calculate visible width of this chromosome in pixels
+        const chromStartView = (chrom.startNormalized - xRange.min) / xSpan;
+        const chromEndView = (chrom.endNormalized - xRange.min) / xSpan;
+        const chromWidthPx = (chromEndView - chromStartView) * width;
+
+        // Skip labels for chromosomes too narrow to fit
         if (contig === 'all' && chromWidthPx < 20) {
-          // Only show labels for chromosomes wide enough to fit them
-          // Skip 19, 20, 21, 22 which are narrow
           if (['19', '20', '21', '22'].includes(chrom.name)) {
             return null;
           }

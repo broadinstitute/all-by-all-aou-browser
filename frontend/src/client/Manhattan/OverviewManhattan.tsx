@@ -31,7 +31,7 @@ export interface OverviewManhattanProps {
   /** Callback when a peak label is clicked */
   onPeakClick?: (node: PeakLabelNode) => void;
   /** Callback when a ghost peak dot is clicked to toggle its label */
-  onPeakToggle?: (peakId: string) => void;
+  onPeakToggle?: (peakId: string, currentLabeledIds: Set<string>) => void;
   /** Show Y-axis with -log10(p) labels */
   showYAxis?: boolean;
   /** Currently selected chromosome ('all' for genome-wide view) */

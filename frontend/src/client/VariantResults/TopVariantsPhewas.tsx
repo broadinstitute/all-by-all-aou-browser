@@ -108,7 +108,7 @@ const TopVariantsPhewas = () => {
   const [debouncedSearchText, setDebouncedSearchText] = useState('')
   const [limit, setLimit] = useState(50000)
 
-  const [colorBy, setColorBy] = useState<'consequence' | 'category' | 'keyword'>('consequence')
+  const [colorBy, setColorBy] = useState<'consequence' | 'category' | 'keyword'>('category')
   const [highlightKeyword, setHighlightKeyword] = useState('')
   const [debouncedKeyword, setDebouncedKeyword] = useState('')
 
@@ -116,7 +116,7 @@ const TopVariantsPhewas = () => {
     lof: true,
     missense: true,
     synonymous: true,
-    other: true,
+    other: false,
   })
 
   // Phenotype category filter state

@@ -239,13 +239,10 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   }, [sortedPeaks, showOnlyImplicated]);
 
   // Stable callbacks for peak selection
-  const togglePeak = useCallback((peakId: string) => {
+  const togglePeak = useCallback((peakId: string, currentLabeledIds?: Set<string>) => {
     setSelectedPeakIds((prev) => {
-      let baseSet = prev;
-      if (!customLabelMode) {
-        // Initialize base set from the currently auto-labeled nodes
-        baseSet = new Set(peakLabelNodes.filter(n => n.isLabeled).map(n => `${n.peak.contig}-${n.peak.position}`));
-      }
+      // When entering custom mode, initialize from the currently displayed labels
+      const baseSet = customLabelMode ? prev : (currentLabeledIds ?? prev);
       const next = new Set(baseSet);
       if (next.has(peakId)) {
         next.delete(peakId);
@@ -255,7 +252,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       return next;
     });
     setCustomLabelMode(true);
-  }, [customLabelMode, peakLabelNodes]);
+  }, [customLabelMode]);
 
   const clearSelection = useCallback(() => {
     setSelectedPeakIds(new Set());
