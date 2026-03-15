@@ -4,9 +4,11 @@ import { isBrowser } from 'react-device-detect'
 import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
 import { Page, Button, ExternalLink } from '@gnomad/ui'
-import { buildStateUrl } from './hooks/useAppNavigation'
+import { useSetRecoilState } from 'recoil'
+import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom } from './sharedState'
+import { useAppNavigation, buildStateUrl } from './hooks/useAppNavigation'
 import { datasetCounts } from './utils'
-import { Link } from 'react-router-dom'
+import { Link, useHistory } from 'react-router-dom'
 
 const HomePage = styled(Page)`
   overflow-y: scroll;
@@ -110,6 +112,22 @@ const browseResultsUrl = buildStateUrl({
 });
 
 export default function HomePageComponent() {
+  const setResultIndex = useSetRecoilState(resultIndexAtom);
+  const setResultsLayout = useSetRecoilState(resultLayoutAtom);
+  const setTopResultsTab = useSetRecoilState(topResultsTabAtom);
+  const { clearAll, switchAnalysis } = useAppNavigation();
+  const history = useHistory();
+
+  const handleBrowseResults = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setResultIndex('top-associations');
+    setResultsLayout('full');
+    setTopResultsTab('all-phenotypes');
+    clearAll();
+    switchAnalysis(null);
+    history.push(browseResultsUrl);
+  };
+
   return (
     <HomePage>
       <HomeContent>
@@ -121,7 +139,7 @@ export default function HomePageComponent() {
           </p>
           {isBrowser ? (
             <>
-              <Link to={browseResultsUrl}>
+              <Link to={browseResultsUrl} onClick={handleBrowseResults}>
                 <Button
                   id='homepage-browse-link'
                   style={{ marginBottom: 20, marginTop: 0, fontSize: 16 }}
