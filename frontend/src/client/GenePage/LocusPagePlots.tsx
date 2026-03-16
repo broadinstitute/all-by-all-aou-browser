@@ -250,6 +250,58 @@ const onVariantHoverLabel =
       )[afLabel].toExponential(3)}`
     }
 
+/** Margins for server-rendered locus plots (top: clear zoom buttons, bottom: clear drag handle) */
+const SERVER_PLOT_MARGIN = { top: 30, bottom: 20 }
+
+/**
+ * Y-axis for server-rendered locus plots, matching the Rust YScale exactly.
+ * Uses a hybrid linear-log scale: linear [0, 10] in 60% of height, log [10, 300] in 40%.
+ */
+const ServerPlotYAxis: React.FC<{ height: number; width: number }> = ({ height, width }) => {
+  const textColor = 'var(--theme-text, #ccc)'
+  const borderColor = 'var(--theme-border, #555)'
+  const totalHeight = height + SERVER_PLOT_MARGIN.top + SERVER_PLOT_MARGIN.bottom
+
+  const LOG_THRESHOLD = 10
+  const LINEAR_FRACTION = 0.6
+  const MAX_NEG_LOG_P = 300
+
+  const getY = (negLogP: number): number => {
+    let posFromBottom: number
+    if (negLogP <= LOG_THRESHOLD) {
+      posFromBottom = (negLogP / LOG_THRESHOLD) * LINEAR_FRACTION
+    } else {
+      const logVal = Math.log(negLogP / LOG_THRESHOLD)
+      const logMax = Math.log(MAX_NEG_LOG_P / LOG_THRESHOLD)
+      posFromBottom = LINEAR_FRACTION + Math.min(logVal / logMax, 1.0) * (1 - LINEAR_FRACTION)
+    }
+    return SERVER_PLOT_MARGIN.top + height * (1 - posFromBottom)
+  }
+
+  const ticks = [0, 2, 4, 6, 8, 10, 20, 50, 100, 200]
+  const axisX = 43
+
+  return (
+    <svg width={width} height={totalHeight}>
+      <text x={5} y={totalHeight / 2} transform={`rotate(270 10 ${totalHeight / 2})`} fill={textColor} fontSize="12">
+        -log10(P)
+      </text>
+      <line x1={axisX} x2={axisX} y1={getY(0)} y2={getY(200)} stroke={borderColor} />
+      {ticks.map((t) => (
+        <g key={t}>
+          <text textAnchor="middle" x={axisX - 13} y={getY(t) + 4} fill={textColor} fontSize="10">
+            {t}
+          </text>
+          <line x1={axisX - 3} x2={axisX} y1={getY(t)} y2={getY(t)} stroke={borderColor} />
+        </g>
+      ))}
+      <text textAnchor="middle" x={axisX - 13} y={getY(300) + 4} fill={textColor} fontSize="10">
+        &gt;300
+      </text>
+    </svg>
+  )
+}
+
 export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, isLargeRegion }: AssociationsInGeneProps) => {
   const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
@@ -460,14 +512,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
             // Server-rendered region view
             <>
               <div className='left-panel'>
-                <LeftPanel
-                  variantDatasets={[]}
-                  height={plotHeight}
-                  width={leftPanelWidth}
-                  axisTicks={axisTicks}
-                  labelZoneHeight={0}
-                  tierY={{}}
-                />
+                <ServerPlotYAxis height={plotHeight} width={leftPanelWidth} />
               </div>
               <ServerRenderedLocusPlot
                 analysisId={analysisId}
@@ -476,6 +521,8 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 regionOverlay={regionOverlay}
                 height={plotHeight}
                 onClickVariant={onPngVariantClick}
+                marginTop={SERVER_PLOT_MARGIN.top}
+                marginBottom={SERVER_PLOT_MARGIN.bottom}
               />
             </>
           ) : usePngPlot ? (

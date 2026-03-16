@@ -7,6 +7,7 @@ export {
   RegionViewerContext,
   RegionsTrack,
   Track,
+  TRACK_EDGE_PADDING,
 } from './RegionViewer';
 export type {
   LocusPlotTrackProps,

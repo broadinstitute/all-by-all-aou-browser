@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import styled from 'styled-components'
 import { scaleLinear } from 'd3-scale'
-import { RegionViewerContext } from '@axaou/ui'
+import { RegionViewerContext, TRACK_EDGE_PADDING } from '@axaou/ui'
 import type { SignificantHit } from '@axaou/ui'
 import { axaouDevUrl } from '../Query'
 import type { RegionOverlayResponse, LocusPlotYAxisConfig } from '../types'
@@ -76,6 +76,8 @@ interface ServerRenderedLocusPlotProps {
   regionOverlay?: RegionOverlayResponse
   height: number
   onClickVariant?: (variant: SignificantHit) => void
+  marginTop?: number
+  marginBottom?: number
 }
 
 export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = ({
@@ -85,6 +87,8 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   regionOverlay,
   height,
   onClickVariant,
+  marginTop = 0,
+  marginBottom = 0,
 }) => {
   const { scalePosition, centerPanelWidth } = useContext(RegionViewerContext)
 
@@ -102,9 +106,11 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   // Hidden img element for preloading
   const preloadRef = useRef<HTMLImageElement | null>(null)
 
-  // Compute current viewport genomic bounds
-  const viewStart = scalePosition.invert ? scalePosition.invert(0) : 0
-  const viewStop = scalePosition.invert ? scalePosition.invert(centerPanelWidth) : 0
+  // Compute current viewport genomic bounds (inset by TRACK_EDGE_PADDING so the
+  // server-rendered PNG aligns with the padded scale range, leaving visual padding
+  // at each edge rather than filling edge-to-edge)
+  const viewStart = scalePosition.invert ? scalePosition.invert(TRACK_EDGE_PADDING) : 0
+  const viewStop = scalePosition.invert ? scalePosition.invert(centerPanelWidth - TRACK_EDGE_PADDING) : 0
 
   // Debounce viewport changes (150ms)
   useEffect(() => {
@@ -223,7 +229,7 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
       let minDist = Infinity
 
       for (const v of displayVariants) {
-        const dist = Math.sqrt((v.displayX - x) ** 2 + (v.displayY - y) ** 2)
+        const dist = Math.sqrt((v.displayX - x) ** 2 + (v.displayY + marginTop - y) ** 2)
         if (dist < minDist && dist < 10) {
           minDist = dist
           nearest = v
@@ -232,7 +238,7 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
 
       if (nearest !== hoveredHit) {
         setHoveredHit(nearest)
-        if (nearest) setTooltipPos({ x: nearest.displayX, y: nearest.displayY })
+        if (nearest) setTooltipPos({ x: nearest.displayX, y: nearest.displayY + marginTop })
       }
     },
     [displayVariants, hoveredHit]
@@ -249,7 +255,7 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   }, [hoveredHit, onClickVariant])
 
   return (
-    <PlotContainer height={height} style={{
+    <PlotContainer height={height + marginTop + marginBottom} style={{
       opacity: staleOrLoading ? 0.5 : 1,
       filter: staleOrLoading ? 'blur(4px)' : 'none',
       transition: staleOrLoading
@@ -260,7 +266,7 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
       {loadedImage && (
         <img
           src={loadedImage.src}
-          style={imageStyle}
+          style={{ ...imageStyle, top: marginTop }}
           alt="Locus region plot"
           draggable={false}
         />
@@ -269,10 +275,11 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
       {/* Interactive SVG overlay for significant hits */}
       <OverlaySvg
         width={centerPanelWidth}
-        height={height}
+        height={height + marginTop + marginBottom}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
+        style={{ top: 0 }}
       >
         {displayVariants.map((v) => {
           const isHovered = hoveredHit?.id === v.id
@@ -283,7 +290,7 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
             <circle
               key={v.id}
               cx={v.displayX}
-              cy={v.displayY}
+              cy={v.displayY + marginTop}
               r={isHovered ? 6 : 4}
               fill={color}
               stroke={isHovered ? '#333' : 'none'}

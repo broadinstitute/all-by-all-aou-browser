@@ -133,26 +133,38 @@ export const calculateOffsetRegions = (
 export const calculatePositionOffset = (regions: Region[]) => (
   position: number,
 ) => {
+  if (regions.length === 0) return { offsetPosition: position };
+
+  // Extrapolate for positions before the first region (in the left padding zone)
+  if (position < regions[0].start) {
+    return { offsetPosition: position - regions[0].offset };
+  }
+
+  // Extrapolate for positions after the last region (in the right padding zone)
+  const lastRegion = regions[regions.length - 1];
+  if (position > lastRegion.stop) {
+    return { offsetPosition: position - lastRegion.offset };
+  }
+
   const lastRegionBeforePosition = R.findLast<Region>(
     (region) => region.start <= position,
   )(regions);
 
   if (lastRegionBeforePosition) {
     // Position is within a region
-    if (position < lastRegionBeforePosition.stop) {
+    if (position <= lastRegionBeforePosition.stop) {
       return {
         offsetPosition: position - lastRegionBeforePosition.offset,
       };
     }
 
-    // Position is between regions
+    // Position is between regions (intron) - clamp to the end of the previous region
     return {
       offsetPosition:
         lastRegionBeforePosition.stop - lastRegionBeforePosition.offset,
     };
   }
 
-  // Position is before first region
   return {
     offsetPosition: regions[0].start - regions[0].offset,
   };
@@ -162,6 +174,21 @@ export const invertPositionOffset = (
   regions: Region[],
   xScale: ScaleLinear<number, number>,
 ) => (scaledPosition: number) => {
+  if (regions.length === 0) return Math.floor(xScale.invert(scaledPosition));
+
+  const firstRegion = regions[0];
+  // Extrapolate for pixel positions in the left padding area
+  if (scaledPosition < xScale(firstRegion.start - firstRegion.offset)!) {
+    const pos = Math.floor(xScale.invert(scaledPosition) + firstRegion.offset);
+    return Math.max(0, pos);
+  }
+
+  const lastRegion = regions[regions.length - 1];
+  // Extrapolate for pixel positions in the right padding area
+  if (scaledPosition > xScale(lastRegion.stop - lastRegion.offset)!) {
+    return Math.floor(xScale.invert(scaledPosition) + lastRegion.offset);
+  }
+
   let result = 0;
   for (let i = 0; i < regions.length; i += 1) {
     if (
@@ -169,19 +196,30 @@ export const invertPositionOffset = (
       scaledPosition <= xScale(regions[i].stop - regions[i].offset)!
     ) {
       result = Math.floor(xScale.invert(scaledPosition) + regions[i].offset);
+      break;
     }
   }
   return result;
 };
 
+export const TRACK_EDGE_PADDING = 50;
+
 export const calculateXScale = (
   width: number,
   offsetRegions: Region[],
-): ScaleLinear<number, number> =>
-  scaleLinear()
+): ScaleLinear<number, number> => {
+
+  if (offsetRegions.length === 0) {
+    return scaleLinear()
+      .domain([0, 1])
+      .range([TRACK_EDGE_PADDING, Math.max(TRACK_EDGE_PADDING, width - TRACK_EDGE_PADDING)]);
+  }
+
+  return scaleLinear()
     .domain([
       offsetRegions[0].start,
       offsetRegions[offsetRegions.length - 1].stop -
         offsetRegions[offsetRegions.length - 1].offset,
     ])
-    .range([0, width]);
+    .range([TRACK_EDGE_PADDING, Math.max(TRACK_EDGE_PADDING, width - TRACK_EDGE_PADDING)]);
+};
