@@ -174,6 +174,8 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
     return qStart !== loadedImage.start || qStop !== loadedImage.stop
   }, [loadedImage, viewStart, viewStop])
 
+  const staleOrLoading = isStale || imageLoading
+
   // Compute image CSS position using scalePosition for smooth panning
   const imageStyle = useMemo((): React.CSSProperties => {
     if (!loadedImage) return { display: 'none' }
@@ -181,7 +183,6 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
     const pxStart = scalePosition(loadedImage.start)
     const pxStop = scalePosition(loadedImage.stop)
     const displayWidth = pxStop - pxStart
-    const staleOrLoading = isStale || imageLoading
 
     return {
       position: 'absolute',
@@ -189,14 +190,9 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
       top: 0,
       width: displayWidth,
       height,
-      opacity: staleOrLoading ? 0.5 : 1,
-      filter: staleOrLoading ? 'blur(4px)' : 'none',
-      transition: staleOrLoading
-        ? 'opacity 0.1s ease-out, filter 0.1s ease-out'
-        : 'opacity 0.15s ease-out, filter 0.15s ease-out',
       pointerEvents: 'none',
     }
-  }, [loadedImage, scalePosition, height, imageLoading, isStale])
+  }, [loadedImage, scalePosition, height])
 
   // Map significant hits to display coordinates
   const displayVariants = useMemo(() => {
@@ -253,7 +249,13 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   }, [hoveredHit, onClickVariant])
 
   return (
-    <PlotContainer height={height}>
+    <PlotContainer height={height} style={{
+      opacity: staleOrLoading ? 0.5 : 1,
+      filter: staleOrLoading ? 'blur(4px)' : 'none',
+      transition: staleOrLoading
+        ? 'opacity 0.1s ease-out, filter 0.1s ease-out'
+        : 'opacity 0.15s ease-out, filter 0.15s ease-out',
+    }}>
       {/* Rendered PNG image, positioned via CSS using scalePosition */}
       {loadedImage && (
         <img
