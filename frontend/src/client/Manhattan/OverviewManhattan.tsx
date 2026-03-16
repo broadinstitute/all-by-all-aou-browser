@@ -9,7 +9,7 @@ import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
 import { exportManhattanPlot } from './utils/exportPlot';
-import { analysisIdAtom } from '../sharedState';
+import { analysisIdAtom, regionIdAtom } from '../sharedState';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
@@ -166,6 +166,24 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   const [useDogLegStems, setUseDogLegStems] = useState(false);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
+  const regionId = useRecoilValue(regionIdAtom);
+
+  // Compute normalized x center of the active region for the arrow marker
+  const activeRegionX = useMemo(() => {
+    if (!regionId) return undefined;
+    const parts = regionId.split('-');
+    if (parts.length < 3) return undefined;
+    const rContig = parts[0];
+    const rStart = parseInt(parts[1], 10);
+    const rEnd = parseInt(parts.slice(2).join('-'), 10);
+    if (isNaN(rStart) || isNaN(rEnd)) return undefined;
+    const layout = getChromosomeLayout(contig);
+    const x1 = layout.getX(rContig, rStart);
+    const x2 = layout.getX(rContig, rEnd);
+    if (x1 === null || x2 === null) return undefined;
+    return (x1 + x2) / 2;
+  }, [regionId, contig]);
+
   // Unified context menu state - can include locus, gene, or multiple genes
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -525,7 +543,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
       {/* Chromosome labels */}
       {imagesLoaded && dimensions.width > 0 && (
         <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} />
+          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} activeRegionX={activeRegionX} />
         </div>
       )}
 

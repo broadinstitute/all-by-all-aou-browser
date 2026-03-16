@@ -12,6 +12,8 @@ export interface ChromosomeLabelsProps {
   onContigClick?: (contig: string) => void;
   /** Normalized x range for viewport zoom (default: { min: 0, max: 1 }) */
   xRange?: { min: number; max: number };
+  /** Normalized x position (0-1) of an active region to mark with an arrow */
+  activeRegionX?: number;
 }
 
 /**
@@ -25,6 +27,7 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
   contig = 'all',
   onContigClick,
   xRange = { min: 0, max: 1 },
+  activeRegionX,
 }) => {
   const layout = getChromosomeLayout(contig);
 
@@ -42,7 +45,7 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
         marginTop: 4,
         fontSize: 11,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       {layout.chromosomes.map((chrom) => {
@@ -89,6 +92,30 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
           </span>
         );
       })}
+      {/* Active region arrow marker */}
+      {activeRegionX != null && (() => {
+        const markerView = (activeRegionX - xRange.min) / xSpan;
+        const markerPx = markerView * width;
+        if (markerPx < -10 || markerPx > width + 10) return null;
+        return (
+          <span
+            style={{
+              position: 'absolute',
+              left: markerPx,
+              bottom: -14,
+              transform: 'translateX(-50%)',
+              fontSize: 14,
+              lineHeight: 1,
+              color: 'var(--theme-primary, #262262)',
+              pointerEvents: 'none',
+              filter: 'drop-shadow(0 0 2px rgba(38, 34, 98, 0.4))',
+            }}
+            title="Active region"
+          >
+            ▲
+          </span>
+        );
+      })()}
     </div>
   );
 };

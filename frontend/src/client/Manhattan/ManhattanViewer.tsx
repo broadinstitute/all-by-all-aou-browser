@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRecoilValue } from 'recoil';
 import { useHitDetection } from './hooks/useHitDetection';
 import { usePeakLabelLayout, PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { Tooltip } from './components/Tooltip';
@@ -11,6 +12,7 @@ import { computeDisplayHits, getChromosomeLayout } from './layout';
 import type { Peak } from './types';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import type { ManhattanOverlay, DisplayHit } from './types';
+import { regionIdAtom } from '../sharedState';
 import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import './ManhattanViewer.css';
 
@@ -177,6 +179,24 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     gene?: { geneId: string; geneSymbol: string };
     genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
   } | null>(null);
+
+  const regionId = useRecoilValue(regionIdAtom);
+
+  // Compute normalized x center of the active region for the arrow marker
+  const activeRegionX = useMemo(() => {
+    if (!regionId) return undefined;
+    const parts = regionId.split('-');
+    if (parts.length < 3) return undefined;
+    const rContig = parts[0];
+    const rStart = parseInt(parts[1], 10);
+    const rEnd = parseInt(parts.slice(2).join('-'), 10);
+    if (isNaN(rStart) || isNaN(rEnd)) return undefined;
+    const layout = getChromosomeLayout(contig);
+    const x1 = layout.getX(rContig, rStart);
+    const x2 = layout.getX(rContig, rEnd);
+    if (x1 === null || x2 === null) return undefined;
+    return (x1 + x2) / 2;
+  }, [regionId, contig]);
 
   // Compute display coordinates from raw hits
   const displayHits = useMemo(
@@ -609,7 +629,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
       {/* Chromosome labels */}
       {imageLoaded && dimensions.width > 0 && (
         <div style={{ marginLeft: showYAxis ? Y_AXIS_WIDTH : 0 }}>
-          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} />
+          <ChromosomeLabels width={dimensions.width} contig={contig} onContigClick={onContigClick} activeRegionX={activeRegionX} />
         </div>
       )}
 
