@@ -219,7 +219,7 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
       {implicatedGenes.length === 0 && (
         <>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--theme-primary, #262262)', marginBottom: 4 }}>
-            {peak.genes[0]?.gene_symbol ?? 'Unknown'}
+            {node.label ?? peak.genes[0]?.gene_symbol ?? 'Unknown'}
             <span style={{ fontWeight: 400, color: 'var(--theme-text-muted, #888)', fontSize: 10, marginLeft: 8 }}>
               Nearest gene
             </span>
