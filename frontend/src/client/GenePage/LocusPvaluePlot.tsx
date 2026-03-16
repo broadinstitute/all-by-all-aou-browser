@@ -316,6 +316,7 @@ export const LocusPvaluePlot = ({
   transparency,
   logLogEnabled = true,
   scalePosition,
+  isPositionDefined,
   leftPanelWidth,
   rightPanelWidth,
   height = 400,
@@ -387,15 +388,17 @@ export const LocusPvaluePlot = ({
   const logLogScale = createLogLogScaleY({ variants: variantsAll, margin: scaleMargin, height, logLogEnabled })
 
   const points = variantDatasets.flatMap((variants) =>
-    variants.map((d) => {
-      const pvalue = -Math.log10(d.pvalue) || 0
+    variants
+      .filter((d) => !isPositionDefined || (d.locus && isPositionDefined(d.locus.position)))
+      .map((d) => {
+        const pvalue = -Math.log10(d.pvalue) || 0
 
-      return {
-        data: d,
-        x: (scalePosition(d.locus && d.locus.position) as number) || 0,
-        y: logLogScale(pvalue),
-      }
-    })
+        return {
+          data: d,
+          x: (scalePosition(d.locus && d.locus.position) as number) || 0,
+          y: logLogScale(pvalue),
+        }
+      })
   ).sort((a, b) => {
     return sortVariantsByConsequence(a.data, b.data)
   })

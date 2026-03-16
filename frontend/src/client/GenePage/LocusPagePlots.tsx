@@ -166,6 +166,7 @@ export interface VariantPlotProps {
   getAfField?: (d: VariantJoined) => number
   betaScale: ScaleDiverging<string>
   scalePosition: any
+  isPositionDefined?: (pos: number) => boolean
   leftPanelWidth: number
   rightPanelWidth: number
   height?: number
@@ -297,7 +298,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
 
   const alleleFrequencyScale = getAlleleFrequencyScale(isRegion)
 
-  const { scalePosition, centerPanelWidth, leftPanelWidth, rightPanelWidth } =
+  const { scalePosition, isPositionDefined, centerPanelWidth, leftPanelWidth, rightPanelWidth } =
     useContext(RegionViewerContext)
 
   const hoveredVariant = useRecoilValue(hoveredVariantAtom)
@@ -558,6 +559,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 transparency={transparency}
                 height={plotHeight}
                 scalePosition={scalePosition}
+                isPositionDefined={isPositionDefined}
                 width={centerPanelWidth}
                 leftPanelWidth={0}
                 rightPanelWidth={0}
