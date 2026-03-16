@@ -202,7 +202,7 @@ export const invertPositionOffset = (
   return result;
 };
 
-export const TRACK_EDGE_PADDING = 50;
+export const TRACK_EDGE_PADDING = 10;
 
 export const calculateXScale = (
   width: number,
