@@ -4,6 +4,7 @@ export type { QueryState } from './useQuery';
 export {
   LocusPlotTrack,
   RegionViewer,
+  PositionAxisTrack,
   RegionViewerContext,
   RegionsTrack,
   Track,

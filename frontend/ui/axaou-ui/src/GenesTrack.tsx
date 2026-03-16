@@ -111,7 +111,7 @@ export const GenesTrack = ({
 
   return (
     <GeneTrackWrapper>
-      <TestElem width={leftPanelWidth}>
+      <TestElem width={leftPanelWidth} style={{ color: 'var(--theme-text, inherit)' }}>
         <p>
           <strong>Genes</strong>
         </p>
@@ -184,7 +184,7 @@ export const GenesTrack = ({
                   x2={geneStop}
                   y1={exonsYPosition}
                   y2={exonsYPosition}
-                  stroke='#424242'
+                  stroke='var(--theme-text, #424242)'
                   strokeWidth={1}
                 />
                 {gene.exons
@@ -199,8 +199,8 @@ export const GenesTrack = ({
                         y={rowHeight * trackNumber}
                         width={exonStop - exonStart}
                         height={rowHeight * 0.33}
-                        fill='#424242'
-                        stroke='#424242'
+                        fill='var(--theme-text, #424242)'
+                        stroke='var(--theme-text, #424242)'
                       />
                     );
                   })}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { RegionsTrack, RegionViewer } from '@axaou/ui'
+import { RegionsTrack, RegionViewer, PositionAxisTrack } from '@axaou/ui'
 import { withSize } from 'react-sizeme'
 import { useRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
@@ -663,11 +663,13 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
             width={regionViewerWidth * regionViewerWidthFactor}
             padding={25}
             regions={regions}
-            rightPanelWidth={0}
+            rightPanelWidth={40}
           >
             <>
               <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} regionOverlay={regionOverlay} isLargeRegion={isLargeRegion} />
               {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
+              <div style={{ height: 8 }} />
+              <PositionAxisTrack />
             </>
           </RegionViewer>
         </div>

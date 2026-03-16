@@ -15,32 +15,36 @@ export const PositionAxis = () => {
     (_, i) => tickInterval * (i + 1)
   );
 
+  const strokeColor = "var(--theme-border, #333)"
+  const textColor = "var(--theme-text, black)"
+
   return (
     <svg height={height} width={width}>
       <line
-        x1={0}
+        x1={1}
         y1={height}
-        x2={width}
+        x2={width - 1}
         y2={height}
-        stroke="black"
+        stroke={strokeColor}
         strokeWidth={2}
       />
       <g>
         <line
-          x1={0}
+          x1={1}
           y1={height}
-          x2={0}
+          x2={1}
           y2={height - 5}
-          stroke="black"
+          stroke={strokeColor}
           strokeWidth={2}
         />
         <text
-          x={0}
+          x={3}
           y={height - 7}
           textAnchor="start"
+          fill={textColor}
           style={{ fontSize: "10px" }}
         >
-          {scalePosition.invert(0).toLocaleString()}
+          {scalePosition.invert(1).toLocaleString()}
         </text>
       </g>
       {ticks.map((x) => (
@@ -50,13 +54,14 @@ export const PositionAxis = () => {
             y1={height}
             x2={x}
             y2={height - 5}
-            stroke="black"
+            stroke={strokeColor}
             strokeWidth={1}
           />
           <text
             x={x}
             y={height - 7}
             textAnchor="middle"
+            fill={textColor}
             style={{ fontSize: "10px" }}
           >
             {scalePosition.invert(x).toLocaleString()}
@@ -65,20 +70,21 @@ export const PositionAxis = () => {
       ))}
       <g>
         <line
-          x1={width}
+          x1={width - 1}
           y1={height}
-          x2={width}
+          x2={width - 1}
           y2={height - 5}
-          stroke="black"
+          stroke={strokeColor}
           strokeWidth={2}
         />
         <text
-          x={width}
+          x={width - 3}
           y={height - 7}
           textAnchor="end"
+          fill={textColor}
           style={{ fontSize: "10px" }}
         >
-          {scalePosition.invert(width).toLocaleString()}
+          {scalePosition.invert(width - 1).toLocaleString()}
         </text>
       </g>
     </svg>

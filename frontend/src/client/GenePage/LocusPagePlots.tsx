@@ -79,32 +79,17 @@ const LocusPagePlotStyles = styled.div`
 `
 
 const DragHandle = styled.div`
-  height: 12px;
-  background: var(--theme-surface-alt, #f0f0f0);
-  border-top: 1px solid var(--theme-border, #e0e0e0);
-  border-bottom: 1px solid var(--theme-border, #e0e0e0);
+  height: 8px;
+  margin-bottom: 8px;
+  border-top: 1px dotted var(--theme-border, #ccc);
   cursor: ns-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   z-index: 10;
   width: 100%;
 
   &:hover {
-    background: var(--theme-primary, #428bca);
-  }
-
-  &::after {
-    content: '';
-    width: 60px;
-    height: 4px;
-    background: var(--theme-border, #ccc);
-    border-radius: 2px;
-  }
-
-  &:hover::after {
-    background: white;
+    border-top-style: solid;
+    border-top-color: var(--theme-primary, #428bca);
   }
 `
 
@@ -524,6 +509,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 marginTop={SERVER_PLOT_MARGIN.top}
                 marginBottom={SERVER_PLOT_MARGIN.bottom}
               />
+              <div style={{ width: rightPanelWidth, flexShrink: 0 }} />
             </>
           ) : usePngPlot ? (
             // PNG-based locus plot with interactive overlay
@@ -547,6 +533,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 height={plotHeight}
                 onClickVariant={onPngVariantClick}
               />
+              <div style={{ width: rightPanelWidth, flexShrink: 0 }} />
             </>
           ) : (
             // Canvas-based fallback rendering
@@ -573,7 +560,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 scalePosition={scalePosition}
                 width={centerPanelWidth}
                 leftPanelWidth={0}
-                rightPanelWidth={rightPanelWidth}
+                rightPanelWidth={0}
                 pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
                 applyStroke={!isRegion}
                 onClickPoint={onClickVariant}
@@ -589,6 +576,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 labelOverrides={labelOverrides}
                 onLabelDragEnd={handleLabelDragEnd}
               />
+              <div style={{ width: rightPanelWidth, flexShrink: 0 }} />
             </>
           )}
         </LocusPagePlotStyles>
