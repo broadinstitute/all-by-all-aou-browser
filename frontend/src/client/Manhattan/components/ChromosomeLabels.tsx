@@ -102,7 +102,7 @@ export const ChromosomeLabels: React.FC<ChromosomeLabelsProps> = ({
             style={{
               position: 'absolute',
               left: markerPx,
-              bottom: -14,
+              bottom: -4,
               transform: 'translateX(-50%)',
               fontSize: 14,
               lineHeight: 1,
