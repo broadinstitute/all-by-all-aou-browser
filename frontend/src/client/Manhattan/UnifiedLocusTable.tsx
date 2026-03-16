@@ -15,7 +15,7 @@ export interface UnifiedLocusTableProps {
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
   /** Callback when a coding variant is clicked (opens split view) */
-  onVariantClick?: (variantId: string) => void;
+  onVariantClick?: (variantId: string, geneId: string) => void;
   /** Set of selected peak IDs for custom labeling */
   selectedPeakIds: Set<string>;
   /** Callback to toggle a peak selection - passes filtered loci for initialization */
@@ -390,7 +390,14 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   />
                 </td>
                 <td
-                  onClick={() => onLocusClick?.(locus.contig, locus.position, locus.start, locus.stop)}
+                  onClick={() => {
+                    // Burden-only loci: navigate to the representative gene instead of the locus region
+                    if (isBurdenOnly && implicatedGenes.length > 0) {
+                      onGeneClick?.(implicatedGenes[0].gene_id);
+                    } else {
+                      onLocusClick?.(locus.contig, locus.position, locus.start, locus.stop);
+                    }
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setContextMenu({
@@ -399,8 +406,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                       locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
                     });
                   }}
-                  style={{ cursor: onLocusClick ? 'pointer' : 'default' }}
-                  title="Click to view locus, right-click for options"
+                  style={{ cursor: (onLocusClick || onGeneClick) ? 'pointer' : 'default' }}
+                  title={isBurdenOnly && implicatedGenes.length > 0 ? `Click to view ${implicatedGenes[0].gene_symbol}` : "Click to view locus, right-click for options"}
                 >
                   <span style={{ color: 'var(--theme-primary, #262262)', textDecoration: 'underline' }}>
                     {locus.contig}:{locus.position.toLocaleString()}
@@ -479,7 +486,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                             <>
                               <span
                                 style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline' : undefined, textDecorationStyle: 'dotted' as const, textUnderlineOffset: '2px' }}
-                                onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId); } : undefined}
+                                onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId, g.gene_id); } : undefined}
                                 title={variantId ?? undefined}
                               >
                                 {g.best_coding_hgvsp}

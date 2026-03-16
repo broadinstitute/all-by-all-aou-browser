@@ -82,12 +82,13 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     goToGene(geneId, { fromPhenotype: true });
   }, [goToGene]);
 
-  const handleVariantClick = useCallback((variantId: string) => {
+  const handleVariantClick = useCallback((variantId: string, geneId: string) => {
     openInNewTab({
       variantId,
+      geneId,
       analysisId,
       resultIndex: 'variant-phewas',
-      resultLayout: 'full',
+      resultLayout: 'split',
       regionId: null,
     });
   }, [openInNewTab, analysisId]);
