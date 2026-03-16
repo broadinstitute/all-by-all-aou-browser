@@ -240,7 +240,7 @@ impl LocusRenderer {
 
         // Downsample "Other" variants by pixel column if there are many
         let downsampled_other: Vec<(f32, f32, f32, ConsequenceCategory)> =
-            if other_variants.len() > (w as usize * 2) {
+            if false && other_variants.len() > (w as usize * 2) {
                 let mut columns: Vec<Vec<(f32, f32, f32, ConsequenceCategory)>> =
                     (0..w).map(|_| Vec::new()).collect();
 
