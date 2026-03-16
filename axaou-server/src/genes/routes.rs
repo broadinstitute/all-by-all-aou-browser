@@ -264,6 +264,8 @@ pub struct GeneIntervalQuery {
     pub ancestry: Option<String>,
     /// Annotation type filter
     pub annotation: Option<String>,
+    /// Analysis ID (phenotype) filter
+    pub analysis_id: Option<String>,
     /// Maximum number of results (default: 1000)
     pub limit: Option<u64>,
     /// Query mode (fast/slow) - accepted but currently ignored
@@ -287,6 +289,14 @@ pub async fn get_genes_in_interval(
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
     let limit = params.limit.unwrap_or(1000);
 
+    let mut filters = String::new();
+    if params.analysis_id.is_some() {
+        filters.push_str("AND phenotype = ? ");
+    }
+    if params.annotation.is_some() {
+        filters.push_str("AND annotation = ? ");
+    }
+
     let base_query = format!(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
@@ -296,20 +306,18 @@ pub async fn get_genes_in_interval(
         WHERE ancestry = ?
           AND xpos >= ?
           AND xpos <= ?
-          {}
+          {filters}
         ORDER BY pvalue ASC
         LIMIT ?
         "#,
-        if params.annotation.is_some() {
-            "AND annotation = ?"
-        } else {
-            ""
-        }
     );
 
     let mut query = state.clickhouse.query(&base_query);
     query = query.bind(&ancestry).bind(xpos_start).bind(xpos_end);
 
+    if let Some(ref analysis_id) = params.analysis_id {
+        query = query.bind(analysis_id);
+    }
     if let Some(ref annotation) = params.annotation {
         query = query.bind(annotation);
     }
