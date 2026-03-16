@@ -177,8 +177,10 @@ export interface UnifiedGene {
 export interface UnifiedLocus {
   /** Unique locus identifier */
   locus_id: string;
-  /** Number of significant single variants in this locus */
+  /** Total number of single variants in this locus */
   variant_count: number;
+  /** Number of genome-wide significant variants in this locus */
+  sig_variant_count: number;
   /** Locus start position */
   start: number;
   /** Locus stop position */

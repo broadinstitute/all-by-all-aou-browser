@@ -68,6 +68,7 @@ pub struct UnifiedGene {
 pub struct UnifiedLocus {
     pub locus_id: String,
     pub variant_count: u32,
+    pub sig_variant_count: u32,
     pub start: i32,
     pub stop: i32,
     pub contig: String,
@@ -146,6 +147,7 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
     UnifiedLocus {
         locus_id: peak.locus_id.clone(),
         variant_count: peak.variant_count,
+        sig_variant_count: peak.sig_variant_count,
         start: peak.start,
         stop: peak.stop,
         contig: peak.contig.clone(),
@@ -324,6 +326,7 @@ pub async fn get_phenotype_overview(
             }
             // Sum variant counts from both sources
             existing.variant_count += peak.variant_count;
+            existing.sig_variant_count += peak.sig_variant_count;
             // Merge genes
             for gene in &peak.genes {
                 merge_gene(&mut existing.genes, gene, "exome");
@@ -386,6 +389,7 @@ pub async fn get_phenotype_overview(
                 UnifiedLocus {
                     locus_id: key,
                     variant_count: 0,
+                    sig_variant_count: 0,
                     start: first_row.gene_start_position,
                     stop: first_row.gene_start_position,
                     contig: first_row.contig.clone(),

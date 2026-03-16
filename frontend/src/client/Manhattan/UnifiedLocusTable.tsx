@@ -34,6 +34,10 @@ export interface UnifiedLocusTableProps {
   onClearSelection: () => void;
   /** Reset to default mode */
   onResetToDefault: () => void;
+  /** Minimum significant variants for non-coding loci */
+  minNonCodingVariants: number;
+  /** Callback to set min non-coding variants filter */
+  onSetMinNonCodingVariants: (v: number) => void;
 }
 
 /**
@@ -92,6 +96,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   onResetToDefault,
   hideSingletons,
   onSetHideSingletons,
+  minNonCodingVariants,
+  onSetMinNonCodingVariants,
 }) => {
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
@@ -242,6 +248,26 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             />
             <span style={{ fontSize: 11 }}>Gene implicated</span>
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--theme-text-muted)', whiteSpace: 'nowrap' }} title="Minimum significant variants for non-coding loci (loci with coding variants are always shown)">Min non-coding:</span>
+            <input
+              type="number"
+              min={0}
+              value={minNonCodingVariants || ''}
+              onChange={(e) => onSetMinNonCodingVariants(Number(e.target.value) || 0)}
+              placeholder="0"
+              style={{
+                width: 40,
+                fontSize: 11,
+                padding: '2px 4px',
+                border: '1px solid var(--theme-border, #ccc)',
+                borderRadius: 3,
+                background: 'var(--theme-surface, #fff)',
+                color: 'var(--theme-text, #333)',
+                textAlign: 'center',
+              }}
+            />
+          </label>
           {/* Label controls */}
           {customLabelMode ? (
             <span style={{ color: 'var(--theme-primary, #262262)' }}>
@@ -345,6 +371,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             <th>P-value (Genome)</th>
             <th>P-value (Exome)</th>
             <th title="Gene burden test results">P-value (Burden)</th>
+            <th title="Genome-wide significant variants in locus">Sig. Variants</th>
           </tr>
         </thead>
         <tbody>
@@ -551,6 +578,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 <td>
                   {bestBurdenPvalue !== Infinity ? bestBurdenPvalue.toExponential(2) : '—'}
                 </td>
+                <td style={{ textAlign: 'center' }}>{locus.sig_variant_count || '—'}</td>
               </tr>
             );
           })}

@@ -79,6 +79,7 @@ struct PeakGeneRow {
     pub peak_position: i32,
     pub peak_pvalue: f64,
     pub variant_count: u32,
+    pub sig_variant_count: u32,
     pub gene_symbol: String,
     pub gene_id: String,
     pub distance_kb: f64,
@@ -172,6 +173,7 @@ pub struct GeneInLocus {
 pub struct Peak {
     pub locus_id: String,
     pub variant_count: u32,
+    pub sig_variant_count: u32,
     pub start: i32,
     pub stop: i32,
     pub contig: String,
@@ -427,21 +429,29 @@ pub(crate) async fn fetch_peak_annotations(
     // Query precomputed loci table directly, then annotate with nearby genes and coding variants
     let query = format!(
         r#"
-        WITH peaks AS (
+        WITH sig_counts AS (
+            SELECT locus_id, toUInt32(count()) as sig_variant_count
+            FROM loci_variants
+            WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND is_significant = true
+            GROUP BY locus_id
+        ),
+        peaks AS (
             SELECT
-                locus_id, contig, start, stop,
-                toInt32OrZero(splitByChar(':', lead_variant)[2]) as peak_position,
-                lead_pvalue as peak_pvalue,
-                toUInt32(exome_count + genome_count) as variant_count
-            FROM loci
-            WHERE phenotype = ? AND ancestry = ?
-              AND (source = 'both' OR source = ?)
-            ORDER BY peak_pvalue ASC
+                l.locus_id, l.contig, l.start, l.stop,
+                toInt32OrZero(splitByChar(':', l.lead_variant)[2]) as peak_position,
+                l.lead_pvalue as peak_pvalue,
+                toUInt32(l.exome_count + l.genome_count) as variant_count,
+                coalesce(sc.sig_variant_count, toUInt32(0)) as sig_variant_count
+            FROM loci l
+            LEFT JOIN sig_counts sc ON sc.locus_id = l.locus_id
+            WHERE l.phenotype = ? AND l.ancestry = ?
+              AND (l.source = 'both' OR l.source = ?)
+            ORDER BY l.lead_pvalue ASC
             LIMIT ?
         ),
         locus_genes AS (
             SELECT
-                p.locus_id, p.start, p.stop, p.contig, p.peak_position, p.peak_pvalue, p.variant_count,
+                p.locus_id, p.start, p.stop, p.contig, p.peak_position, p.peak_pvalue, p.variant_count, p.sig_variant_count,
                 gm.gene_id, gm.symbol as gene_symbol,
                 abs(p.peak_position - (gm.start + gm.stop) / 2) as distance_to_peak
             FROM peaks p
@@ -482,7 +492,7 @@ pub(crate) async fn fetch_peak_annotations(
             GROUP BY lv.locus_id, ann.gene_symbol
         )
         SELECT
-            lg.locus_id, lg.start, lg.stop, lg.contig, lg.peak_position, lg.peak_pvalue, lg.variant_count,
+            lg.locus_id, lg.start, lg.stop, lg.contig, lg.peak_position, lg.peak_pvalue, lg.variant_count, lg.sig_variant_count,
             lg.gene_symbol, lg.gene_id,
             round(lg.distance_to_peak / 1000, 1) as distance_kb,
             toUInt32(coalesce(cv.coding_count, 0)) as coding_variant_count,
@@ -508,6 +518,9 @@ pub(crate) async fn fetch_peak_annotations(
     let rows: Vec<PeakGeneRow> = state
         .clickhouse
         .query(&query)
+        .bind(analysis_id) // sig_counts: phenotype
+        .bind(ancestry)    // sig_counts: ancestry
+        .bind(sequencing_type) // sig_counts: sequencing_type
         .bind(analysis_id) // peaks: phenotype
         .bind(ancestry)    // peaks: ancestry
         .bind(sequencing_type) // peaks: source
@@ -637,6 +650,7 @@ pub(crate) async fn fetch_peak_annotations(
                 current_peak = Some(Peak {
                     locus_id: row.locus_id,
                     variant_count: row.variant_count,
+                    sig_variant_count: row.sig_variant_count,
                     start: row.start,
                     stop: row.stop,
                     contig: row.contig,
@@ -969,6 +983,7 @@ async fn get_gene_manhattan_overlay(
             Peak {
                 locus_id: format!("burden-{}", hit.id),
                 variant_count: 0,
+                sig_variant_count: 0,
                 start: hit.position,
                 stop: hit.position,
                 contig: hit.contig.clone(),

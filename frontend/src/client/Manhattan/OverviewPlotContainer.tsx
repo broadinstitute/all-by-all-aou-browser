@@ -44,6 +44,14 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const [customLabelMode, setCustomLabelMode] = useState(false);
   const [topN, setTopN] = useState(10);
   const [hideSingletons, setHideSingletons] = useState(false);
+  const [minNonCodingVariants, setMinNonCodingVariants] = useState(() => {
+    const stored = localStorage.getItem('minNonCodingVariants');
+    return stored != null ? Number(stored) : 3;
+  });
+  const updateMinNonCodingVariants = useCallback((v: number) => {
+    setMinNonCodingVariants(v);
+    localStorage.setItem('minNonCodingVariants', String(v));
+  }, []);
 
   interface Data {
     overviewData: UnifiedOverviewResponse | null;
@@ -176,7 +184,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   const filteredLoci = useMemo(() => {
     if (!hideSingletons || selectedContig !== 'all') return contigFilteredLoci;
     return contigFilteredLoci.filter((locus) =>
-      !locus.variant_count || locus.variant_count >= 3 ||
+      !locus.sig_variant_count || locus.sig_variant_count >= 3 ||
       locus.genes.some((g) => {
         const hasBurden = (g.burden_results ?? []).some((b) =>
           ((b.pvalue ?? Infinity) < 2.5e-6) ||
@@ -189,6 +197,22 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       })
     );
   }, [contigFilteredLoci, hideSingletons, selectedContig]);
+
+  // Apply min non-coding variants filter (loci with coding variants or burden always pass)
+  const minVarFilteredLoci = useMemo(() => {
+    if (minNonCodingVariants <= 0) return filteredLoci;
+    return filteredLoci.filter((locus) => {
+      const isBurdenOnly = locus.pvalue_genome == null && locus.pvalue_exome == null;
+      if (isBurdenOnly) return true;
+      const hasCoding = locus.genes.some((g) => {
+        const lof = (g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0);
+        const mis = (g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0);
+        return lof > 0 || mis > 0;
+      });
+      if (hasCoding) return true;
+      return locus.sig_variant_count >= minNonCodingVariants;
+    });
+  }, [filteredLoci, minNonCodingVariants]);
 
   // Compute the default labeled IDs (mirrors the hook's implicated-first sort)
   // Used when transitioning from default→custom mode so the base set matches what's displayed
@@ -207,7 +231,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
           ((g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0)) > 0;
         return hasBurden || hasCoding;
       });
-    const sorted = [...filteredLoci].sort((a, b) => {
+    const sorted = [...minVarFilteredLoci].sort((a, b) => {
       const aImpl = isImplicated(a);
       const bImpl = isImplicated(b);
       if (aImpl !== bImpl) return aImpl ? -1 : 1;
@@ -223,7 +247,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     const remaining = sorted.filter(l => !implicatedIds.has(`${l.contig}-${l.position}`));
     const filled = [...implicated, ...remaining].slice(0, effectiveLimit);
     return new Set(filled.map((l) => `${l.contig}-${l.position}`));
-  }, [filteredLoci, topN, customLabelMode, selectedPeakIds]);
+  }, [minVarFilteredLoci, topN, customLabelMode, selectedPeakIds]);
 
   // Toggle a peak label on/off. When transitioning from default→custom mode,
   // initializes from currentLabeledIds (from plot nodes) or defaultLabeledIds (for table).
@@ -284,7 +308,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       <OverviewManhattan
         genomeImageUrl={genomeImageUrl}
         exomeImageUrl={exomeImageUrl}
-        unifiedLoci={filteredLoci}
+        unifiedLoci={minVarFilteredLoci}
         selectedPeakIds={selectedPeakIds}
         customLabelMode={customLabelMode}
         topN={topN}
@@ -296,10 +320,10 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         onContigClick={setSelectedContig}
       />
 
-      {filteredLoci.length > 0 && (
+      {minVarFilteredLoci.length > 0 && (
         <div style={{ marginLeft: Y_AXIS_WIDTH }}>
           <UnifiedLocusTable
-            unifiedLoci={filteredLoci}
+            unifiedLoci={minVarFilteredLoci}
             onLocusClick={handleLocusClick}
             onGeneClick={handleGeneClick}
             onVariantClick={handleVariantClick}
@@ -312,6 +336,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             onResetToDefault={resetToDefault}
             hideSingletons={hideSingletons}
             onSetHideSingletons={setHideSingletons}
+            minNonCodingVariants={minNonCodingVariants}
+            onSetMinNonCodingVariants={updateMinNonCodingVariants}
           />
         </div>
       )}
