@@ -9,6 +9,7 @@ import type { UnifiedOverviewResponse, UnifiedLocus, UnifiedGene } from './types
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
+import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import { configQuery } from '../queryStates';
 
 const Container = styled.div`
@@ -39,10 +40,12 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
 
+  const baseStorageKey = `overview_${analysisId}_${ancestryGroup}_${selectedContig}`;
+
   // State for peak selection (shared between plot and table)
-  const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
-  const [customLabelMode, setCustomLabelMode] = useState(false);
-  const [topN, setTopN] = useState(10);
+  const [selectedPeakIds, setSelectedPeakIds] = useLocalStorageSet(`${baseStorageKey}_peaks`, new Set());
+  const [customLabelMode, setCustomLabelMode] = useLocalStorage(`${baseStorageKey}_mode`, false);
+  const [topN, setTopN] = useLocalStorage(`${baseStorageKey}_topN`, 10);
   const [hideSingletons, setHideSingletons] = useState(false);
   const [minNonCodingVariants, setMinNonCodingVariants] = useState(() => {
     const stored = localStorage.getItem('minNonCodingVariants');
@@ -306,6 +309,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
   return (
     <Container>
       <OverviewManhattan
+        storageKey={baseStorageKey}
         genomeImageUrl={genomeImageUrl}
         exomeImageUrl={exomeImageUrl}
         unifiedLoci={minVarFilteredLoci}

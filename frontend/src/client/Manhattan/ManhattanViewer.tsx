@@ -11,6 +11,7 @@ import { computeDisplayHits, getChromosomeLayout } from './layout';
 import type { Peak } from './types';
 import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import type { ManhattanOverlay, DisplayHit } from './types';
+import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import './ManhattanViewer.css';
 
 const Y_AXIS_WIDTH = 50;
@@ -44,6 +45,8 @@ export interface ManhattanViewerProps {
   onGeneClick?: (geneId: string) => void;
   /** Optional draggable inset render function — receives container (width, height) */
   inset?: (width: number, height: number) => React.ReactNode;
+  /** Optional key for persisting user label curations to localStorage */
+  storageKey?: string;
 }
 
 /**
@@ -68,6 +71,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   onLocusClick,
   onGeneClick,
   inset,
+  storageKey,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -76,9 +80,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [hoveredHit, setHoveredHit] = useState<DisplayHit | null>(null);
   const [hoveredPeakNode, setHoveredPeakNode] = useState<PeakLabelNode | null>(null);
   // Set of selected peak IDs for custom label curation (contig-position format)
-  const [selectedPeakIds, setSelectedPeakIds] = useState<Set<string>>(new Set());
+  const [selectedPeakIds, setSelectedPeakIds] = useLocalStorageSet(storageKey ? `${storageKey}_peaks` : undefined, new Set());
   // Track if user is in custom label mode (vs default top-25 mode)
-  const [customLabelMode, setCustomLabelMode] = useState(false);
+  const [customLabelMode, setCustomLabelMode] = useLocalStorage(storageKey ? `${storageKey}_mode` : undefined, false);
   // Filter to show only loci with gene evidence (burden hits or coding variants)
   const [showOnlyImplicated, setShowOnlyImplicated] = useState(false);
   // Limit visible rows for performance (not virtualized)
@@ -87,7 +91,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   const [peakCursor, setPeakCursor] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
+  const [labelOverrides, setLabelOverrides] = useLocalStorage<Record<string, LabelPositionOverride>>(storageKey ? `${storageKey}_overrides` : undefined, {});
   const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
   // Unified context menu state - can include locus, gene, or multiple genes
 

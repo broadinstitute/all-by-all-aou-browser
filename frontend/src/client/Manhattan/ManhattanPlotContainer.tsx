@@ -126,9 +126,12 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     hit_count: 0,
   };
 
+  const storageKey = `manhattan_${analysisId}_${plotType}_${contig}`;
+
   return (
     <Container>
       <ManhattanViewer
+        storageKey={storageKey}
         imageUrl={imageUrl}
         overlay={overlay}
         onHitClick={onHitClick}

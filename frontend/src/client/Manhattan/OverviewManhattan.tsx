@@ -10,6 +10,7 @@ import { ChromosomeSelector } from '../Shared/ChromosomeSelector';
 import { getChromosomeLayout } from './layout';
 import { exportManhattanPlot } from './utils/exportPlot';
 import { analysisIdAtom } from '../sharedState';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import type { UnifiedLocus, Peak, BurdenResult } from './types';
 import './OverviewManhattan.css';
 
@@ -40,6 +41,8 @@ export interface OverviewManhattanProps {
   onResetContig?: () => void;
   /** Callback when a chromosome label is clicked */
   onContigClick?: (contig: string) => void;
+  /** Optional key for persisting user label curations to localStorage */
+  storageKey?: string;
 }
 
 // Significance threshold for GWAS
@@ -135,6 +138,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   contig = 'all',
   onResetContig,
   onContigClick,
+  storageKey,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -156,7 +160,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     setImageError(false);
   }
   // Label position overrides from user dragging
-  const [labelOverrides, setLabelOverrides] = useState<Record<string, LabelPositionOverride>>({});
+  const [labelOverrides, setLabelOverrides] = useLocalStorage<Record<string, LabelPositionOverride>>(storageKey ? `${storageKey}_overrides` : undefined, {});
   // Settings menu state
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [useDogLegStems, setUseDogLegStems] = useState(false);
