@@ -46,7 +46,7 @@ install:
 dev:
 	@echo "Starting development servers..."
 	@echo "  Backend:  http://localhost:3001"
-	@echo "  Frontend: http://localhost:8000"
+	@echo "  Frontend: http://localhost:8003"
 	@echo ""
 	@echo "Press Ctrl+C to stop all servers"
 	@./scripts/dev.sh
@@ -64,7 +64,7 @@ dev-backend:
 
 # Start only frontend with HMR
 dev-frontend:
-	@echo "Starting frontend with HMR on http://localhost:8000"
+	@echo "Starting frontend with HMR on http://localhost:8003"
 	cd frontend && pnpm start
 
 # Stop all dev servers

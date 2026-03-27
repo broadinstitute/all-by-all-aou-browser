@@ -41,6 +41,7 @@ pub struct RegionRenderQuery {
     pub dpr: f32,
     #[serde(default = "default_threshold")]
     pub threshold: f64,
+    pub query_mode: Option<String>,
 }
 
 fn default_ancestry() -> String {
@@ -99,10 +100,8 @@ pub struct RegionOverlayResponse {
 // Data Fetching
 // =============================================================================
 
-/// Fetch region variants using the fast path (ClickHouse loci_variants + annotation JOIN).
-/// Checks if the requested interval is fully contained within a pre-computed locus.
-/// Falls back to a direct loci_variants query without locus containment check
-/// (the table covers all indexed variants regardless).
+/// Fetch region variants from ClickHouse (fast path) with transparent fallback
+/// to Hail tables on GCS when no variants are found (non-significant regions).
 async fn fetch_region_variants(
     state: &AppState,
     analysis_id: &str,
@@ -110,19 +109,21 @@ async fn fetch_region_variants(
     contig: &str,
     start: i32,
     stop: i32,
+    query_mode: Option<&str>,
 ) -> Result<Vec<RegionVariantRow>, AppError> {
+    let force_slow = query_mode == Some("slow");
     let chr_contig = if contig.starts_with("chr") {
         contig.to_string()
     } else {
         format!("chr{}", contig)
     };
 
-    let xstart = compute_xpos(&chr_contig, start as u32);
-    let xstop = compute_xpos(&chr_contig, stop as u32);
+    let mut all_variants = if !force_slow {
+        let xstart = compute_xpos(&chr_contig, start as u32);
+        let xstop = compute_xpos(&chr_contig, stop as u32);
 
-    // Query exome and genome variants concurrently, each with annotation JOIN
-    let fetch_seq_type =
-        |seq_type: &'static str, ann_table: &'static str| {
+        // Query exome and genome variants concurrently, each with annotation JOIN
+        let fetch_seq_type = |seq_type: &'static str, ann_table: &'static str| {
             let query = format!(
                 r#"
             SELECT
@@ -164,16 +165,86 @@ async fn fetch_region_variants(
                 .fetch_all::<RegionVariantRow>()
         };
 
-    let (exome_res, genome_res) = tokio::join!(
-        fetch_seq_type("exome", "exome_annotations"),
-        fetch_seq_type("genome", "genome_annotations")
-    );
+        let (exome_res, genome_res) = tokio::join!(
+            fetch_seq_type("exome", "exome_annotations"),
+            fetch_seq_type("genome", "genome_annotations")
+        );
 
-    let mut all_variants = exome_res
-        .map_err(|e| AppError::DataTransformError(format!("Exome query error: {}", e)))?;
-    let genome_variants = genome_res
-        .map_err(|e| AppError::DataTransformError(format!("Genome query error: {}", e)))?;
-    all_variants.extend(genome_variants);
+        let mut variants = exome_res
+            .map_err(|e| AppError::DataTransformError(format!("Exome query error: {}", e)))?;
+        let genome_variants = genome_res
+            .map_err(|e| AppError::DataTransformError(format!("Genome query error: {}", e)))?;
+        variants.extend(genome_variants);
+        variants
+    } else {
+        Vec::new()
+    };
+
+    // Transparent fallback to Hail if no variants found (non-significant region)
+    // or if slow mode was explicitly requested
+    if all_variants.is_empty() {
+        tracing::info!(
+            "No variants in ClickHouse (or slow mode forced), falling back to Hail for {} {}: {}:{}-{}",
+            analysis_id, ancestry, contig, start, stop
+        );
+
+        let make_hail_rows = |variants: Vec<genohype_core::genomic::VariantAssociation>,
+                              seq_type: &str|
+         -> Vec<RegionVariantRow> {
+            variants
+                .into_iter()
+                .map(|v| RegionVariantRow {
+                    position: v.position,
+                    pvalue: v.pvalue,
+                    neg_log10_p: if v.pvalue <= 0.0 {
+                        350.0
+                    } else {
+                        -v.pvalue.log10() as f32
+                    },
+                    is_significant: v.pvalue < 5e-8 && v.pvalue > 0.0,
+                    sequencing_type: seq_type.to_string(),
+                    beta: Some(v.beta),
+                    se: Some(v.se),
+                    af: v.af,
+                    consequence: None,
+                    gene_symbol: None,
+                    hgvsc: None,
+                    hgvsp: None,
+                    ref_allele: v.ref_allele,
+                    alt: v.alt_allele,
+                    ac: v.ac.map(|x| x as u32),
+                })
+                .collect()
+        };
+
+        let ancestry_upper = ancestry.to_uppercase();
+        let exome_path = format!(
+            "gs://aou_results/414k/ht_results/{}/phenotype_{}/exome_variant_results.ht",
+            ancestry_upper, analysis_id
+        );
+        let genome_path = format!(
+            "gs://aou_results/414k/ht_results/{}/phenotype_{}/genome_variant_results.ht",
+            ancestry_upper, analysis_id
+        );
+
+        let (exome_res, genome_res) = tokio::join!(
+            state
+                .hail_client
+                .query_interval_typed(&exome_path, &chr_contig, start, stop),
+            state
+                .hail_client
+                .query_interval_typed(&genome_path, &chr_contig, start, stop)
+        );
+
+        match exome_res {
+            Ok(vars) => all_variants.extend(make_hail_rows(vars, "exome")),
+            Err(e) => tracing::warn!("Failed to fetch exome Hail data for {}: {}", analysis_id, e),
+        }
+        match genome_res {
+            Ok(vars) => all_variants.extend(make_hail_rows(vars, "genome")),
+            Err(e) => tracing::warn!("Failed to fetch genome Hail data for {}: {}", analysis_id, e),
+        }
+    }
 
     Ok(deduplicate_variants(all_variants))
 }
@@ -218,7 +289,7 @@ pub async fn render_region_plot(
     let q_width = ((params.width + 49) / 50) * 50;
 
     let cache_key = format!(
-        "region_render:{}-{}-{}-{}-{}-{}-{}-{}",
+        "region_render:{}-{}-{}-{}-{}-{}-{}-{}-{}",
         analysis_id,
         params.ancestry,
         params.contig,
@@ -226,7 +297,8 @@ pub async fn render_region_plot(
         q_stop,
         q_width,
         params.height,
-        params.dpr
+        params.dpr,
+        params.query_mode.as_deref().unwrap_or("fast")
     );
 
     // Check cache
@@ -249,6 +321,7 @@ pub async fn render_region_plot(
         &params.contig,
         params.start,
         params.stop,
+        params.query_mode.as_deref(),
     )
     .await?;
 
@@ -317,8 +390,9 @@ pub async fn render_region_overlay(
     let q_stop = ((params.stop + 999) / 1000) * 1000;
 
     let cache_key = format!(
-        "region_overlay:{}-{}-{}-{}-{}-{}",
-        analysis_id, params.ancestry, params.contig, q_start, q_stop, params.threshold
+        "region_overlay:{}-{}-{}-{}-{}-{}-{}",
+        analysis_id, params.ancestry, params.contig, q_start, q_stop, params.threshold,
+        params.query_mode.as_deref().unwrap_or("fast")
     );
 
     // Check cache
@@ -338,6 +412,7 @@ pub async fn render_region_overlay(
         &params.contig,
         params.start,
         params.stop,
+        params.query_mode.as_deref(),
     )
     .await?;
 
