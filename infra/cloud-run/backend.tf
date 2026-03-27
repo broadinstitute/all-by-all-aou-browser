@@ -49,10 +49,10 @@ resource "google_cloud_run_v2_service" "backend" {
         http_get {
           path = "/api/health"
         }
-        initial_delay_seconds = 10
-        timeout_seconds       = 5
-        period_seconds        = 15
-        failure_threshold     = 10
+        initial_delay_seconds = 0
+        timeout_seconds       = 3
+        period_seconds        = 1
+        failure_threshold     = 120
       }
 
       liveness_probe {

@@ -17,8 +17,8 @@ use tokio::sync::RwLock;
 
 /// Application state shared across all handlers
 pub struct AppState {
-    /// Cached analysis metadata loaded at startup
-    pub metadata: Vec<AnalysisMetadata>,
+    /// Cached analysis metadata (lazy-loaded in background after startup)
+    pub metadata: Arc<RwLock<Vec<AnalysisMetadata>>>,
     /// Discovered analysis assets (lazily loaded)
     pub assets: Arc<RwLock<Option<AnalysisAssets>>>,
     /// On-demand gene association query engine
@@ -49,17 +49,15 @@ pub async fn get_analyses(
     State(state): State<Arc<AppState>>,
     Query(params): Query<AnalysisQuery>,
 ) -> (StatusCode, Json<Vec<AnalysisMetadata>>) {
-    // Filter by ancestry_group if provided
+    let metadata = state.metadata.read().await;
     let filtered_data: Vec<AnalysisMetadata> = if let Some(ref ancestry) = params.ancestry_group {
-        state
-            .metadata
+        metadata
             .iter()
             .filter(|m| m.ancestry_group.eq_ignore_ascii_case(ancestry))
             .cloned()
             .collect()
     } else {
-        // Return all data if no filter
-        state.metadata.clone()
+        metadata.clone()
     };
 
     (StatusCode::OK, Json(filtered_data))
@@ -232,8 +230,9 @@ pub async fn get_categories(
 
     // Group analyses by category
     let mut by_category: HashMap<String, Vec<String>> = HashMap::new();
+    let metadata = state.metadata.read().await;
 
-    for meta in &state.metadata {
+    for meta in metadata.iter() {
         by_category
             .entry(meta.category.clone())
             .or_default()
@@ -277,8 +276,8 @@ pub async fn get_analysis_by_id(
     Query(params): Query<AnalysisQuery>,
 ) -> Result<Json<Vec<AnalysisMetadata>>, AppError> {
     let ancestry = params.ancestry_group.as_deref().unwrap_or("meta");
-    state
-        .metadata
+    let metadata = state.metadata.read().await;
+    metadata
         .iter()
         .find(|m| {
             m.analysis_id.eq_ignore_ascii_case(&analysis_id)
@@ -369,7 +368,8 @@ pub async fn get_assets(
         let discovery = crate::analysis_assets::AssetDiscovery::new()?;
 
         // Get valid phenotypes from metadata for filtering
-        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
+        let metadata = state.metadata.read().await;
+        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&metadata);
 
         let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
         tracing::info!("Discovered {} assets", discovered.assets.len());
@@ -438,7 +438,8 @@ pub async fn get_assets_summary(
     if needs_discovery {
         tracing::info!("Discovering analysis assets from GCS for summary...");
         let discovery = crate::analysis_assets::AssetDiscovery::new()?;
-        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
+        let metadata = state.metadata.read().await;
+        let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&metadata);
         let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
 
         let mut assets_lock = state.assets.write().await;
@@ -711,7 +712,9 @@ async fn ensure_assets_loaded(state: &AppState) -> Result<(), AppError> {
     // We hold the write lock, so we're the only one doing discovery
     tracing::info!("Discovering analysis assets from GCS...");
     let discovery = crate::analysis_assets::AssetDiscovery::new()?;
-    let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&state.metadata);
+    let metadata = state.metadata.read().await;
+    let valid_phenotypes = crate::analysis_assets::get_valid_phenotypes(&metadata);
+    drop(metadata); // release read lock before long discovery operation
     let discovered = discovery.discover_all(Some(&valid_phenotypes)).await?;
     tracing::info!("Discovered {} assets", discovered.assets.len());
 

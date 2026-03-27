@@ -363,7 +363,7 @@ impl AnalysisAssets {
 
 /// Represents the analysis metadata served to the frontend.
 /// Corresponds to the TypeScript type `AnalysisMetadataHds`.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisMetadata {
     pub analysis_id: String,
     pub ancestry_group: String,
