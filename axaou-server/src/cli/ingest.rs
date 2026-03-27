@@ -446,7 +446,11 @@ fn run_hail_decoder_export(config: &TableConfig, args: &IngestArgs, input_path: 
     let status = cmd.status().context("Failed to run hail-decoder")?;
 
     if !status.success() {
-        bail!("hail-decoder export failed with status: {}", status);
+        warn!(
+            "hail-decoder export exited with status: {} — some partitions may have failed. \
+             Continuing with transform (staging data may be incomplete).",
+            status
+        );
     }
 
     Ok(())

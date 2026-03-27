@@ -31,7 +31,7 @@ variable "backend_image" {
 variable "min_instances" {
   description = "Minimum number of Cloud Run instances"
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "max_instances" {
