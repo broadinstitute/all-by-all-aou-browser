@@ -7,12 +7,14 @@ steps:
       - '--dockerfile=Dockerfile'
       - '--context=.'
       - '--destination=${_IMAGE}'
+      - '--destination=${_IMAGE_SHA}'
       - '--cache=true'
       - '--cache-ttl=168h'  # 7 days
       - '--cache-repo=${_CACHE_REPO}'
 
 substitutions:
   _IMAGE: 'us-central1-docker.pkg.dev/aou-neale-gwas-browser/axaou/axaou-backend:latest'
+  _IMAGE_SHA: 'us-central1-docker.pkg.dev/aou-neale-gwas-browser/axaou/axaou-backend:unknown'
   _CACHE_REPO: 'us-central1-docker.pkg.dev/aou-neale-gwas-browser/axaou/axaou-backend-cache'
 
 options:

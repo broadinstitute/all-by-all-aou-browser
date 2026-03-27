@@ -117,8 +117,12 @@ docker build --platform linux/amd64 \
     -f frontend/Dockerfile \
     frontend/
 
-echo ">>> Pushing frontend Docker image..."
+echo ">>> Tagging frontend image with git SHA: ${GIT_SHA}..."
+docker tag "${FRONTEND_IMAGE}" "${REGISTRY}/axaou-frontend:${GIT_SHA}"
+
+echo ">>> Pushing frontend Docker images..."
 docker push "${FRONTEND_IMAGE}"
+docker push "${REGISTRY}/axaou-frontend:${GIT_SHA}"
 
 # Step 3: Build and push backend Docker image (skip if --frontend-only)
 if [ "$FRONTEND_ONLY" = false ]; then
@@ -128,7 +132,8 @@ if [ "$FRONTEND_ONLY" = false ]; then
     # Cloud Build fetches hail-decoder from git during cargo build
     # Use --async to avoid VPC-SC log streaming issues, then poll for completion
     BUILD_OUTPUT=$(gcloud builds submit axaou-server \
-        --tag "${BACKEND_IMAGE}" \
+        --config=axaou-server/cloudbuild.yaml \
+        --substitutions="_IMAGE=${BACKEND_IMAGE},_IMAGE_SHA=${REGISTRY}/axaou-backend:${GIT_SHA},_CACHE_REPO=${REGISTRY}/axaou-backend-cache" \
         --project "${PROJECT_ID}" \
         --timeout=20m \
         --machine-type=e2-highcpu-8 \
