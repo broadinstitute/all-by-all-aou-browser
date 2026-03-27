@@ -77,7 +77,7 @@ const LocusPhewasData = ({ size }: any) => {
         url: `${axaouDevUrl}/variants/associations/phewas/interval/${regionId}?ancestry_group=${ancestryGroup}`,
         name: 'variantAssociations',
       },
-      { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}&ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
+      { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
       { url: `${axaouDevUrl}/categories`, name: 'categories' },
     ],
     deps: [regionId, ancestryGroup, sequencingType],

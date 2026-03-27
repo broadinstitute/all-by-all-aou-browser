@@ -270,17 +270,28 @@ pub async fn get_categories(
 /// Handler for GET /api/analyses/:analysis_id
 ///
 /// Returns a single analysis metadata record by its ID (wrapped in array for frontend compatibility).
+/// Filters by ancestry_group query parameter; defaults to "meta" if not provided.
 pub async fn get_analysis_by_id(
     State(state): State<Arc<AppState>>,
     Path(analysis_id): Path<String>,
+    Query(params): Query<AnalysisQuery>,
 ) -> Result<Json<Vec<AnalysisMetadata>>, AppError> {
+    let ancestry = params.ancestry_group.as_deref().unwrap_or("meta");
     state
         .metadata
         .iter()
-        .find(|m| m.analysis_id.eq_ignore_ascii_case(&analysis_id))
+        .find(|m| {
+            m.analysis_id.eq_ignore_ascii_case(&analysis_id)
+                && m.ancestry_group.eq_ignore_ascii_case(ancestry)
+        })
         .cloned()
         .map(|m| Json(vec![m]))
-        .ok_or_else(|| AppError::NotFound(format!("Analysis '{}' not found", analysis_id)))
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Analysis '{}' with ancestry '{}' not found",
+                analysis_id, ancestry
+            ))
+        })
 }
 
 // ============================================================================
