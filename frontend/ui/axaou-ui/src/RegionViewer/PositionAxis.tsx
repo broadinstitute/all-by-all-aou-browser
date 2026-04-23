@@ -8,8 +8,10 @@ export const PositionAxis = () => {
 
   const width = centerPanelWidth
   const height = 15;
-  const numIntervals = Math.min(10, Math.floor(width / 90));
 
+  if (width <= 0) return null;
+
+  const numIntervals = Math.max(1, Math.min(10, Math.floor(width / 90)));
   const tickInterval = width / numIntervals;
   const ticks = [...Array(numIntervals - 1)].map(
     (_, i) => tickInterval * (i + 1)
