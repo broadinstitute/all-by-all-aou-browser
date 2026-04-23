@@ -31,12 +31,19 @@ pub async fn get_phenotypes_summary(
 
     let query = "SELECT * FROM phenotype_summary ORDER BY sig_loci_count DESC, analysis_id ASC";
 
-    let rows = state
+    let mut rows = state
         .clickhouse
         .query(query)
         .fetch_all::<PhenotypeSummaryRow>()
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
+
+    for row in &mut rows {
+        row.description = crate::phenotype_display_names::apply_display_name(
+            &row.analysis_id,
+            &row.description,
+        );
+    }
 
     let result = LookupResult::new(rows, timer.elapsed());
     let json_bytes =

@@ -710,7 +710,10 @@ impl AnalysisMetadataRow {
             analysis_id: self.analysis_id.clone(),
             ancestry_group: self.ancestry_group.clone(),
             category: self.category.clone().unwrap_or_else(|| "Unknown".to_string()),
-            description: self.description.clone().unwrap_or_else(|| self.analysis_id.clone()),
+            description: crate::phenotype_display_names::apply_display_name(
+                &self.analysis_id,
+                &self.description.clone().unwrap_or_else(|| self.analysis_id.clone()),
+            ),
             description_more: self.description_more.clone().unwrap_or_else(|| self.analysis_id.clone()),
             trait_type: self.trait_type.clone(),
             pheno_sex: self.pheno_sex.clone(),

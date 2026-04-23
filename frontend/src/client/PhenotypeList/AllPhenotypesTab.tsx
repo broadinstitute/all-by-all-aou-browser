@@ -208,6 +208,7 @@ interface Data {
   categories: CategoriesResponse[]
 }
 
+
 interface Viewport {
   xMin: number
   xMax: number

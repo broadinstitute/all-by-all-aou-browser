@@ -24,16 +24,24 @@ export const SearchBarContainer = styled.div`
   background-color: ${(props) => props.theme.surfaceAlt};
   border-radius: 10px;
   padding: 8px 16px;
-  width: 280px;
+  width: 100%;
 `;
 
 const Input = styled.input`
   border: none;
   outline: none;
   flex-grow: 1;
+  min-width: 0;
   background: transparent;
   font-size: 16px;
   color: ${(props) => props.theme.text};
+  text-overflow: ellipsis;
+
+  &::placeholder {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
 `;
 
 const Icon = styled.span`

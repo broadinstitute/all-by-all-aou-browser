@@ -66,6 +66,7 @@ export const analysesIdFromArray = (analysisIdArray: any) => {
 
 const capitalize = (text: any) => text.charAt(0).toUpperCase() + text.slice(1)
 
+
 function prepareIcdPhenotype(phenotype: any) {
   if (phenotype) {
     let { description, description_more } = phenotype

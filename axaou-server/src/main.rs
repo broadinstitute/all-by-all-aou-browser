@@ -21,6 +21,7 @@ mod gene_queries;
 mod genes;
 mod models;
 mod phenotype;
+mod phenotype_display_names;
 mod response;
 mod variants;
 
