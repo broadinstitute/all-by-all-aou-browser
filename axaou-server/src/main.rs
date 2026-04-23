@@ -496,7 +496,13 @@ async fn warm_cache(state: Arc<AppState>) {
         .fetch_all::<PhenotypeSummaryRow>()
         .await
     {
-        Ok(rows) => {
+        Ok(mut rows) => {
+            for row in &mut rows {
+                row.description = phenotype_display_names::apply_display_name(
+                    &row.analysis_id,
+                    &row.description,
+                );
+            }
             let key = format!("phenotypes_summary_all_{}", dv);
             if let Ok(bytes) = serde_json::to_vec(&LookupResult::new(rows, timer.elapsed())) {
                 info!("Cache warm: phenotypes_summary ({} bytes)", bytes.len());
