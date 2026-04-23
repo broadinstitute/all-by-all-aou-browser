@@ -215,7 +215,7 @@ export const SuperManhattanPlot: React.FC<SuperManhattanPlotProps> = ({
       const x = PLOT_PAD_X + xViewNorm * plotWidth
       const PLOT_PAD_Y = 8
       const y = Math.max(PLOT_PAD_Y, Math.min(dimensions.height - PLOT_PAD_Y, yViewNorm * dimensions.height))
-      const radius = 1.5 + Math.sqrt(v.num_associations) * 0.5
+      const radius = 2 + Math.sqrt(v.num_associations) * 0.5
 
       // Skip points far outside the viewport (with margin for radius)
       const margin = radius + 2

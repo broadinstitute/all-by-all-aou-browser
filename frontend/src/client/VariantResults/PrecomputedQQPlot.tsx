@@ -38,7 +38,7 @@ export const PrecomputedQQPlot: React.FC<Props> = ({
     : { top: 10, right: 10, bottom: 70, left: 60 };
   const tickFont = mini ? '7px sans-serif' : '10px sans-serif';
   const labelFont = mini ? '9px sans-serif' : '14px sans-serif';
-  const pointRadius = mini ? 1 : 2;
+  const pointRadius = mini ? 2 : 3;
   const w = width - margin.left - margin.right;
   const h = height - margin.top - margin.bottom;
 

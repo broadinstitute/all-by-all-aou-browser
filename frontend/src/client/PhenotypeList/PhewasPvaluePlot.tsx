@@ -57,7 +57,7 @@ const PhewasPvaluePlot = ({
   activeAnalyses,
   activeGene,
   primaryAnalysisId,
-  pointRadius = 4,
+  pointRadius = 6,
   showStroke,
   logLogEnabled = true,
   size,

@@ -206,8 +206,8 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
   onHoverVariant,
   onClickVariant,
   showThreshold = true,
-  markerRadius = 3,
-  hoverRadius = 5,
+  markerRadius = 5,
+  hoverRadius = 7,
 }) => {
   // Get coordinate context from RegionViewer
   const { scalePosition, centerPanelWidth } = useContext(RegionViewerContext);

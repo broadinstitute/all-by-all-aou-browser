@@ -68,7 +68,7 @@ export const renderPoint = ({
 
   const h = height - margin.top - margin.bottom
   const rawRadius = Math.abs(alleleFrequencyScale(getAfField(point.data)))
-  let radius = Number.isFinite(rawRadius) ? rawRadius : 3
+  let radius = Number.isFinite(rawRadius) ? rawRadius : 5
 
   let yValue = h + margin.top + margin.bottom - 50
   if (point.data.pvalue) {

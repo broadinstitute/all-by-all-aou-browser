@@ -53,7 +53,7 @@ const PhewasBetaPlot = ({
   activeAnalyses,
   activeGene,
   primaryAnalysisId,
-  pointRadius = 4,
+  pointRadius = 6,
   showStroke,
   size,
   height = 200,

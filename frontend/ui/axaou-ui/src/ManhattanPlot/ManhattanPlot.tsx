@@ -259,12 +259,12 @@ export const ManhattanPlot: React.FC<ManhattanPlotProps> = ({
     points.forEach((point) => {
       if (point.data.association.is_binned) {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false);
+        ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI, false);
         ctx.fillStyle = pointColor(point.data);
         ctx.fill();
       } else {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI, false);
+        ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI, false);
 
         if (
           point.data.association.p_het &&

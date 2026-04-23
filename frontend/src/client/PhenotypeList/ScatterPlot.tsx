@@ -298,7 +298,7 @@ const NewPlotPane = ({
         const circle = new Konva.Circle({
           x: point.x,
           y: point.y,
-          radius: 4,
+          radius: 8,
           fill: point.data.color,
           stroke: 'black',
           strokeWidth: 0.1,
