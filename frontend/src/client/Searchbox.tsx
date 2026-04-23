@@ -41,6 +41,7 @@ const Input = styled.input`
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+    font-size: 13px;
   }
 `;
 
@@ -74,6 +75,17 @@ export const ModalContainer = styled.div`
   font-size: 16px;
 `;
 
+const ModalBackdrop = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+`;
+
 export const CloseModalButton = styled.button`
   position: absolute;
   top: 8px;
@@ -103,6 +115,15 @@ const QueryBox = styled.div`
 
 const Magnifier = styled.span`
   margin-right: 8px;
+  color: ${(props) => props.theme.text};
+`;
+
+const ModalInput = styled.input`
+  border: none;
+  outline: none;
+  flex-grow: 1;
+  background: transparent;
+  font-size: 16px;
   color: ${(props) => props.theme.text};
 `;
 
@@ -157,13 +178,24 @@ export const NewSearchBar: React.FC = () => {
   const setResultsLayout = useSetRecoilState(resultLayoutAtom);
   const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const highlightedRef = useRef<HTMLDivElement>(null);
   const history = useHistory();
+
+  const modalInputRef = useRef<HTMLInputElement>(null);
 
   const focusSearchBar = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === '/') {
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
+        // Don't capture if user is typing in another input/textarea
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         e.preventDefault();
         inputRef.current?.focus();
+      }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setShowModal(true);
+        setTimeout(() => modalInputRef.current?.focus(), 0);
       }
     },
     [inputRef]
@@ -283,6 +315,12 @@ export const NewSearchBar: React.FC = () => {
       setHighlightedIndex(null);
     }
   }, [searchResults]);
+
+  useEffect(() => {
+    if (highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedIndex]);
 
   const searchGeneSymbols = (
     query: string,
@@ -453,11 +491,21 @@ export const NewSearchBar: React.FC = () => {
         {inputValue && <CloseIcon onClick={handleClearInput}>✖</CloseIcon>}
       </SearchBarContainer>
       {showModal && searchResults.length > 0 && (
+        <>
+        <ModalBackdrop onClick={() => setShowModal(false)} />
         <ModalContainer role="dialog" aria-modal="true" id="search-results">
           <CloseModalButton onClick={() => setShowModal(false)}>✖</CloseModalButton>
           <QueryBox>
             <Magnifier>🔍</Magnifier>
-            <span>{inputValue}</span>
+            <ModalInput
+              ref={modalInputRef}
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Search by gene, phenotype, or variant"
+              autoFocus
+            />
           </QueryBox>
           {geneResults.length > 0 && (
             <>
@@ -467,6 +515,7 @@ export const NewSearchBar: React.FC = () => {
                 return (
                   <div
                     key={`gene-${result.value.render_id}`}
+                    ref={highlightedIndex === globalIndex ? highlightedRef : undefined}
                     style={{
                       padding: '10px',
                       cursor: 'pointer',
@@ -492,6 +541,7 @@ export const NewSearchBar: React.FC = () => {
                 return (
                   <div
                     key={`analysis-${result.value.render_id}`}
+                    ref={highlightedIndex === globalIndex ? highlightedRef : undefined}
                     style={{
                       padding: '10px',
                       cursor: 'pointer',
@@ -517,6 +567,7 @@ export const NewSearchBar: React.FC = () => {
                 return (
                   <div
                     key={`variant-${result.value.render_id}`}
+                    ref={highlightedIndex === globalIndex ? highlightedRef : undefined}
                     style={{
                       padding: '10px',
                       cursor: 'pointer',
@@ -535,6 +586,7 @@ export const NewSearchBar: React.FC = () => {
             </>
           )}
         </ModalContainer>
+        </>
       )}
     </>
   );

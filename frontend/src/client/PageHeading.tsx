@@ -1,5 +1,27 @@
 const SearchBarWrapper = styled.div`
+  width: 160px;
+
+  input::placeholder {
+    color: transparent;
+  }
+
   @media (max-width: 1400px) {
+    display: none;
+  }
+`
+
+const SearchBarCompact = styled.div`
+  display: none;
+  flex: 1;
+  min-width: 400px;
+  max-width: 800px;
+  margin-right: 10px;
+
+  @media (max-width: 1400px) {
+    display: block;
+  }
+
+  @media (max-width: 600px) {
     display: none;
   }
 `
@@ -76,7 +98,7 @@ const PageHeadingWrapper = styled.div<PageHeadingWrapperProps>`
         color: white;
         padding: 4px 10px;
         text-decoration: none;
-        font-size: 18px;
+        font-size: 15px;
         font-weight: 900;
         margin-right: 10px;
 
@@ -163,11 +185,11 @@ const LogoItem = styled.div`
   }
 
   svg, img {
-    height: 40px;
+    height: 32px;
     width: auto;
 
     @media (max-width: 1400px) {
-      height: 30px;
+      height: 26px;
     }
   }
 `
@@ -258,6 +280,8 @@ const PageHeading = () => {
         </ExternalLink>
       </div>
       <div className="nav-items">
+        {/* Search bar visible at narrow widths, left of hamburger */}
+        <SearchBarCompact><NewSearchBar /></SearchBarCompact>
         {/* Links Button for Mobile */}
         <button className="links-button" onClick={toggleDropdown}>
           ☰
