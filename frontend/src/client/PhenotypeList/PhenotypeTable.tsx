@@ -107,14 +107,6 @@ const InfoTooltip = ({ rowData }: { rowData: GenePhewasAnnotated }) => {
         <strong>Sex:</strong>
         {rowData.pheno_sex}
       </InfoTooltipItem>
-      <InfoTooltipItem>
-        <strong>Coding:</strong>
-        {rowData.coding}
-      </InfoTooltipItem>
-      <InfoTooltipItem>
-        <strong>Modifier:</strong>
-        {rowData.modifier}
-      </InfoTooltipItem>
     </InfoTooltipWrapper>
   )
 }
