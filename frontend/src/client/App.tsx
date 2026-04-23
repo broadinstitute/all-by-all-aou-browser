@@ -13,6 +13,7 @@ import GeneNotInAnalysis from './GeneNotInAnalysis'
 import HomePage from './HomePage'
 import { useMonitorWindowSize } from './monitorWindowSize'
 import PageHeading from './PageHeading'
+import FAQ from './FAQ'
 import Walkthrough from './Walkthrough'
 import PageNotFoundPage from './PageNotFoundPage'
 import { useResetStateOnLocationChange } from './resetState'
@@ -264,6 +265,7 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
         <Switch>
           <Route exact path='/' />
           <Route exact path='/about' />
+          <Route exact path='/faq' />
           <Route exact path='/privacy-policy' />
           {isBrowser && <StatusBar />}
         </Switch>
@@ -275,6 +277,9 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
             </Route>
             <Route exact path='/about'>
               <About />
+            </Route>
+            <Route exact path='/faq'>
+              <FAQ />
             </Route>
             <Route exact path='/privacy-policy'>
               <PrivacyPolicy />

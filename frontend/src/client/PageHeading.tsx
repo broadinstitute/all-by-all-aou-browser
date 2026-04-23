@@ -273,6 +273,9 @@ const PageHeading = () => {
           <PageHeadingRouterLink to="/walkthrough" onClick={closeDropdown}>
             Walkthrough
           </PageHeadingRouterLink>
+          <PageHeadingRouterLink to="/faq" onClick={closeDropdown}>
+            FAQ
+          </PageHeadingRouterLink>
           <ResultsDropdownWrapper>
             <PageHeadingRouterLink to={resultsUrl} onClick={() => goToResults()}>
               Results
@@ -298,6 +301,9 @@ const PageHeading = () => {
           </PageHeadingRouterLink>
           <PageHeadingRouterLink to="/walkthrough" onClick={closeDropdown}>
             Walkthrough
+          </PageHeadingRouterLink>
+          <PageHeadingRouterLink to="/faq" onClick={closeDropdown}>
+            FAQ
           </PageHeadingRouterLink>
 
           <PageHeadingRouterLink to={resultsUrl} onClick={() => goToResults()}>
