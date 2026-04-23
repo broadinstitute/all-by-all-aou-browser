@@ -27,6 +27,6 @@ LEFT JOIN sig_genes sg ON am.analysis_id = sg.phenotype
 WHERE lower(am.ancestry_group) = 'meta'
   AND coalesce(am.category, '') != 'random_phenotype'
   AND coalesce(am.description, '') NOT LIKE '%random%'
-  AND coalesce(am.description, '') NOT LIKE '%PFHH%'
+
   AND coalesce(am.description, '') NOT LIKE '%County%'
   AND am.analysis_id != '654'

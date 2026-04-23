@@ -251,7 +251,7 @@ export const filterValidAnalyses = (
     .filter((analysis) => analysis.analysis_id !== "654")
     .filter((analysis) => !analysis.description.includes("random"))
     .filter((analysis) => analysis.category !== "random_phenotype")
-    .filter((analysis) => !analysis.description.includes("PFHH"))
+
     .filter((analysis) => !analysis.description.includes("County"))
     .filter((analysis) => availableAnalysisIds.includes(analysis.analysis_id));
 };
