@@ -185,12 +185,12 @@ export const NewSearchBar: React.FC = () => {
 
   const focusSearchBar = useCallback(
     (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
-        // Don't capture if user is typing in another input/textarea
-        const tag = (e.target as HTMLElement)?.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         e.preventDefault();
-        inputRef.current?.focus();
+        setShowModal(true);
+        setTimeout(() => modalInputRef.current?.focus(), 0);
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -449,8 +449,10 @@ export const NewSearchBar: React.FC = () => {
         break;
       case 'Enter':
         e.preventDefault();
-        if (highlightedIndex !== null && highlightedIndex >= 0) {
+        if (highlightedIndex !== null && highlightedIndex >= 0 && searchResults[highlightedIndex]) {
           onSelect(searchResults[highlightedIndex].value);
+        } else {
+          setShowModal(false);
         }
         break;
       case 'Escape':
@@ -490,7 +492,7 @@ export const NewSearchBar: React.FC = () => {
         />
         {inputValue && <CloseIcon onClick={handleClearInput}>✖</CloseIcon>}
       </SearchBarContainer>
-      {showModal && searchResults.length > 0 && (
+      {showModal && (
         <>
         <ModalBackdrop onClick={() => setShowModal(false)} />
         <ModalContainer role="dialog" aria-modal="true" id="search-results">
