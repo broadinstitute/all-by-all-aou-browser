@@ -76,13 +76,26 @@ fn is_all_lowercase(s: &str) -> bool {
     s.chars().any(|c| c.is_alphabetic()) && !s.chars().any(|c| c.is_uppercase())
 }
 
+/// Convert "drug name; route" to "Drug Name (Route)".
+fn semicolon_to_parens(s: &str) -> String {
+    match s.rfind("; ") {
+        Some(pos) => {
+            let name = &s[..pos];
+            let route = &s[pos + 2..];
+            format!("{} ({})", name, route)
+        }
+        None => s.to_string(),
+    }
+}
+
 /// Apply display name override, falling back to title-case for all-lowercase descriptions.
 pub fn apply_display_name(analysis_id: &str, description: &str) -> String {
     if let Some(override_name) = DISPLAY_NAMES.get(analysis_id) {
         return override_name.clone();
     }
     if is_all_lowercase(description) {
-        return title_case(description);
+        let cased = title_case(description);
+        return semicolon_to_parens(&cased);
     }
     description.to_string()
 }
@@ -115,6 +128,22 @@ mod tests {
     #[test]
     fn test_fallback_title_case() {
         assert_eq!(apply_display_name("unknown_id", "some lowercase description"), "Some Lowercase Description");
+    }
+
+    #[test]
+    fn test_semicolon_to_parens() {
+        assert_eq!(
+            apply_display_name("unknown_id", "heparin, combinations; parenteral"),
+            "Heparin, Combinations (Parenteral)"
+        );
+        assert_eq!(
+            apply_display_name("unknown_id", "acetylsalicylic acid; oral"),
+            "Acetylsalicylic Acid (Oral)"
+        );
+        assert_eq!(
+            apply_display_name("unknown_id", "acetylsalicylic acid; systemic, rectal"),
+            "Acetylsalicylic Acid (Systemic, Rectal)"
+        );
     }
 
     #[test]
