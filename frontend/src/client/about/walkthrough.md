@@ -186,8 +186,6 @@ Brief descriptions about each of the results included in the All by All browser 
 | Trait type | Binary or continuous variable |
 | Phenocode | The phenocode is unique to the phenotype of interest |
 | Sex | Sex specific or both sexes included |
-| Coding | Coding description for the phenotype |
-| Modifier | Modifier description for the phenotype |
 | Gene | Gene of interest used for association testing with the selected phenotype |
 | P-value (Burden) | Output p-value from a traditional test that aggregates the effects of variants within a gene |
 | P-value (SKAT) | Output p-value from a sequence kernel association test, often used for rare variant analysis |
