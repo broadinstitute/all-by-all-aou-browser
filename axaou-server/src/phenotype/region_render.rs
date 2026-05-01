@@ -150,6 +150,7 @@ async fn fetch_region_variants(
               AND lv.sequencing_type = ?
               AND lv.xpos >= ?
               AND lv.xpos <= ?
+              AND (lv.association_ac IS NULL OR lv.association_ac >= 5)
             ORDER BY lv.position
             "#,
                 ann_table = ann_table

@@ -41,6 +41,7 @@ pub async fn get_significant_variants(
             SELECT locus_id, xpos, position, pvalue, neg_log10_p, is_significant
             FROM loci_variants
             WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND is_significant = true
+              AND (association_ac IS NULL OR association_ac >= 5)
             ORDER BY pvalue ASC
             LIMIT ?
         "#;
@@ -60,6 +61,7 @@ pub async fn get_significant_variants(
             SELECT locus_id, xpos, position, pvalue, neg_log10_p, is_significant
             FROM loci_variants
             WHERE phenotype = ? AND ancestry = ? AND is_significant = true
+              AND (association_ac IS NULL OR association_ac >= 5)
             ORDER BY pvalue ASC
             LIMIT ?
         "#;

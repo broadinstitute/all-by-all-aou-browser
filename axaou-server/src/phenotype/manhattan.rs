@@ -433,6 +433,7 @@ pub(crate) async fn fetch_peak_annotations(
             SELECT locus_id, toUInt32(count()) as sig_variant_count
             FROM loci_variants
             WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ? AND is_significant = true
+              AND (association_ac IS NULL OR association_ac >= 5)
             GROUP BY locus_id
         ),
         peaks AS (
@@ -488,6 +489,7 @@ pub(crate) async fn fetch_peak_annotations(
             JOIN {annotation_table} ann
                 ON lv.xpos = ann.xpos AND lv.ref = ann.ref AND lv.alt = ann.alt
             WHERE lv.phenotype = ? AND lv.ancestry = ? AND lv.sequencing_type = ? AND lv.is_significant = true
+              AND (lv.association_ac IS NULL OR lv.association_ac >= 5)
               {xpos_filter}
             GROUP BY lv.locus_id, ann.gene_symbol
         )
@@ -769,6 +771,7 @@ pub async fn get_manhattan_overlay(
             AND lv.ancestry = ?
             AND lv.sequencing_type = ?
             AND lv.is_significant = true
+            AND (lv.association_ac IS NULL OR lv.association_ac >= 5)
             {xpos_filter}
         ORDER BY lv.pvalue ASC
         "#,
@@ -787,6 +790,7 @@ pub async fn get_manhattan_overlay(
               AND ancestry = ?
               AND sequencing_type = ?
               AND is_significant = true
+              AND (association_ac IS NULL OR association_ac >= 5)
         "#;
         let count: u64 = state
             .clickhouse

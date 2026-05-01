@@ -76,6 +76,7 @@ pub async fn get_locus_variants(
         SELECT xpos, position, pvalue, neg_log10_p, is_significant
         FROM loci_variants
         WHERE phenotype = ? AND locus_id = ? AND ancestry = ? AND sequencing_type = ?
+          AND (association_ac IS NULL OR association_ac >= 5)
         ORDER BY position
     "#;
 

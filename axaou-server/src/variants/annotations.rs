@@ -586,6 +586,7 @@ pub async fn get_associations_by_interval(
         FROM loci_variants
         WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
           AND xpos >= ? AND xpos <= ?
+          AND (association_ac IS NULL OR association_ac >= 5)
     "#;
 
     let rows = state

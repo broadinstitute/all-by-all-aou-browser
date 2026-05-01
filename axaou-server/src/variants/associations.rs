@@ -269,6 +269,7 @@ pub async fn get_variants_by_gene(
           AND lv.sequencing_type = ?
           AND lv.xpos >= ?
           AND lv.xpos <= ?
+          AND (lv.association_ac IS NULL OR lv.association_ac >= 5)
         ORDER BY lv.pvalue ASC
         LIMIT ?
         "#,
@@ -324,6 +325,7 @@ pub async fn get_manhattan_top(
         SELECT xpos, position, pvalue, neg_log10_p, is_significant
         FROM loci_variants
         WHERE phenotype = ? AND ancestry = ? AND sequencing_type = ?
+          AND (association_ac IS NULL OR association_ac >= 5)
         ORDER BY pvalue ASC
         LIMIT ?
     "#;
@@ -384,9 +386,10 @@ async fn get_gene_variants_from_hail(
         .await
         .map_err(|e| AppError::DataTransformError(format!("Hail query error: {}", e)))?;
 
-    // Convert to API format (take up to limit)
+    // Convert to API format (take up to limit), filtering AC >= 5
     let api_rows: Vec<VariantAssociationExtendedApi> = associations
         .into_iter()
+        .filter(|a| a.ac.map_or(true, |ac| ac >= 5))
         .take(limit as usize)
         .map(|a| VariantAssociationExtendedApi {
             variant_id: a.variant_id(),
