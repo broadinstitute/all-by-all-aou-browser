@@ -49,9 +49,9 @@ export function ThroughputChart({ data }: Props) {
 export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
   if (data.length === 0) return null;
 
-  const latestMem = data[data.length - 1];
-  const memPct = latestMem.memory_total_gb > 0
-    ? ((latestMem.memory_used_gb / latestMem.memory_total_gb) * 100).toFixed(1)
+  const latest = data[data.length - 1];
+  const memPct = latest.memory_total_gb > 0
+    ? ((latest.memory_used_gb / latest.memory_total_gb) * 100).toFixed(1)
     : '?';
 
   return (
@@ -59,10 +59,12 @@ export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
       <h3 style={{ margin: '0 0 12px' }}>ClickHouse Resource Usage</h3>
 
       {/* Summary stats */}
-      <div style={{ display: 'flex', gap: 24, marginBottom: 12, fontSize: 13 }}>
-        <span>Memory: <b>{latestMem.memory_used_gb.toFixed(1)}</b> / {latestMem.memory_total_gb.toFixed(1)} GB ({memPct}%)</span>
-        <span>Queries: <b>{latestMem.active_queries}</b></span>
-        <span>Merges: <b>{latestMem.merges_running}</b></span>
+      <div style={{ display: 'flex', gap: 20, marginBottom: 12, fontSize: 13, flexWrap: 'wrap' }}>
+        <span>Memory: <b>{latest.memory_used_gb.toFixed(1)}</b> / {latest.memory_total_gb.toFixed(1)} GB ({memPct}%)</span>
+        <span>Query mem: <b>{latest.query_memory_gb.toFixed(2)}</b> GB</span>
+        <span>Queries: <b>{latest.active_queries}</b></span>
+        <span>Threads: <b>{latest.thread_saturation.toFixed(0)}%</b> saturated</span>
+        <span>Merges: <b>{latest.merges_running}</b></span>
       </div>
 
       {/* Queries + Merges */}
@@ -102,6 +104,22 @@ export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
           <Legend />
           <Line yAxisId="cpu" type="monotone" dataKey="cpu_usage_pct" name="CPU %" stroke="#2563eb" dot={false} strokeWidth={2} isAnimationActive={false} />
           <Line yAxisId="io" type="monotone" dataKey="read_mb_sec" name="Disk Read (MB/s)" stroke="#059669" dot={false} strokeWidth={2} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* Saturation: thread usage, CPU wait, IO wait, cache misses */}
+      <ResponsiveContainer width="100%" height={150}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="t" tickFormatter={v => `${v}s`} />
+          <YAxis yAxisId="pct" unit="%" domain={[0, 100]} />
+          <YAxis yAxisId="rate" orientation="right" />
+          <Tooltip labelFormatter={v => `${v}s`} />
+          <Legend />
+          <Line yAxisId="pct" type="monotone" dataKey="thread_saturation" name="Thread Saturation %" stroke="#dc2626" dot={false} strokeWidth={2} isAnimationActive={false} />
+          <Line yAxisId="rate" type="monotone" dataKey="cpu_wait_ms_sec" name="CPU Wait (ms/s)" stroke="#f59e0b" dot={false} strokeWidth={2} isAnimationActive={false} />
+          <Line yAxisId="rate" type="monotone" dataKey="io_wait_ms_sec" name="IO Wait (ms/s)" stroke="#7c3aed" dot={false} strokeWidth={2} isAnimationActive={false} />
+          <Line yAxisId="rate" type="monotone" dataKey="page_cache_miss_sec" name="Cache Miss/s" stroke="#0891b2" dot={false} strokeWidth={1} strokeDasharray="5 5" isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>

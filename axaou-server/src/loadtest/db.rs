@@ -468,6 +468,12 @@ fn get_run_impl(conn: &Connection, run_id: &str) -> Result<Option<RunDetail>> {
                 cpu_usage_pct: row.get::<_, Option<f64>>(4)?.unwrap_or(0.0),
                 read_bytes_sec: row.get::<_, Option<f64>>(5)?.unwrap_or(0.0),
                 merges_running: row.get::<_, Option<u64>>(6)?.unwrap_or(0),
+                // These are only available in live SSE, not persisted to DB
+                query_memory_gb: 0.0,
+                thread_saturation: 0.0,
+                cpu_wait_us_sec: 0.0,
+                io_wait_us_sec: 0.0,
+                page_cache_miss_sec: 0.0,
             })
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()?

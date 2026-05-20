@@ -4,12 +4,12 @@ import type { LoadTestConfig } from '../types';
 const DEFAULT_CONFIG: LoadTestConfig = {
   target: { url: 'https://allbyall.researchallofus.org', clickhouse_url: 'http://localhost:8123' },
   load: {
-    mode: 'static',
+    mode: 'ramp',
     concurrency: 10,
-    ramp_start: 5,
-    ramp_step: 5,
-    ramp_interval_secs: 10,
-    max_duration_secs: 60,
+    ramp_start: 1,
+    ramp_step: 1,
+    ramp_interval_secs: 15,
+    max_duration_secs: 300,
     sessions: 0,
   },
   abort: {

@@ -17,6 +17,11 @@ export interface ChMetricPoint {
   cpu_usage_pct: number;
   read_mb_sec: number;
   merges_running: number;
+  query_memory_gb: number;
+  thread_saturation: number;
+  cpu_wait_ms_sec: number;
+  io_wait_ms_sec: number;
+  page_cache_miss_sec: number;
 }
 
 interface StreamState {
@@ -188,6 +193,11 @@ export function useLoadTestStream(runId: string | null) {
               cpu_usage_pct: event.cpu_usage_pct ?? 0,
               read_mb_sec: (event.read_bytes_sec ?? 0) / (1024 * 1024),
               merges_running: event.merges_running ?? 0,
+              query_memory_gb: event.query_memory_gb ?? 0,
+              thread_saturation: (event.thread_saturation ?? 0) * 100,
+              cpu_wait_ms_sec: (event.cpu_wait_us_sec ?? 0) / 1000,
+              io_wait_ms_sec: (event.io_wait_us_sec ?? 0) / 1000,
+              page_cache_miss_sec: event.page_cache_miss_sec ?? 0,
             }],
           }));
         } else if (event.type === 'summary') {

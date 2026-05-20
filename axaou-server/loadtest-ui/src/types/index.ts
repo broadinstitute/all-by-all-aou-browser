@@ -87,7 +87,7 @@ export interface RunDetail {
 
 export type LoadTestEvent =
   | { type: 'request_batch'; records: RequestRecord[] }
-  | { type: 'ch_metric'; timestamp_ms: number; active_queries: number; memory_used_gb?: number; memory_total_gb?: number; cpu_usage_pct?: number; read_bytes_sec?: number; merges_running?: number }
+  | { type: 'ch_metric'; timestamp_ms: number; active_queries: number; memory_used_gb?: number; memory_total_gb?: number; cpu_usage_pct?: number; read_bytes_sec?: number; merges_running?: number; query_memory_gb?: number; thread_saturation?: number; cpu_wait_us_sec?: number; io_wait_us_sec?: number; page_cache_miss_sec?: number }
   | { type: 'summary'; } & RollingSummary
   | { type: 'run_completed'; run_id: string }
   | { type: 'gcp_metrics_ready'; run_id: string };

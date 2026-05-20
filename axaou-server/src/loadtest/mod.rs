@@ -55,6 +55,21 @@ pub struct ChMetricEvent {
     pub read_bytes_sec: f64,
     #[serde(default)]
     pub merges_running: u64,
+    /// Query memory (MemoryTracking from system.metrics) in GB
+    #[serde(default)]
+    pub query_memory_gb: f64,
+    /// Active threads vs total threads (saturation ratio 0-1)
+    #[serde(default)]
+    pub thread_saturation: f64,
+    /// OS CPU wait microseconds/sec (contention signal)
+    #[serde(default)]
+    pub cpu_wait_us_sec: f64,
+    /// OS IO wait microseconds/sec (disk contention signal)
+    #[serde(default)]
+    pub io_wait_us_sec: f64,
+    /// Page cache misses/sec (cold reads from disk)
+    #[serde(default)]
+    pub page_cache_miss_sec: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]

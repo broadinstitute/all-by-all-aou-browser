@@ -41,19 +41,38 @@ pub async fn get_gene_phewas(
     let timer = QueryTimer::start();
     let ancestry = params.ancestry.unwrap_or_else(|| "meta".to_string());
 
-    // Determine if we're searching by gene_id or gene_symbol
-    let (where_clause, search_value) = if gene_id.starts_with("ENSG") {
-        ("gene_id = ?", gene_id.clone())
+    // Resolve gene symbol to ENSG ID via gene_models for fast index lookup
+    let resolved_gene_id = if gene_id.starts_with("ENSG") {
+        gene_id.clone()
+    } else {
+        // Look up ENSG ID from symbol
+        #[derive(clickhouse::Row, Deserialize)]
+        struct GeneIdRow { gene_id: String }
+        let row: Option<GeneIdRow> = state
+            .clickhouse
+            .query("SELECT gene_id FROM gene_models WHERE symbol = ? LIMIT 1")
+            .bind(&gene_id)
+            .fetch_optional()
+            .await
+            .ok()
+            .flatten();
+        row.map(|r| r.gene_id).unwrap_or_else(|| gene_id.clone())
+    };
+
+    let (where_clause, search_value) = if resolved_gene_id.starts_with("ENSG") {
+        ("gene_id = ?", resolved_gene_id)
     } else {
         ("gene_symbol = ?", gene_id.clone())
     };
 
+    // Use gene_associations_by_gene (sorted by gene_id, no per-phenotype partitioning)
+    // for fast gene lookups instead of gene_associations (partitioned by phenotype).
     let base_query = format!(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
                contig, gene_start_position, xpos
-        FROM gene_associations
+        FROM gene_associations_by_gene
         WHERE {} AND ancestry = ?
         {}
         ORDER BY pvalue ASC

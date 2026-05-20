@@ -4,6 +4,7 @@ import { SummaryBar } from '../components/SummaryBar';
 import { LatencyChart, ThroughputChart, ClickHouseCharts } from '../components/LiveCharts';
 import { EndpointTable } from '../components/EndpointTable';
 import { ErrorLog } from '../components/ErrorLog';
+import { EndpointLatencyChart } from '../components/EndpointLatencyChart';
 import { GcpMetricsPanel } from '../components/GcpMetricsPanel';
 import { useLoadTestStream } from '../hooks/useLoadTestStream';
 import type { LoadTestConfig } from '../types';
@@ -95,6 +96,7 @@ export function Dashboard() {
         <>
           <SummaryBar summary={stream.summary} completed={stream.completed} />
           <LatencyChart data={stream.chartPoints} />
+          <EndpointLatencyChart records={stream.allRecords} />
           <ThroughputChart data={stream.chartPoints} />
           <ClickHouseCharts data={stream.chMetrics} />
           <EndpointTable stats={stream.endpointStats} />

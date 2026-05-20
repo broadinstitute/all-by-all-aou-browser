@@ -345,7 +345,8 @@ async fn run_session(
 // ---------------------------------------------------------------------------
 
 /// Query to fetch ClickHouse system metrics in a single roundtrip.
-/// Returns: active_queries, memory_used_gb, memory_total_gb, cpu_user_sum, read_bytes_sum, merges
+/// Fields: active_queries, memory_used_gb, memory_total_gb, cpu_user_sum, read_bytes_sum,
+///         merges, query_memory_gb, thread_active, thread_total, cpu_wait_us, io_wait_us, page_cache_miss
 const CH_METRICS_QUERY: &str = r#"
 SELECT
     (SELECT count() FROM system.processes) AS active_queries,
@@ -353,7 +354,13 @@ SELECT
     (SELECT value FROM system.asynchronous_metrics WHERE metric = 'OSMemoryTotal') / 1073741824 AS memory_total_gb,
     (SELECT sum(value) FROM system.asynchronous_metrics WHERE metric LIKE 'OSUserTimeCPU%') AS cpu_user_sum,
     (SELECT sum(value) FROM system.asynchronous_metrics WHERE metric LIKE 'BlockReadBytes_%') AS read_bytes_sum,
-    (SELECT count() FROM system.merges WHERE is_mutation = 0) AS merges_running
+    (SELECT count() FROM system.merges WHERE is_mutation = 0) AS merges_running,
+    (SELECT value FROM system.metrics WHERE metric = 'MemoryTracking') / 1073741824 AS query_memory_gb,
+    (SELECT value FROM system.metrics WHERE metric = 'GlobalThreadActive') AS thread_active,
+    (SELECT value FROM system.metrics WHERE metric = 'GlobalThread') AS thread_total,
+    (SELECT value FROM system.events WHERE event = 'OSCPUWaitMicroseconds') AS cpu_wait_us,
+    (SELECT value FROM system.events WHERE event = 'OSIOWaitMicroseconds') AS io_wait_us,
+    (SELECT value FROM system.events WHERE event = 'ThreadPoolReaderPageCacheMiss') AS page_cache_miss
 FORMAT TabSeparated
 "#;
 
@@ -364,9 +371,16 @@ async fn monitor_clickhouse(
     event_tx: Option<broadcast::Sender<LoadTestEvent>>,
 ) -> Vec<ChMetricEvent> {
     let mut metrics = Vec::new();
-    let mut prev_cpu: Option<f64> = None;
-    let mut prev_read: Option<f64> = None;
-    let mut prev_time: Option<Instant> = None;
+    // Previous values for computing deltas on cumulative counters
+    struct PrevCounters {
+        cpu_user: f64,
+        read_bytes: f64,
+        cpu_wait_us: f64,
+        io_wait_us: f64,
+        page_cache_miss: f64,
+        time: Instant,
+    }
+    let mut prev: Option<PrevCounters> = None;
 
     while !cancel.load(Ordering::Relaxed) {
         let ts = Utc::now().timestamp_millis();
@@ -380,30 +394,45 @@ async fn monitor_clickhouse(
         {
             if let Ok(body) = resp.text().await {
                 let fields: Vec<&str> = body.trim().split('\t').collect();
-                if fields.len() >= 6 {
+                if fields.len() >= 12 {
                     let active_queries = fields[0].parse::<u64>().unwrap_or(0);
                     let memory_used_gb = fields[1].parse::<f64>().unwrap_or(0.0);
                     let memory_total_gb = fields[2].parse::<f64>().unwrap_or(0.0);
                     let cpu_raw = fields[3].parse::<f64>().unwrap_or(0.0);
                     let read_raw = fields[4].parse::<f64>().unwrap_or(0.0);
                     let merges_running = fields[5].parse::<u64>().unwrap_or(0);
+                    let query_memory_gb = fields[6].parse::<f64>().unwrap_or(0.0);
+                    let thread_active = fields[7].parse::<f64>().unwrap_or(0.0);
+                    let thread_total = fields[8].parse::<f64>().unwrap_or(1.0);
+                    let cpu_wait_raw = fields[9].parse::<f64>().unwrap_or(0.0);
+                    let io_wait_raw = fields[10].parse::<f64>().unwrap_or(0.0);
+                    let page_cache_miss_raw = fields[11].parse::<f64>().unwrap_or(0.0);
 
                     // Compute rates from deltas
-                    let dt = prev_time.map(|t| now.duration_since(t).as_secs_f64()).unwrap_or(2.0);
-                    let cpu_usage_pct = if let Some(prev) = prev_cpu {
-                        ((cpu_raw - prev) / dt) * 100.0
-                    } else {
-                        0.0
-                    };
-                    let read_bytes_sec = if let Some(prev) = prev_read {
-                        (read_raw - prev) / dt
-                    } else {
-                        0.0
-                    };
+                    let dt = prev.as_ref().map(|p| now.duration_since(p.time).as_secs_f64()).unwrap_or(2.0);
+                    let (cpu_usage_pct, read_bytes_sec, cpu_wait_us_sec, io_wait_us_sec, page_cache_miss_sec) =
+                        if let Some(ref p) = prev {
+                            (
+                                ((cpu_raw - p.cpu_user) / dt) * 100.0,
+                                (read_raw - p.read_bytes) / dt,
+                                (cpu_wait_raw - p.cpu_wait_us) / dt,
+                                (io_wait_raw - p.io_wait_us) / dt,
+                                (page_cache_miss_raw - p.page_cache_miss) / dt,
+                            )
+                        } else {
+                            (0.0, 0.0, 0.0, 0.0, 0.0)
+                        };
 
-                    prev_cpu = Some(cpu_raw);
-                    prev_read = Some(read_raw);
-                    prev_time = Some(now);
+                    prev = Some(PrevCounters {
+                        cpu_user: cpu_raw,
+                        read_bytes: read_raw,
+                        cpu_wait_us: cpu_wait_raw,
+                        io_wait_us: io_wait_raw,
+                        page_cache_miss: page_cache_miss_raw,
+                        time: now,
+                    });
+
+                    let thread_saturation = if thread_total > 0.0 { thread_active / thread_total } else { 0.0 };
 
                     let metric = ChMetricEvent {
                         timestamp_ms: ts,
@@ -413,6 +442,11 @@ async fn monitor_clickhouse(
                         cpu_usage_pct: cpu_usage_pct.max(0.0),
                         read_bytes_sec: read_bytes_sec.max(0.0),
                         merges_running,
+                        query_memory_gb,
+                        thread_saturation,
+                        cpu_wait_us_sec: cpu_wait_us_sec.max(0.0),
+                        io_wait_us_sec: io_wait_us_sec.max(0.0),
+                        page_cache_miss_sec: page_cache_miss_sec.max(0.0),
                     };
                     if let Some(ref etx) = event_tx {
                         let _ = etx.send(LoadTestEvent::ChMetric(metric.clone()));

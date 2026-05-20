@@ -253,33 +253,7 @@ pub async fn get_phenotype_overview(
 
     debug!("Cache miss for overview: {}", cache_key);
 
-    // Fetch genome peaks
-    let genome_peaks = fetch_peak_annotations(
-        &state,
-        &analysis_id,
-        ancestry,
-        "genome",
-        "genome_annotations",
-        "all",
-        10000,
-    )
-    .await
-    .unwrap_or_default();
-
-    // Fetch exome peaks
-    let exome_peaks = fetch_peak_annotations(
-        &state,
-        &analysis_id,
-        ancestry,
-        "exome",
-        "exome_annotations",
-        "all",
-        10000,
-    )
-    .await
-    .unwrap_or_default();
-
-    // Fetch significant burden hits
+    // Fetch genome peaks, exome peaks, and burden hits in parallel
     let burden_threshold = 2.5e-6;
     let burden_query = r#"
         SELECT
@@ -293,17 +267,48 @@ pub async fn get_phenotype_overview(
         ORDER BY pvalue ASC
     "#;
 
-    let burden_rows: Vec<SignificantBurdenRow> = state
-        .clickhouse
-        .query(burden_query)
-        .bind(&analysis_id)
-        .bind(ancestry)
-        .bind(burden_threshold)
-        .bind(burden_threshold)
-        .bind(burden_threshold)
-        .fetch_all()
-        .await
-        .unwrap_or_default();
+    let (genome_peaks, exome_peaks, burden_rows) = tokio::join!(
+        async {
+            fetch_peak_annotations(
+                &state,
+                &analysis_id,
+                ancestry,
+                "genome",
+                "genome_annotations",
+                "all",
+                10000,
+            )
+            .await
+            .unwrap_or_default()
+        },
+        async {
+            fetch_peak_annotations(
+                &state,
+                &analysis_id,
+                ancestry,
+                "exome",
+                "exome_annotations",
+                "all",
+                10000,
+            )
+            .await
+            .unwrap_or_default()
+        },
+        async {
+            let rows: Vec<SignificantBurdenRow> = state
+                .clickhouse
+                .query(burden_query)
+                .bind(&analysis_id)
+                .bind(ancestry)
+                .bind(burden_threshold)
+                .bind(burden_threshold)
+                .bind(burden_threshold)
+                .fetch_all()
+                .await
+                .unwrap_or_default();
+            rows
+        },
+    );
 
     // Build unified loci map
     let mut loci_map: HashMap<String, UnifiedLocus> = HashMap::new();

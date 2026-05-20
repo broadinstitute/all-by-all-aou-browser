@@ -16,6 +16,10 @@ const PHENOTYPE_SUMMARY_DDL: &str = include_str!("../sql/phenotype_summary.sql")
 const PHENOTYPE_SUMMARY_POPULATE: &str = include_str!("../sql/phenotype_summary_populate.sql");
 const GENE_SUMMARY_DDL: &str = include_str!("../sql/gene_summary.sql");
 const GENE_SUMMARY_POPULATE: &str = include_str!("../sql/gene_summary_populate.sql");
+const GENE_ASSOCIATIONS_BY_GENE_DDL: &str =
+    include_str!("../sql/gene_associations_by_gene.sql");
+const GENE_ASSOCIATIONS_BY_GENE_POPULATE: &str =
+    include_str!("../sql/gene_associations_by_gene_populate.sql");
 
 /// Configuration for a derived table
 #[derive(Debug, Clone)]
@@ -50,11 +54,20 @@ impl DerivedTableConfig {
         }
     }
 
+    fn gene_associations_by_gene() -> Self {
+        Self {
+            name: "gene_associations_by_gene",
+            ddl_sql: GENE_ASSOCIATIONS_BY_GENE_DDL,
+            populate_sql: GENE_ASSOCIATIONS_BY_GENE_POPULATE,
+        }
+    }
+
     fn all() -> Vec<Self> {
         vec![
             Self::top_variants_aggregated(),
             Self::phenotype_summary(),
             Self::gene_summary(),
+            Self::gene_associations_by_gene(),
         ]
     }
 }
@@ -70,6 +83,9 @@ pub enum DeriveCommand {
 
     /// Build the gene_summary table (gene index with counts)
     GeneSummary(DeriveArgs),
+
+    /// Build the gene_associations_by_gene table (gene_associations re-sorted by gene_id for fast lookups)
+    GeneAssociationsByGene(DeriveArgs),
 
     /// Build all derived tables
     All(DeriveArgs),
@@ -111,6 +127,10 @@ pub async fn run_derive(command: DeriveCommand) -> Result<()> {
         }
         DeriveCommand::GeneSummary(args) => {
             let config = DerivedTableConfig::gene_summary();
+            build_derived_table(&config, &args).await?;
+        }
+        DeriveCommand::GeneAssociationsByGene(args) => {
+            let config = DerivedTableConfig::gene_associations_by_gene();
             build_derived_table(&config, &args).await?;
         }
         DeriveCommand::All(args) => {
