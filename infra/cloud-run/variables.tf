@@ -39,3 +39,9 @@ variable "max_instances" {
   type        = number
   default     = 5
 }
+
+variable "clickhouse_url_override" {
+  description = "Override ClickHouse URL (e.g., pool LB address). If empty, uses the single VM IP."
+  type        = string
+  default     = ""
+}

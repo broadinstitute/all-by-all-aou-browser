@@ -62,4 +62,5 @@ data "google_compute_instance" "clickhouse_vm" {
 
 locals {
   clickhouse_internal_ip = data.google_compute_instance.clickhouse_vm.network_interface[0].network_ip
+  clickhouse_url = var.clickhouse_url_override != "" ? var.clickhouse_url_override : "http://${local.clickhouse_internal_ip}:8123"
 }

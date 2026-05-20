@@ -30,7 +30,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "CLICKHOUSE_URL"
-        value = "http://${local.clickhouse_internal_ip}:8123"
+        value = local.clickhouse_url
       }
 
       env {
