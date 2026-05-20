@@ -19,6 +19,7 @@ mod error;
 mod gene_models;
 mod gene_queries;
 mod genes;
+mod loadtest;
 mod models;
 mod phenotype;
 mod phenotype_display_names;
@@ -124,6 +125,13 @@ enum Commands {
         #[command(subcommand)]
         command: cli::DeriveCommand,
     },
+
+    /// Run load tests against a running server instance
+    LoadTest {
+        /// Path to the loadtest TOML configuration file
+        #[arg(long)]
+        config: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -185,6 +193,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Derive { command } => {
             cli::run_derive(command).await?;
+        }
+        Commands::LoadTest { config } => {
+            cli::run_loadtest(config).await?;
         }
     }
 
@@ -432,7 +443,8 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .route(
                     "/admin/cache/clear",
                     axum::routing::post(admin::pipeline::clear_cache),
-                ),
+                )
+                ,
         )
         .layer(CompressionLayer::new())
         .layer(
@@ -442,6 +454,12 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
                 .allow_headers(Any),
         )
         .with_state(state.clone());
+
+    // Mount load test dashboard routes (separate state)
+    let lt_db = loadtest::db::LoadTestDb::open("loadtest.db")
+        .expect("Failed to open loadtest.db");
+    let lt_state = Arc::new(loadtest::LoadTestState::new(lt_db));
+    let app = app.nest("/api/loadtest", loadtest::api::router(lt_state));
 
     // Warm the cache in the background for the heaviest queries
     tokio::spawn(warm_cache(state));

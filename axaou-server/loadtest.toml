@@ -1,0 +1,39 @@
+# Load Test Configuration
+# Usage: cargo run -- load-test --config loadtest.toml
+
+[target]
+url = "https://allbyall.researchallofus.org"
+# Optional: monitor ClickHouse active query count during the test
+# clickhouse_url = "http://localhost:8123"
+
+[load]
+# "static" = fixed concurrency, "ramp" = gradually increase users
+mode = "static"
+# For static mode: number of concurrent users
+concurrency = 10
+# For ramp mode: start with this many users
+ramp_start = 5
+# For ramp mode: add this many users each interval
+ramp_step = 5
+# For ramp mode: seconds between adding more users
+ramp_interval_secs = 10
+# Hard stop after this many seconds
+max_duration_secs = 60
+# Total sessions to run (0 = use max_duration_secs instead)
+sessions = 0
+
+[abort]
+# Stop if rolling p95 latency exceeds this (ms)
+p95_latency_ms = 5000
+# Stop if rolling error rate exceeds this (0.0 - 1.0)
+error_rate = 0.05
+
+# Optional: fetch Cloud Run metrics after the test
+# Requires `gcloud auth application-default login`
+[gcp]
+project_id = "aou-neale-gwas-browser"
+service_name = "axaou-backend-prod"
+
+[output]
+json_file = "loadtest-results.json"
+html_file = "loadtest-report.html"

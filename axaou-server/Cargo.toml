@@ -38,6 +38,12 @@ clap = { version = "4.4", features = ["derive"] }
 # Random sampling
 rand = "0.9"
 
+# HTTP client (for load testing)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Date/time (for GCP monitoring timestamps)
+chrono = { version = "0.4", features = ["serde"] }
+
 # Hail Data Access
 # For local dev: genohype-core = { path = "../../genohype/core", features = ["genomic"] }
 genohype-core = { git = "https://github.com/broadinstitute/genohype.git", features = ["genomic"] }
@@ -47,3 +53,12 @@ tiny-skia = "0.11"
 
 # Unix resource limits
 rlimit = "0.10"
+
+# SQLite for load test history
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# UUID generation for load test run IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Async SSE support
+tokio-stream = { version = "0.1", features = ["sync"] }
