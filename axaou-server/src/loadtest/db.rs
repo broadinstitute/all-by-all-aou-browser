@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS ch_metrics (
     cpu_usage_pct REAL NOT NULL DEFAULT 0.0,
     read_bytes_sec REAL NOT NULL DEFAULT 0.0,
     merges_running INTEGER NOT NULL DEFAULT 0,
+    query_memory_gb REAL NOT NULL DEFAULT 0.0,
+    thread_saturation REAL NOT NULL DEFAULT 0.0,
+    cpu_wait_us_sec REAL NOT NULL DEFAULT 0.0,
+    io_wait_us_sec REAL NOT NULL DEFAULT 0.0,
+    page_cache_miss_sec REAL NOT NULL DEFAULT 0.0,
     FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 
@@ -153,6 +158,19 @@ impl LoadTestDb {
             .with_context(|| format!("Failed to open SQLite at {:?}", path))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
         conn.execute_batch(SCHEMA)?;
+
+        // Migrate: add new columns to existing ch_metrics tables
+        for col in &[
+            ("query_memory_gb", "REAL NOT NULL DEFAULT 0.0"),
+            ("thread_saturation", "REAL NOT NULL DEFAULT 0.0"),
+            ("cpu_wait_us_sec", "REAL NOT NULL DEFAULT 0.0"),
+            ("io_wait_us_sec", "REAL NOT NULL DEFAULT 0.0"),
+            ("page_cache_miss_sec", "REAL NOT NULL DEFAULT 0.0"),
+        ] {
+            let _ = conn.execute_batch(
+                &format!("ALTER TABLE ch_metrics ADD COLUMN {} {}", col.0, col.1),
+            );
+        }
 
         let (tx, rx) = mpsc::channel::<DbCommand>(4096);
 
@@ -304,8 +322,8 @@ fn db_writer_loop(conn: Connection, mut rx: mpsc::Receiver<DbCommand>) {
                     if let Ok(tx) = tx {
                         for m in &metrics {
                             let _ = tx.execute(
-                                "INSERT INTO ch_metrics (run_id, timestamp_ms, active_queries, memory_used_gb, memory_total_gb, cpu_usage_pct, read_bytes_sec, merges_running) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                                rusqlite::params![run_id, m.timestamp_ms, m.active_queries, m.memory_used_gb, m.memory_total_gb, m.cpu_usage_pct, m.read_bytes_sec, m.merges_running],
+                                "INSERT INTO ch_metrics (run_id, timestamp_ms, active_queries, memory_used_gb, memory_total_gb, cpu_usage_pct, read_bytes_sec, merges_running, query_memory_gb, thread_saturation, cpu_wait_us_sec, io_wait_us_sec, page_cache_miss_sec) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                                rusqlite::params![run_id, m.timestamp_ms, m.active_queries, m.memory_used_gb, m.memory_total_gb, m.cpu_usage_pct, m.read_bytes_sec, m.merges_running, m.query_memory_gb, m.thread_saturation, m.cpu_wait_us_sec, m.io_wait_us_sec, m.page_cache_miss_sec],
                             );
                         }
                         let _ = tx.commit();
@@ -457,7 +475,7 @@ fn get_run_impl(conn: &Connection, run_id: &str) -> Result<Option<RunDetail>> {
     // Get CH metrics
     let clickhouse_metrics = {
         let mut stmt = conn.prepare(
-            "SELECT timestamp_ms, active_queries, memory_used_gb, memory_total_gb, cpu_usage_pct, read_bytes_sec, merges_running FROM ch_metrics WHERE run_id = ?1 ORDER BY timestamp_ms ASC",
+            "SELECT timestamp_ms, active_queries, memory_used_gb, memory_total_gb, cpu_usage_pct, read_bytes_sec, merges_running, query_memory_gb, thread_saturation, cpu_wait_us_sec, io_wait_us_sec, page_cache_miss_sec FROM ch_metrics WHERE run_id = ?1 ORDER BY timestamp_ms ASC",
         )?;
         let rows = stmt.query_map(rusqlite::params![run_id], |row| {
             Ok(ChMetricEvent {
@@ -468,12 +486,11 @@ fn get_run_impl(conn: &Connection, run_id: &str) -> Result<Option<RunDetail>> {
                 cpu_usage_pct: row.get::<_, Option<f64>>(4)?.unwrap_or(0.0),
                 read_bytes_sec: row.get::<_, Option<f64>>(5)?.unwrap_or(0.0),
                 merges_running: row.get::<_, Option<u64>>(6)?.unwrap_or(0),
-                // These are only available in live SSE, not persisted to DB
-                query_memory_gb: 0.0,
-                thread_saturation: 0.0,
-                cpu_wait_us_sec: 0.0,
-                io_wait_us_sec: 0.0,
-                page_cache_miss_sec: 0.0,
+                query_memory_gb: row.get::<_, Option<f64>>(7)?.unwrap_or(0.0),
+                thread_saturation: row.get::<_, Option<f64>>(8)?.unwrap_or(0.0),
+                cpu_wait_us_sec: row.get::<_, Option<f64>>(9)?.unwrap_or(0.0),
+                io_wait_us_sec: row.get::<_, Option<f64>>(10)?.unwrap_or(0.0),
+                page_cache_miss_sec: row.get::<_, Option<f64>>(11)?.unwrap_or(0.0),
             })
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()?

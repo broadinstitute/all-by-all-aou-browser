@@ -82,6 +82,11 @@ export interface RunDetail {
     cpu_usage_pct?: number;
     read_bytes_sec?: number;
     merges_running?: number;
+    query_memory_gb?: number;
+    thread_saturation?: number;
+    cpu_wait_us_sec?: number;
+    io_wait_us_sec?: number;
+    page_cache_miss_sec?: number;
   }[];
   cloud_run_metrics: { timestamp_ms: number; metric_type: string; value: number }[];
 }

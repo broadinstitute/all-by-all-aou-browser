@@ -44,8 +44,10 @@ function formatBytes(b: number): string {
 }
 
 export function GcpMetricsPanel({ runId, completed, gcpConfigured }: Props) {
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [completedAt, setCompletedAt] = useState<number | null>(null);
+  // If completed is already true on first render, this is a historical view
+  const [wasCompletedOnMount] = useState(completed);
+  const [countdown, setCountdown] = useState<number | null>(wasCompletedOnMount ? 0 : null);
+  const [completedAt, setCompletedAt] = useState<number | null>(wasCompletedOnMount ? Date.now() : null);
   const [metrics, setMetrics] = useState<RunDetail['cloud_run_metrics'] | null>(null);
   const [polling, setPolling] = useState(false);
 
@@ -56,7 +58,7 @@ export function GcpMetricsPanel({ runId, completed, gcpConfigured }: Props) {
   }, [completed, completedAt]);
 
   useEffect(() => {
-    if (!completedAt || !gcpConfigured || metrics) return;
+    if (wasCompletedOnMount || !completedAt || !gcpConfigured || metrics) return;
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - completedAt) / 1000);
       const remaining = 65 - elapsed;
@@ -68,7 +70,7 @@ export function GcpMetricsPanel({ runId, completed, gcpConfigured }: Props) {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [completedAt, gcpConfigured, metrics]);
+  }, [wasCompletedOnMount, completedAt, gcpConfigured, metrics]);
 
   useEffect(() => {
     if (countdown !== 0 || !gcpConfigured || metrics || polling) return;

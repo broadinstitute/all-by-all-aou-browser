@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { LatencyChart, ThroughputChart, ClickHouseCharts } from '../components/LiveCharts';
+import { EndpointLatencyChart } from '../components/EndpointLatencyChart';
 import { EndpointTable } from '../components/EndpointTable';
+import { ErrorLog } from '../components/ErrorLog';
+import { GcpMetricsPanel } from '../components/GcpMetricsPanel';
 import type { RunDetail as RunDetailType } from '../types';
+import type { ChMetricPoint } from '../hooks/useLoadTestStream';
+
+function pct(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  return sorted[Math.min(Math.floor(sorted.length * p), sorted.length - 1)];
+}
 
 export function RunDetail() {
   const { runId } = useParams<{ runId: string }>();
@@ -45,15 +54,38 @@ export function RunDetail() {
     .sort(([a], [b]) => a - b)
     .map(([t, recs]) => {
       const lats = recs.map(r => r.latency_ms).sort((a, b) => a - b);
-      const pct = (p: number) => lats[Math.floor(lats.length * p)] ?? 0;
       return {
         t,
-        p50: pct(0.5),
-        p95: pct(0.95),
+        p50: pct(lats, 0.5),
+        p95: pct(lats, 0.95),
         rps: recs.length,
         errors: recs.filter(r => r.error).length,
       };
     });
+
+  // Build CH metrics chart data
+  const chData: ChMetricPoint[] = detail.clickhouse_metrics.length > 0
+    ? (() => {
+        const chStart = Math.min(...detail.clickhouse_metrics.map(m => m.timestamp_ms));
+        return detail.clickhouse_metrics.map(m => ({
+          t: Math.round((m.timestamp_ms - chStart) / 1000),
+          active_queries: m.active_queries ?? 0,
+          memory_used_gb: m.memory_used_gb ?? 0,
+          memory_total_gb: m.memory_total_gb ?? 0,
+          cpu_usage_pct: m.cpu_usage_pct ?? 0,
+          read_mb_sec: (m.read_bytes_sec ?? 0) / (1024 * 1024),
+          merges_running: m.merges_running ?? 0,
+          query_memory_gb: m.query_memory_gb ?? 0,
+          thread_saturation: (m.thread_saturation ?? 0) * 100,
+          cpu_wait_ms_sec: (m.cpu_wait_us_sec ?? 0) / 1000,
+          io_wait_ms_sec: (m.io_wait_us_sec ?? 0) / 1000,
+          page_cache_miss_sec: m.page_cache_miss_sec ?? 0,
+        }));
+      })()
+    : [];
+
+  // Check if GCP was configured (from the stored config)
+  const gcpConfigured = !!(summary.config?.gcp?.project_id);
 
   return (
     <div>
@@ -94,58 +126,14 @@ export function RunDetail() {
       </div>
 
       <LatencyChart data={chartPoints} />
+      <EndpointLatencyChart records={detail.time_series} />
       <ThroughputChart data={chartPoints} />
-
-      {detail.clickhouse_metrics.length > 0 && (() => {
-        const chStart = Math.min(...detail.clickhouse_metrics.map(m => m.timestamp_ms));
-        const chData = detail.clickhouse_metrics.map(m => ({
-          t: Math.round((m.timestamp_ms - chStart) / 1000),
-          active_queries: m.active_queries,
-          memory_used_gb: m.memory_used_gb ?? 0,
-          memory_total_gb: m.memory_total_gb ?? 0,
-          cpu_usage_pct: m.cpu_usage_pct ?? 0,
-          read_mb_sec: (m.read_bytes_sec ?? 0) / (1024 * 1024),
-          merges_running: m.merges_running ?? 0,
-          query_memory_gb: (m as Record<string, unknown>).query_memory_gb as number ?? 0,
-          thread_saturation: ((m as Record<string, unknown>).thread_saturation as number ?? 0) * 100,
-          cpu_wait_ms_sec: ((m as Record<string, unknown>).cpu_wait_us_sec as number ?? 0) / 1000,
-          io_wait_ms_sec: ((m as Record<string, unknown>).io_wait_us_sec as number ?? 0) / 1000,
-          page_cache_miss_sec: (m as Record<string, unknown>).page_cache_miss_sec as number ?? 0,
-        }));
-        return <ClickHouseCharts data={chData} />;
-      })()}
-
-      {detail.cloud_run_metrics.length > 0 && (
-        <div style={{ background: 'white', padding: 16, borderRadius: 8, marginBottom: 16 }}>
-          <h3 style={{ margin: '0 0 8px' }}>Cloud Run Metrics</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '6px 12px' }}>Metric</th>
-                <th style={{ textAlign: 'right', padding: '6px 12px' }}>Time</th>
-                <th style={{ textAlign: 'right', padding: '6px 12px' }}>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.cloud_run_metrics.map((m, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '4px 12px', fontFamily: 'monospace', fontSize: 12 }}>
-                    {m.metric_type.split('/').pop()}
-                  </td>
-                  <td style={{ padding: '4px 12px', textAlign: 'right', fontSize: 12 }}>
-                    {new Date(m.timestamp_ms).toLocaleTimeString()}
-                  </td>
-                  <td style={{ padding: '4px 12px', textAlign: 'right' }}>
-                    {m.value.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
+      <ClickHouseCharts data={chData} />
       <EndpointTable stats={detail.endpoints} />
+      <ErrorLog records={detail.time_series} />
+      {gcpConfigured && runId && (
+        <GcpMetricsPanel runId={runId} completed={true} gcpConfigured={true} />
+      )}
     </div>
   );
 }
