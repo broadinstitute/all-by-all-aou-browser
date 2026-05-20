@@ -11,6 +11,7 @@ export interface LoadTestConfig {
     ramp_interval_secs: number;
     max_duration_secs: number;
     sessions: number;
+    think_time_secs: number;
   };
   abort: {
     p95_latency_ms: number;

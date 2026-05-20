@@ -24,6 +24,11 @@ export interface ChMetricPoint {
   page_cache_miss_sec: number;
 }
 
+export interface UserCountPoint {
+  t: number;
+  users: number;
+}
+
 interface StreamState {
   connected: boolean;
   completed: boolean;
@@ -32,6 +37,7 @@ interface StreamState {
   chartPoints: ChartPoint[];
   allRecords: RequestRecord[];
   chMetrics: ChMetricPoint[];
+  userCounts: UserCountPoint[];
   gcpReady: boolean;
 }
 
@@ -87,6 +93,7 @@ export function useLoadTestStream(runId: string | null) {
     chartPoints: [],
     allRecords: [],
     chMetrics: [],
+    userCounts: [],
     gcpReady: false,
   });
 
@@ -202,7 +209,12 @@ export function useLoadTestStream(runId: string | null) {
           }));
         } else if (event.type === 'summary') {
           const { type: _, ...summary } = event;
-          setState(prev => ({ ...prev, summary: summary as RollingSummary }));
+          const s = summary as RollingSummary;
+          setState(prev => ({
+            ...prev,
+            summary: s,
+            userCounts: [...prev.userCounts, { t: Math.round(s.elapsed_secs), users: s.active_users }],
+          }));
         } else if (event.type === 'gcp_metrics_ready') {
           setState(prev => ({ ...prev, gcpReady: true }));
         } else if (event.type === 'run_completed') {

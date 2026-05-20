@@ -3,7 +3,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 
-import type { ChartPoint, ChMetricPoint } from '../hooks/useLoadTestStream';
+import type { ChartPoint, ChMetricPoint, UserCountPoint } from '../hooks/useLoadTestStream';
 
 interface Props {
   data: ChartPoint[];
@@ -41,6 +41,25 @@ export function ThroughputChart({ data }: Props) {
           <Bar dataKey="rps" name="Requests" fill="#059669" isAnimationActive={false} />
           <Bar dataKey="errors" name="Errors" fill="#dc2626" isAnimationActive={false} />
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function ActiveUsersChart({ data }: { data: UserCountPoint[] }) {
+  if (data.length < 2) return null;
+
+  return (
+    <div style={{ background: 'white', padding: 16, borderRadius: 8, marginBottom: 16 }}>
+      <h3 style={{ margin: '0 0 8px' }}>Active Users</h3>
+      <ResponsiveContainer width="100%" height={150}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="t" tickFormatter={v => `${v}s`} />
+          <YAxis allowDecimals={false} />
+          <Tooltip labelFormatter={v => `${v}s`} />
+          <Line type="stepAfter" dataKey="users" name="Users" stroke="#7c3aed" dot={false} strokeWidth={2} isAnimationActive={false} />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

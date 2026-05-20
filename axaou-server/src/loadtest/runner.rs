@@ -189,11 +189,24 @@ async fn fire_req(
 // Session Simulation
 // ---------------------------------------------------------------------------
 
+async fn think(secs: u64) {
+    if secs > 0 {
+        // Randomize ±50% to avoid synchronized bursts
+        let jitter = {
+            let mut rng = rand::rng();
+            rng.random_range(0.5..1.5f64)
+        };
+        let ms = (secs as f64 * jitter * 1000.0) as u64;
+        tokio::time::sleep(Duration::from_millis(ms)).await;
+    }
+}
+
 async fn run_session(
     client: &reqwest::Client,
     base_url: &str,
     seed: &SeedData,
     tx: &mpsc::UnboundedSender<RequestRecord>,
+    think_time_secs: u64,
 ) {
     let (aid, gid) = {
         let mut rng = rand::rng();
@@ -204,6 +217,7 @@ async fn run_session(
     let aid = &aid;
     let gid = &gid;
 
+    // Step 1: User lands on phenotype list
     let rec = fire_req(
         client,
         "phenotypes_summary",
@@ -212,6 +226,10 @@ async fn run_session(
     .await;
     let _ = tx.send(rec);
 
+    // User reads the phenotype list, picks one
+    think(think_time_secs).await;
+
+    // Step 2: User views phenotype overview + loci (loaded together)
     let rec = fire_req(
         client,
         "phenotype_overview",
@@ -234,6 +252,10 @@ async fn run_session(
     .await;
     let _ = tx.send(rec);
 
+    // User studies the manhattan plot and loci table
+    think(think_time_secs).await;
+
+    // Step 3: User clicks a locus
     if !seed.loci.is_empty() {
         let locus_idx = {
             let mut rng = rand::rng();
@@ -271,6 +293,10 @@ async fn run_session(
         let _ = tx.send(r3);
     }
 
+    // User examines the locus plot, decides to explore a gene
+    think(think_time_secs).await;
+
+    // Step 4: User clicks a gene — loads gene details (parallel burst)
     let (r1, r2, r3, r4, r5, r6) = tokio::join!(
         fire_req(
             client,
@@ -324,6 +350,9 @@ async fn run_session(
     let _ = tx.send(r4);
     let _ = tx.send(r5);
     let _ = tx.send(r6);
+
+    // User reviews gene details, 30% chance they click PheWAS
+    think(think_time_secs).await;
 
     let do_phewas = {
         let mut rng = rand::rng();
@@ -989,6 +1018,8 @@ pub async fn run_loadtest(config: LoadTestConfig, opts: RunnerOptions) -> Result
         tokio::spawn(monitor_clickhouse(ch_client, ch_url, ch_cancel, ch_event_tx))
     });
 
+    let think_time_secs = config.load.think_time_secs;
+
     // Worker spawner closure
     let spawn_worker = |tx: mpsc::UnboundedSender<RequestRecord>,
                         client: reqwest::Client,
@@ -999,7 +1030,8 @@ pub async fn run_loadtest(config: LoadTestConfig, opts: RunnerOptions) -> Result
                         active_users: Arc<AtomicUsize>,
                         max_sessions: usize,
                         test_start: Instant,
-                        max_duration: Duration| {
+                        max_duration: Duration,
+                        think_time: u64| {
         tokio::spawn(async move {
             active_users.fetch_add(1, Ordering::Relaxed);
             loop {
@@ -1016,7 +1048,7 @@ pub async fn run_loadtest(config: LoadTestConfig, opts: RunnerOptions) -> Result
                         break;
                     }
                 }
-                run_session(&client, &base_url, &seed, &tx).await;
+                run_session(&client, &base_url, &seed, &tx, think_time).await;
                 if max_sessions == 0 {
                     session_counter.fetch_add(1, Ordering::Relaxed);
                 }
@@ -1044,6 +1076,7 @@ pub async fn run_loadtest(config: LoadTestConfig, opts: RunnerOptions) -> Result
             max_sessions,
             test_start,
             max_duration,
+            think_time_secs,
         ));
     }
 
@@ -1237,6 +1270,7 @@ pub async fn run_loadtest(config: LoadTestConfig, opts: RunnerOptions) -> Result
                             max_sessions,
                             test_start,
                             max_duration,
+                            think_time_secs,
                         );
                     }
                     next_ramp = Instant::now() + ramp_interval;

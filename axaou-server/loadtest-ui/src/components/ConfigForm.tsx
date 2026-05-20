@@ -11,6 +11,7 @@ const DEFAULT_CONFIG: LoadTestConfig = {
     ramp_interval_secs: 15,
     max_duration_secs: 300,
     sessions: 0,
+    think_time_secs: 5,
   },
   abort: {
     p95_latency_ms: 30000,
@@ -141,6 +142,17 @@ export function ConfigForm({ onStart, disabled }: Props) {
           min={0}
           value={config.load.sessions}
           onChange={e => update('load', 'sessions', +e.target.value)}
+          style={{ width: '100%', padding: 6, marginTop: 4 }}
+        />
+      </label>
+
+      <label>
+        Think Time (s)
+        <input
+          type="number"
+          min={0}
+          value={config.load.think_time_secs}
+          onChange={e => update('load', 'think_time_secs', +e.target.value)}
           style={{ width: '100%', padding: 6, marginTop: 4 }}
         />
       </label>

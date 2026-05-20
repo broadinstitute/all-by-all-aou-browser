@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ConfigForm } from '../components/ConfigForm';
 import { SummaryBar } from '../components/SummaryBar';
-import { LatencyChart, ThroughputChart, ClickHouseCharts } from '../components/LiveCharts';
+import { LatencyChart, ThroughputChart, ActiveUsersChart, ClickHouseCharts } from '../components/LiveCharts';
 import { EndpointTable } from '../components/EndpointTable';
 import { ErrorLog } from '../components/ErrorLog';
 import { EndpointLatencyChart } from '../components/EndpointLatencyChart';
@@ -98,6 +98,7 @@ export function Dashboard() {
           <SummaryBar summary={stream.summary} completed={stream.completed} />
           <LatencyChart data={stream.chartPoints} />
           <EndpointLatencyChart records={stream.allRecords} />
+          <ActiveUsersChart data={stream.userCounts} />
           <ThroughputChart data={stream.chartPoints} />
           <ClickHouseCharts data={stream.chMetrics} />
           <RequestFeed records={stream.allRecords} />

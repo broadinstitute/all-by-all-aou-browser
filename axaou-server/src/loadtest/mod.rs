@@ -124,6 +124,11 @@ pub struct LoadConfig {
     pub sessions: usize,
     #[serde(default)]
     pub seed: Option<u64>,
+    /// Simulated think time between steps in a session (seconds).
+    /// Models real user behavior — reading results before clicking next.
+    /// 0 = no delay (stress test mode). Default: 0.
+    #[serde(default)]
+    pub think_time_secs: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
