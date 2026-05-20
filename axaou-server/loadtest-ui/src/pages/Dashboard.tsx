@@ -5,6 +5,7 @@ import { LatencyChart, ThroughputChart, ClickHouseCharts } from '../components/L
 import { EndpointTable } from '../components/EndpointTable';
 import { ErrorLog } from '../components/ErrorLog';
 import { EndpointLatencyChart } from '../components/EndpointLatencyChart';
+import { RequestFeed } from '../components/RequestFeed';
 import { GcpMetricsPanel } from '../components/GcpMetricsPanel';
 import { useLoadTestStream } from '../hooks/useLoadTestStream';
 import type { LoadTestConfig } from '../types';
@@ -99,6 +100,7 @@ export function Dashboard() {
           <EndpointLatencyChart records={stream.allRecords} />
           <ThroughputChart data={stream.chartPoints} />
           <ClickHouseCharts data={stream.chMetrics} />
+          <RequestFeed records={stream.allRecords} />
           <EndpointTable stats={stream.endpointStats} />
           <ErrorLog records={stream.allRecords} />
           <GcpMetricsPanel runId={runId!} completed={stream.completed} gcpConfigured={gcpConfigured} />

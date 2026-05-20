@@ -455,11 +455,17 @@ async fn run_server(port: u16, assets_file: Option<PathBuf>) -> anyhow::Result<(
         )
         .with_state(state.clone());
 
-    // Mount load test dashboard routes (separate state)
-    let lt_db = loadtest::db::LoadTestDb::open("loadtest.db")
-        .expect("Failed to open loadtest.db");
-    let lt_state = Arc::new(loadtest::LoadTestState::new(lt_db));
-    let app = app.nest("/api/loadtest", loadtest::api::router(lt_state));
+    // Mount load test dashboard routes (optional — skipped on read-only filesystems like Cloud Run)
+    let app = match loadtest::db::LoadTestDb::open("loadtest.db") {
+        Ok(lt_db) => {
+            let lt_state = Arc::new(loadtest::LoadTestState::new(lt_db));
+            app.nest("/api/loadtest", loadtest::api::router(lt_state))
+        }
+        Err(e) => {
+            tracing::warn!("Load test dashboard disabled: {}", e);
+            app
+        }
+    };
 
     // Warm the cache in the background for the heaviest queries
     tokio::spawn(warm_cache(state));
