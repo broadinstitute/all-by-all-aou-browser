@@ -106,6 +106,11 @@ export function RunDetail() {
           cpu_usage_pct: m.cpu_usage_pct ?? 0,
           read_mb_sec: (m.read_bytes_sec ?? 0) / (1024 * 1024),
           merges_running: m.merges_running ?? 0,
+          query_memory_gb: (m as Record<string, unknown>).query_memory_gb as number ?? 0,
+          thread_saturation: ((m as Record<string, unknown>).thread_saturation as number ?? 0) * 100,
+          cpu_wait_ms_sec: ((m as Record<string, unknown>).cpu_wait_us_sec as number ?? 0) / 1000,
+          io_wait_ms_sec: ((m as Record<string, unknown>).io_wait_us_sec as number ?? 0) / 1000,
+          page_cache_miss_sec: (m as Record<string, unknown>).page_cache_miss_sec as number ?? 0,
         }));
         return <ClickHouseCharts data={chData} />;
       })()}

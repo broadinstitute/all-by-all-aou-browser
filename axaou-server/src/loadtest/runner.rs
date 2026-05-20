@@ -359,7 +359,7 @@ SELECT
     (SELECT value FROM system.metrics WHERE metric = 'GlobalThreadActive') AS thread_active,
     (SELECT value FROM system.metrics WHERE metric = 'GlobalThread') AS thread_total,
     (SELECT value FROM system.events WHERE event = 'OSCPUWaitMicroseconds') AS cpu_wait_us,
-    (SELECT value FROM system.events WHERE event = 'OSIOWaitMicroseconds') AS io_wait_us,
+    (SELECT value FROM system.events WHERE event = 'SynchronousReadWaitMicroseconds') AS io_wait_us,
     (SELECT value FROM system.events WHERE event = 'ThreadPoolReaderPageCacheMiss') AS page_cache_miss
 FORMAT TabSeparated
 "#;

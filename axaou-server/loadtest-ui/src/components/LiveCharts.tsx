@@ -50,9 +50,9 @@ export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
   if (data.length === 0) return null;
 
   const latest = data[data.length - 1];
-  const memPct = latest.memory_total_gb > 0
-    ? ((latest.memory_used_gb / latest.memory_total_gb) * 100).toFixed(1)
-    : '?';
+  const memUsed = latest.memory_used_gb ?? 0;
+  const memTotal = latest.memory_total_gb ?? 0;
+  const memPct = memTotal > 0 ? ((memUsed / memTotal) * 100).toFixed(1) : '?';
 
   return (
     <div style={{ background: 'white', padding: 16, borderRadius: 8, marginBottom: 16 }}>
@@ -60,11 +60,11 @@ export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
 
       {/* Summary stats */}
       <div style={{ display: 'flex', gap: 20, marginBottom: 12, fontSize: 13, flexWrap: 'wrap' }}>
-        <span>Memory: <b>{latest.memory_used_gb.toFixed(1)}</b> / {latest.memory_total_gb.toFixed(1)} GB ({memPct}%)</span>
-        <span>Query mem: <b>{latest.query_memory_gb.toFixed(2)}</b> GB</span>
-        <span>Queries: <b>{latest.active_queries}</b></span>
-        <span>Threads: <b>{latest.thread_saturation.toFixed(0)}%</b> saturated</span>
-        <span>Merges: <b>{latest.merges_running}</b></span>
+        <span>Memory: <b>{memUsed.toFixed(1)}</b> / {memTotal.toFixed(1)} GB ({memPct}%)</span>
+        <span>Query mem: <b>{(latest.query_memory_gb ?? 0).toFixed(2)}</b> GB</span>
+        <span>Queries: <b>{latest.active_queries ?? 0}</b></span>
+        <span>Threads: <b>{(latest.thread_saturation ?? 0).toFixed(0)}%</b> saturated</span>
+        <span>Merges: <b>{latest.merges_running ?? 0}</b></span>
       </div>
 
       {/* Queries + Merges */}
@@ -118,7 +118,7 @@ export function ClickHouseCharts({ data }: { data: ChMetricPoint[] }) {
           <Legend />
           <Line yAxisId="pct" type="monotone" dataKey="thread_saturation" name="Thread Saturation %" stroke="#dc2626" dot={false} strokeWidth={2} isAnimationActive={false} />
           <Line yAxisId="rate" type="monotone" dataKey="cpu_wait_ms_sec" name="CPU Wait (ms/s)" stroke="#f59e0b" dot={false} strokeWidth={2} isAnimationActive={false} />
-          <Line yAxisId="rate" type="monotone" dataKey="io_wait_ms_sec" name="IO Wait (ms/s)" stroke="#7c3aed" dot={false} strokeWidth={2} isAnimationActive={false} />
+          <Line yAxisId="rate" type="monotone" dataKey="io_wait_ms_sec" name="Disk Read Wait (ms/s)" stroke="#7c3aed" dot={false} strokeWidth={2} isAnimationActive={false} />
           <Line yAxisId="rate" type="monotone" dataKey="page_cache_miss_sec" name="Cache Miss/s" stroke="#0891b2" dot={false} strokeWidth={1} strokeDasharray="5 5" isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
