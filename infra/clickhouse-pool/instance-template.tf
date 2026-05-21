@@ -23,11 +23,12 @@ resource "google_compute_instance_template" "clickhouse_replica" {
     # No external IP — internal only
   }
 
-  # Boot disk
+  # Boot disk — uses custom image with ClickHouse pre-installed
+  # (no internet access needed at startup)
   disk {
     auto_delete  = true
     boot         = true
-    source_image = "debian-cloud/debian-12"
+    source_image = "projects/${var.project_id}/global/images/family/axaou-clickhouse"
     disk_size_gb = 50
     disk_type    = "pd-ssd"
   }

@@ -1,13 +1,16 @@
 #!/bin/bash
 set -e
 
-# Replica startup: the data disk is already formatted and populated from the snapshot.
-# We just mount it and start ClickHouse.
+# Replica startup: boot image has ClickHouse pre-installed,
+# data disk is pre-populated from snapshot. Just mount and start.
 
-DATA_DISK="/dev/sdb"
 MOUNT_POINT="/data"
 
-# Mount the data disk (already has ext4 from the snapshot)
+# Find the data disk — it's the large unpartitioned disk (not the boot disk)
+DATA_DISK=$(lsblk -dnbo NAME,SIZE,TYPE | awk '$3=="disk"' | sort -k2 -nr | head -1 | awk '{print "/dev/"$1}')
+echo "Detected data disk: $DATA_DISK"
+
+# Mount the data disk (already formatted from snapshot)
 mkdir -p $MOUNT_POINT
 mount $DATA_DISK $MOUNT_POINT
 
@@ -15,15 +18,7 @@ if ! grep -q "$MOUNT_POINT" /etc/fstab; then
     echo "$DATA_DISK $MOUNT_POINT ext4 defaults,nofail 0 2" >> /etc/fstab
 fi
 
-# Install ClickHouse
-apt-get update
-apt-get install -y apt-transport-https ca-certificates curl gnupg
-curl -fsSL https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key | gpg --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] https://packages.clickhouse.com/deb stable main" > /etc/apt/sources.list.d/clickhouse.list
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y clickhouse-server clickhouse-client
-
-# Configure ClickHouse to use the data disk
+# Ensure ClickHouse config points to data disk
 cat > /etc/clickhouse-server/config.d/data-paths.xml << 'EOF'
 <clickhouse>
     <path>/data/clickhouse/</path>
@@ -33,7 +28,6 @@ cat > /etc/clickhouse-server/config.d/data-paths.xml << 'EOF'
 </clickhouse>
 EOF
 
-# Listen on all interfaces (for internal VPC load balancer)
 cat > /etc/clickhouse-server/config.d/listen.xml << 'EOF'
 <clickhouse>
     <listen_host>0.0.0.0</listen_host>
