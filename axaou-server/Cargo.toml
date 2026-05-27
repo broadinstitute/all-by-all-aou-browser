@@ -45,8 +45,7 @@ reqwest = { version = "0.12", features = ["json"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Hail Data Access
-# For local dev: genohype-core = { path = "../../genohype/core", features = ["genomic"] }
-genohype-core = { git = "https://github.com/broadinstitute/genohype.git", features = ["genomic"] }
+genohype-core = { path = "../../genohype/core", features = ["genomic"] }
 
 # 2D rasterization for server-rendered locus plots
 tiny-skia = "0.11"
