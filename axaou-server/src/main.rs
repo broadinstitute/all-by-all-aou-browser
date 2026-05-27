@@ -20,6 +20,7 @@ mod gene_models;
 mod gene_queries;
 mod genes;
 mod loadtest;
+mod mcp;
 mod models;
 mod phenotype;
 mod phenotype_display_names;
@@ -132,6 +133,18 @@ enum Commands {
         #[arg(long)]
         config: PathBuf,
     },
+
+    /// Run the MCP (Model Context Protocol) server
+    Mcp {
+        #[command(subcommand)]
+        command: McpCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum McpCommands {
+    /// Run MCP server over stdio transport
+    Stdio,
 }
 
 #[tokio::main]
@@ -196,6 +209,29 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LoadTest { config } => {
             cli::run_loadtest(config).await?;
+        }
+        Commands::Mcp { command } => {
+            run_mcp(&command).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Run the MCP server over stdio transport
+async fn run_mcp(cmd: &McpCommands) -> anyhow::Result<()> {
+    use rmcp::ServiceExt;
+
+    let clickhouse_client = clickhouse::client::connect();
+    let provider = std::sync::Arc::new(mcp::provider::AxaouMcpProvider::new(clickhouse_client));
+    let api_client = mcp::server::AouApiClient::new();
+    let server = mcp::server::AxaouMcpServer::new(provider, api_client);
+
+    match cmd {
+        McpCommands::Stdio => {
+            let transport = rmcp::transport::io::stdio();
+            let service = server.serve(transport).await?;
+            service.waiting().await?;
         }
     }
 
