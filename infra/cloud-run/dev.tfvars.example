@@ -1,0 +1,5 @@
+# Safe defaults for a development deployment.
+# Copy to dev.tfvars for local overrides; *.tfvars files remain ignored.
+env           = "dev"
+min_instances = 0
+max_instances = 5

@@ -1,0 +1,5 @@
+# Safe capacity settings for production.
+# Copy to prod.tfvars for local overrides; *.tfvars files remain ignored.
+env           = "prod"
+min_instances = 1
+max_instances = 5

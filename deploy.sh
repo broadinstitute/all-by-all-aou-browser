@@ -3,6 +3,7 @@
 # deploy.sh - One-command deployment for axaou-rust to Cloud Run
 #
 # Usage: ./deploy.sh [dev|prod] [--frontend-only]
+# Optional: TFVARS_FILE=/path/to/overrides.tfvars ./deploy.sh ...
 #
 # This script:
 # 1. Ensures Artifact Registry exists (terraform apply -target)
@@ -35,8 +36,23 @@ for arg in "$@"; do
 done
 PROJECT_ID="aou-neale-gwas-browser"
 REGION="us-central1"
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/axaou"
+TFVARS_INPUT="${TFVARS_FILE:-${ENV}.tfvars}"
+if [[ "${TFVARS_INPUT}" = /* ]]; then
+    TFVARS_FILE="${TFVARS_INPUT}"
+else
+    TFVARS_FILE="${SCRIPT_DIR}/infra/cloud-run/${TFVARS_INPUT}"
+fi
+if [ ! -f "${TFVARS_FILE}" ]; then
+    TFVARS_FILE="${SCRIPT_DIR}/infra/cloud-run/${ENV}.tfvars.example"
+    if [ -f "${TFVARS_FILE}" ]; then
+        echo "Using tracked ${ENV}.tfvars.example; set TFVARS_FILE to use local overrides."
+    else
+        echo "Error: no Terraform variables found for ${ENV}." >&2
+        exit 1
+    fi
+fi
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/axaou"
 
 # Extract data version from phenotype-data.toml output_dir
 # e.g., "gs://axaou-central/browserv2/analyses/20260202-0942" -> "20260202-0942"
@@ -87,13 +103,20 @@ if [ ! -d ".terraform" ]; then
     terraform init
 fi
 
+# Select workspace (dev uses "default", prod uses "prod")
+if [ "$ENV" = "prod" ]; then
+    terraform workspace select prod 2>/dev/null || terraform workspace new prod
+else
+    terraform workspace select default
+fi
+
 echo ">>> Ensuring APIs and Artifact Registry exist..."
 terraform apply \
     -target=google_project_service.cloudbuild \
     -target=google_project_service.run \
     -target=google_project_service.artifactregistry \
     -target=google_artifact_registry_repository.axaou \
-    -auto-approve -var="env=${ENV}"
+    -auto-approve -var-file="${TFVARS_FILE}"
 
 cd "$SCRIPT_DIR"
 
@@ -179,7 +202,7 @@ echo ">>> Deploying to Cloud Run with Terraform..."
 cd infra/cloud-run
 
 echo ">>> Running Terraform plan..."
-terraform plan -var="env=${ENV}" -out=plan.tfplan
+terraform plan -var-file="${TFVARS_FILE}" -out=plan.tfplan
 
 echo ">>> Applying Terraform plan..."
 terraform apply plan.tfplan

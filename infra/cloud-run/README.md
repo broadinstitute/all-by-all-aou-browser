@@ -21,11 +21,16 @@ Both services run on Cloud Run with VPC access to the `large-vm-network` for Cli
 Use the root-level deploy script:
 
 ```bash
-# Deploy to dev
+# Deploy to dev using the tracked safe defaults
 ./deploy.sh dev
 
-# Or use make
-make deploy-dev
+# Use ignored local overrides when needed
+cp infra/cloud-run/dev.tfvars.example infra/cloud-run/dev.tfvars
+$EDITOR infra/cloud-run/dev.tfvars
+./deploy.sh dev
+
+# Or point to an explicit variables file
+TFVARS_FILE=/secure/path/dev.tfvars ./deploy.sh dev
 ```
 
 ## Manual Terraform Operations
@@ -36,11 +41,11 @@ cd infra/cloud-run
 # Initialize (first time only)
 terraform init
 
-# Plan changes
-terraform plan -var="env=dev"
+# Plan changes from tracked safe defaults
+terraform plan -var-file=dev.tfvars.example
 
-# Apply changes
-terraform apply -var="env=dev"
+# Apply only after reviewing the plan
+terraform apply -var-file=dev.tfvars.example
 
 # View outputs
 terraform output
@@ -48,9 +53,12 @@ terraform output
 
 ## Configuration
 
-See `variables.tf` for configurable options:
+See `variables.tf` for configurable options. The tracked
+`dev.tfvars.example` and `prod.tfvars.example` files provide deployable,
+non-secret defaults. Local `*.tfvars` overrides remain ignored.
+
 - `env`: Environment name (dev, prod)
-- `min_instances`: Minimum Cloud Run instances (default 0)
+- `min_instances`: Minimum Cloud Run instances (manifest default 1; dev example 0)
 - `max_instances`: Maximum Cloud Run instances (default 5)
 
 ## State
