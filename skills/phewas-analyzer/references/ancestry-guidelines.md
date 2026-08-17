@@ -16,15 +16,15 @@ The All of Us PheWAS results include ancestry-specific analyses:
 
 ## Interpreting Ancestry-Specific Signals
 
-### Meta-analysis hits (`ancestry="meta"`)
+### Meta-analysis rows (`ancestry="meta"`)
 
 - Cross-ancestry meta-analysis row; confirm the upstream method before assuming fixed- or random-effects behavior
 - Often has greater effective sample size and precision
 - Is not automatically more robust: heterogeneity, model differences, and residual confounding still matter
 
-### Population-specific hits (e.g., `ancestry="afr"`)
+### Population-specific rows (e.g., `ancestry="afr"`)
 
-When an association is significant in only one ancestry group:
+When an association meets a stated correction in only one ancestry group—or is prominent in only one group in an exploratory response:
 
 1. **Check ancestry-specific allele frequency only from a suitable source**
    - The current MCP association row includes an `af` field, but verify its population scope before interpreting it as ancestry-specific
@@ -42,8 +42,10 @@ When an association is significant in only one ancestry group:
 
 More credible cross-ancestry patterns often show:
 - evidence in a pre-specified meta-analysis and/or more than one ancestry analysis
-- compatible effect direction after confirming allele and outcome coding
-- effect estimates that are statistically compatible given their standard errors; do not use an arbitrary fold-difference rule
+- compatible effect direction only after confirming the modeled allele, model, outcome coding, and transformation
+- effect estimates that are statistically compatible given their standard errors and model semantics; do not use an arbitrary fold-difference rule
+
+The current MCP association contract does not expose the modeled allele, model family, outcome coding, or transformation. Without suitable external documentation, do not infer cross-ancestry direction, risk/protection, or odds ratios from beta signs.
 
 ### Red flags
 
@@ -54,10 +56,11 @@ More credible cross-ancestry patterns often show:
 ## Reporting Guidelines
 
 When presenting PheWAS results:
-1. Always note the ancestry for each significant association
-2. If a hit is meta-analysis only, describe it as such and report available heterogeneity/model context
-3. If a hit is ancestry-specific, note this as a caveat requiring replication
+1. Always note the ancestry for each reported association; call it significant only against an explicitly defined correction family and threshold
+2. If a prominent result is meta-analysis only, describe it as such and report available heterogeneity/model context
+3. If a prominent result is ancestry-specific, note this as a caveat requiring replication
 4. Report allele frequency as ancestry-specific only when its scope is documented
+5. Include direction or risk/protection labels only when modeled-allele and outcome/model semantics support them; otherwise omit those labels
 
 ## Sources
 

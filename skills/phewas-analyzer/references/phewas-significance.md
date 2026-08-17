@@ -42,8 +42,11 @@ PheWAS power depends on:
 The All of Us PheWAS results are pre-computed. The current `aou_variant_phewas` MCP implementation:
 - preserves the upstream API row order rather than sorting client-side
 - returns at most the first 20 associations plus the upstream total count
-- exposes ancestry and sequencing-type fields when supplied by the API
-- exposes beta, standard error, and allele frequency fields, whose interpretation still depends on upstream model documentation
+- serializes each row with `variant_id`, `phenotype`, `pvalue`, `beta`, `se`, `af`, `ancestry`, and `sequencing_type`
+- does not expose the modeled/effect allele, model family, outcome coding, or outcome transformation
+- defaults missing upstream numeric association fields to `0` during deserialization, so a returned zero does not by itself prove a true null estimate
+
+Accordingly, an exploratory report should use a descriptive associations/results table. Add raw beta and SE only when useful and label their semantics as unknown; add direction, odds ratio, effect units, or risk/protection labels only when suitable upstream documentation supplies all definitions required for that interpretation.
 
 ## Sources
 
