@@ -4,5 +4,3 @@
 Makefile
 
 @a:genohype-eco:genohype::default
-
-
