@@ -214,7 +214,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
       .sort((a, b) => (a.gene.pvalue ?? Infinity) - (b.gene.pvalue ?? Infinity));
 
     genesToDraw.forEach((p) => {
-      const label = p.gene.gene_symbol;
+      const label = p.gene.gene_symbol || p.gene.gene_id;
       const textWidth = ctx.measureText(label).width;
       const labelHeight = 12;
       const padding = 2;
@@ -376,7 +376,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
                 pointerEvents: 'none',
               }}
             >
-              <div style={{ fontWeight: 600 }}>{hoveredGene.gene_symbol}</div>
+              <div style={{ fontWeight: 600 }}>{hoveredGene.gene_symbol || hoveredGene.gene_id}</div>
               <div style={{ color: 'var(--theme-text-muted)', fontSize: 11 }}>{hoveredGene.gene_id}</div>
               <div style={{ marginTop: 4 }}>
                 <span style={{ color: 'var(--theme-text-muted)' }}>P-value: </span>
@@ -493,7 +493,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
           y={contextMenu.y}
           gene={{
             geneId: contextMenu.gene.gene_id,
-            geneSymbol: contextMenu.gene.gene_symbol,
+            geneSymbol: contextMenu.gene.gene_symbol || contextMenu.gene.gene_id,
             contig: contextMenu.gene.contig,
             start: contextMenu.gene.gene_start_position,
             stop: contextMenu.gene.gene_start_position, // We don't have stop position, use start
