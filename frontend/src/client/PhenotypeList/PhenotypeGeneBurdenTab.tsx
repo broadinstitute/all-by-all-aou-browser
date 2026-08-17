@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@axaou/ui';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import styled from 'styled-components';
@@ -55,6 +55,21 @@ const ControlGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+`;
+
+const GeneSearchInput = styled.input`
+  width: 180px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: GothamBook, sans-serif;
+  color: var(--theme-text, #333);
+  background: var(--theme-surface, #fff);
+  border: 1px solid var(--theme-border, #ccc);
+  border-radius: 3px;
+
+  &::placeholder {
+    color: var(--theme-text-muted, #777);
+  }
 `;
 
 const SmallButton = styled.button`
@@ -231,6 +246,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const [sortKey, setSortKey] = useState<SortKey>('pvalue');
   const [sortDesc, setSortDesc] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [geneFilter, setGeneFilter] = useState('');
   const [showOnlySignificant, setShowOnlySignificant] = useRecoilState(geneBurdenShowSigAtom);
 
   // Max MAF State
@@ -265,6 +281,12 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
     cacheEnabled,
   });
 
+  // External navigation and shared controls can replace the table's data while
+  // preserving this component. Never carry a now-invalid page into the new context.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [analysisId, ancestryGroup, burdenSet, maxMaf]);
+
   // Sort and filter data
   const { sortedData, significantCount, totalPages } = useMemo(() => {
     const data = queryStates.geneData?.data ?? [];
@@ -272,10 +294,17 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
     // Count significant genes
     const sigCount = data.filter((g) => g.pvalue != null && g.pvalue < SIG_THRESHOLD).length;
 
-    // Filter if only showing significant
-    const filtered = showOnlySignificant
+    // Filter by significance and by gene symbol/ID.
+    const significanceFiltered = showOnlySignificant
       ? data.filter((g) => g.pvalue != null && g.pvalue < SIG_THRESHOLD)
       : data;
+    const normalizedGeneFilter = geneFilter.trim().toLowerCase();
+    const filtered = normalizedGeneFilter
+      ? significanceFiltered.filter((g) =>
+          (g.gene_symbol || '').toLowerCase().includes(normalizedGeneFilter) ||
+          (g.gene_id || '').toLowerCase().includes(normalizedGeneFilter)
+        )
+      : significanceFiltered;
 
     const sorted = [...filtered].sort((a, b) => {
       const aVal = a[sortKey];
@@ -285,9 +314,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
       if (bVal === null) return -1;
 
       if (sortKey === 'gene_symbol') {
-        return sortDesc
-          ? (bVal as string).localeCompare(aVal as string)
-          : (aVal as string).localeCompare(bVal as string);
+        const aLabel = a.gene_symbol || a.gene_id;
+        const bLabel = b.gene_symbol || b.gene_id;
+        return sortDesc ? bLabel.localeCompare(aLabel) : aLabel.localeCompare(bLabel);
       }
 
       return sortDesc ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number);
@@ -298,7 +327,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
       significantCount: sigCount,
       totalPages: Math.ceil(sorted.length / PAGE_SIZE),
     };
-  }, [queryStates.geneData?.data, sortKey, sortDesc, showOnlySignificant]);
+  }, [queryStates.geneData?.data, sortKey, sortDesc, showOnlySignificant, geneFilter]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -575,6 +604,16 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
       {/* Control Panel */}
       <ControlPanel>
         <ControlGroup>
+          <GeneSearchInput
+            type="search"
+            value={geneFilter}
+            onChange={(event) => {
+              setGeneFilter(event.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search table by gene"
+            aria-label="Search phenotype results table by gene symbol or ID"
+          />
           <span style={{ color: 'var(--theme-text, #333)' }}>
             <strong>{sortedData.length.toLocaleString()}</strong>
             {showOnlySignificant ? ` / ${(queryStates.geneData?.data ?? []).length.toLocaleString()}` : ''} genes
@@ -696,7 +735,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
                       style={{ fontWeight: 500, cursor: 'pointer' }}
                       onClick={() => handleGeneClick(gene)}
                     >
-                      {gene.gene_symbol}
+                      {gene.gene_symbol || gene.gene_id}
                     </td>
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue)}</td>
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue_burden)}</td>
