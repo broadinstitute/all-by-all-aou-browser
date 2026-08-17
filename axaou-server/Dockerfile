@@ -1,7 +1,7 @@
 # Multi-stage build for axaou-server
 #
 # Build stages:
-# 1. builder  - Compiles Rust binary (genohype-core fetched from git)
+# 1. builder  - Compiles Rust binary from the locked, pinned genohype revision
 # 2. assets   - Downloads pre-computed GCS assets (requires gcloud auth)
 # 3. runtime  - Final minimal image with binary + assets
 #
@@ -29,16 +29,16 @@ COPY Cargo.toml Cargo.lock ./
 # Create dummy src for dependency compilation
 RUN mkdir src && echo 'fn main() {}' > src/main.rs
 
-# Build dependencies only (this layer will be cached)
-# Use git CLI for fetching (avoids SSH auth issues with cargo's native fetcher)
+# Build locked dependencies only (this layer will be cached).
+# Use git CLI for fetching the public pinned genohype revision.
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
-RUN cargo build --release && rm -rf src target/release/deps/axaou_server*
+RUN cargo build --release --locked && rm -rf src target/release/deps/axaou_server*
 
 # Copy the actual source code
 COPY src ./src
 
-# Build the final binary
-RUN cargo build --release
+# Build the final binary without allowing dependency drift.
+RUN cargo build --release --locked
 
 # Asset download stage - downloads pre-computed assets from GCS
 FROM google/cloud-sdk:slim AS assets

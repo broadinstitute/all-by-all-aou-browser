@@ -44,8 +44,9 @@ reqwest = { version = "0.12", features = ["json"] }
 # Date/time (for GCP monitoring timestamps)
 chrono = { version = "0.4", features = ["serde"] }
 
-# Hail Data Access
-genohype-core = { path = "../../genohype/core", features = ["genomic"] }
+# Hail data access. Keep both genohype crates pinned to the same published
+# workspace revision so Docker/Cloud Build does not depend on sibling checkouts.
+genohype-core = { git = "https://github.com/broadinstitute/genohype.git", rev = "3b901ea564fdb463e307f95232b6479cc166c349", features = ["genomic"] }
 
 # 2D rasterization for server-rendered locus plots
 tiny-skia = "0.11"
@@ -62,8 +63,8 @@ uuid = { version = "1", features = ["v4"] }
 # Async SSE support
 tokio-stream = { version = "0.1", features = ["sync"] }
 
-# MCP server
-genohype-mcp = { path = "../../genohype/mcp" }
+# MCP server (same published genohype workspace revision as genohype-core)
+genohype-mcp = { git = "https://github.com/broadinstitute/genohype.git", rev = "3b901ea564fdb463e307f95232b6479cc166c349" }
 rmcp = { version = "1.7", features = ["server", "transport-io"] }
 schemars = "1"
 async-trait = "0.1"
