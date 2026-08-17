@@ -447,17 +447,21 @@ pub async fn get_annotations_by_gene(
             SequencingTypeParam::Exome => "exome_annotations",
             SequencingTypeParam::Genome => "genome_annotations",
         };
+        // The annotation tables retain one global VEP transcript per variant. Until
+        // gene-specific burden membership is ingested, require that transcript to
+        // match the requested gene so overlapping genes cannot leak into each other.
         let query = format!(
             r#"
             SELECT xpos, contig, position, ref, alt, ac, af, an, hom, gene_id, gene_symbol, consequence, hgvsc, hgvsp, amino_acids, polyphen2, lof, filters
             FROM {}
-            WHERE {}
+            WHERE ({}) AND gene_id = ?
             "#,
             table, where_clause
         );
         let rows = state
             .clickhouse
             .query(&query)
+            .bind(&gene.gene_id)
             .fetch_all::<VariantAnnotationExtendedRow>()
             .await
             .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
@@ -467,13 +471,14 @@ pub async fn get_annotations_by_gene(
             r#"
             SELECT xpos, contig, position, ref, alt, gene_symbol, consequence, af_all
             FROM variant_annotations
-            WHERE {}
+            WHERE ({}) AND gene_symbol = ?
             "#,
             where_clause
         );
         let rows = state
             .clickhouse
             .query(&query)
+            .bind(&gene.symbol)
             .fetch_all::<VariantAnnotationRow>()
             .await
             .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;

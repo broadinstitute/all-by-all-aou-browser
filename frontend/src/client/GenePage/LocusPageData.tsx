@@ -86,12 +86,14 @@ const annotateVariantWithAnalysisMetadata = (
 }
 
 const processVariants = ({
+  isGenePage,
   analyses,
   analysesMetadata,
   queryStates,
   variantId,
 }: {
   analysisId: string;
+  isGenePage: boolean;
   analyses: string[];
   analysesMetadata?: AnalysisMetadata[];
   queryStates: any;
@@ -115,9 +117,11 @@ const processVariants = ({
 
         const associationsWithId = addVariantIdsToList(associations);
 
+        // A region can retain geneId for navigation context, so only the active
+        // gene-page mode should require a matching gene-filtered annotation.
         let variantsMerged = genericMerge(variantAnnotationsWithId, associationsWithId, {
           keys: ['variant_id'],
-          joinType: 'outer',
+          joinType: isGenePage ? 'inner' : 'outer',
         }) as VariantJoined[];
 
 
@@ -362,6 +366,7 @@ export const LocusPageDataContainer = () => {
     let datasets: VariantDataset[] = []
     datasets = processVariants({
       analysisId,
+      isGenePage: !regionId && Boolean(geneId),
       analyses,
       analysesMetadata,
       queryStates,

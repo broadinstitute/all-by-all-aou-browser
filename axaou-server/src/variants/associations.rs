@@ -14,6 +14,7 @@ use axum::{
 };
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Row from loci_variants joined with annotations
@@ -163,13 +164,14 @@ pub async fn get_variants_by_gene(
 
     // Step 1: Resolve gene to coordinates using ClickHouse gene_models table
     let gene_query = if gene_id.starts_with("ENSG") {
-        "SELECT chrom, start, stop FROM gene_models WHERE gene_id = ? LIMIT 1"
+        "SELECT gene_id, chrom, start, stop FROM gene_models WHERE gene_id = ? LIMIT 1"
     } else {
-        "SELECT chrom, start, stop FROM gene_models WHERE symbol = ? OR symbol_upper_case = ? LIMIT 1"
+        "SELECT gene_id, chrom, start, stop FROM gene_models WHERE symbol = ? OR symbol_upper_case = ? LIMIT 1"
     };
 
     #[derive(Debug, Row, Deserialize)]
     struct GeneCoords {
+        gene_id: String,
         chrom: String,
         start: i32,
         stop: i32,
@@ -207,6 +209,7 @@ pub async fn get_variants_by_gene(
     if params.query_mode.as_deref() == Some("slow") {
         return get_gene_variants_from_hail(
             &state,
+            &gene.gene_id,
             &gene.chrom,
             start_pos,
             stop_pos,
@@ -234,6 +237,9 @@ pub async fn get_variants_by_gene(
         &sequencing_type
     };
 
+    // This gene_id constraint is a short-term guard against overlapping-gene
+    // contamination. Replace it with explicit gene/burden-set membership once the
+    // supplied gene maps are ingested.
     let query = format!(
         r#"
         SELECT
@@ -269,6 +275,7 @@ pub async fn get_variants_by_gene(
           AND lv.sequencing_type = ?
           AND lv.xpos >= ?
           AND lv.xpos <= ?
+          AND ann.gene_id = ?
           AND (lv.association_ac IS NULL OR lv.association_ac >= 5)
         ORDER BY lv.pvalue ASC
         LIMIT ?
@@ -284,6 +291,7 @@ pub async fn get_variants_by_gene(
         .bind(seq_type_normalized)
         .bind(xstart)
         .bind(xstop)
+        .bind(&gene.gene_id)
         .bind(limit)
         .fetch_all::<GeneVariantRow>()
         .await
@@ -344,9 +352,43 @@ pub async fn get_manhattan_top(
     Ok(Json(LookupResult::new(rows, timer.elapsed())))
 }
 
-/// Slow-path: Query Hail Table directly from GCS for gene variants
+#[derive(Debug, Clone, Deserialize, Row)]
+struct GeneAnnotationMatch {
+    position: u32,
+    #[serde(rename = "ref")]
+    ref_allele: String,
+    alt: String,
+    gene_symbol: Option<String>,
+    consequence: Option<String>,
+    hgvsc: Option<String>,
+    hgvsp: Option<String>,
+    ac: Option<u32>,
+    af: Option<f64>,
+    an: Option<u32>,
+    hom: Option<u32>,
+}
+
+fn gene_annotation_match_query(table: &str) -> String {
+    format!(
+        r#"
+        SELECT position, ref, alt, gene_symbol, consequence, hgvsc, hgvsp, ac, af, an, hom
+        FROM {}
+        WHERE xpos >= ? AND xpos <= ? AND gene_id = ?
+        "#,
+        table
+    )
+}
+
+/// Slow-path: Query Hail Table directly from GCS for gene variants.
+///
+/// Hail association rows have no gene identity. Intersect them with the same
+/// single-transcript annotation table used by the fast path so `query_mode=slow`
+/// cannot reintroduce variants assigned to an overlapping gene. This remains a
+/// short-term mitigation and can omit true members until gene-specific annotation
+/// and burden-set membership are ingested.
 async fn get_gene_variants_from_hail(
     state: &AppState,
+    gene_id: &str,
     chrom: &str,
     start: i32,
     stop: i32,
@@ -379,47 +421,68 @@ async fn get_gene_variants_from_hail(
         format!("chr{}", chrom)
     };
 
-    // Query the Hail Table
+    // Query the Hail Table and the selected gene's retained annotation rows.
     let associations = state
         .hail_client
         .query_interval_typed(&ht_path, &contig, start, stop)
         .await
         .map_err(|e| AppError::DataTransformError(format!("Hail query error: {}", e)))?;
 
-    // Convert to API format (take up to limit), filtering AC >= 5
+    let annotations_table = if seq_type_normalized == "exome" {
+        "exome_annotations"
+    } else {
+        "genome_annotations"
+    };
+    let annotation_rows = state
+        .clickhouse
+        .query(&gene_annotation_match_query(annotations_table))
+        .bind(compute_xpos(chrom, start.max(0) as u32))
+        .bind(compute_xpos(chrom, stop.max(0) as u32))
+        .bind(gene_id)
+        .fetch_all::<GeneAnnotationMatch>()
+        .await
+        .map_err(|e| AppError::DataTransformError(format!("Gene annotation lookup error: {}", e)))?;
+    let annotations: HashMap<(u32, String, String), GeneAnnotationMatch> = annotation_rows
+        .into_iter()
+        .map(|row| ((row.position, row.ref_allele.clone(), row.alt.clone()), row))
+        .collect();
+
+    // Convert to API format (take up to limit), filtering AC >= 5 and retaining
+    // only variants whose global annotation is assigned to the requested gene.
     let api_rows: Vec<VariantAssociationExtendedApi> = associations
         .into_iter()
         .filter(|a| a.ac.map_or(true, |ac| ac >= 5))
-        .take(limit as usize)
-        .map(|a| VariantAssociationExtendedApi {
-            variant_id: a.variant_id(),
-            locus: Locus::new(a.contig.clone(), a.position as u32),
-            ref_allele: a.ref_allele,
-            alt: a.alt_allele,
-            pvalue: a.pvalue,
-            beta: a.beta,
-            se: a.se,
-            af: a.af.unwrap_or(0.0),
-            phenotype: analysis_id.to_string(),
-            ancestry: ancestry.to_string(),
-            sequencing_type: seq_type_normalized.to_string(),
-            // Annotation fields not available from Hail Table
-            gene_symbol: None,
-            consequence: None,
-            hgvsc: None,
-            hgvsp: None,
-            allele_count: a.ac.map(|v| v as u32),
-            allele_number: None,
-            homozygote_count: None,
-            // Case/control breakdown (from Hail Table)
-            ac_cases: a.ac_cases,
-            ac_controls: a.ac_controls,
-            af_cases: a.af_cases,
-            af_controls: a.af_controls,
-            // Trait-level stats
-            association_ac: a.association_ac,
-            association_af: a.af,
+        .filter_map(|a| {
+            let key = (a.position as u32, a.ref_allele.clone(), a.alt_allele.clone());
+            let annotation = annotations.get(&key)?;
+            Some(VariantAssociationExtendedApi {
+                variant_id: a.variant_id(),
+                locus: Locus::new(a.contig.clone(), a.position as u32),
+                ref_allele: a.ref_allele,
+                alt: a.alt_allele,
+                pvalue: a.pvalue,
+                beta: a.beta,
+                se: a.se,
+                af: a.af.or(annotation.af).unwrap_or(0.0),
+                phenotype: analysis_id.to_string(),
+                ancestry: ancestry.to_string(),
+                sequencing_type: seq_type_normalized.to_string(),
+                gene_symbol: annotation.gene_symbol.clone(),
+                consequence: annotation.consequence.clone(),
+                hgvsc: annotation.hgvsc.clone(),
+                hgvsp: annotation.hgvsp.clone(),
+                allele_count: a.ac.map(|v| v as u32).or(annotation.ac),
+                allele_number: annotation.an,
+                homozygote_count: annotation.hom,
+                ac_cases: a.ac_cases,
+                ac_controls: a.ac_controls,
+                af_cases: a.af_cases,
+                af_controls: a.af_controls,
+                association_ac: a.association_ac,
+                association_af: a.af,
+            })
         })
+        .take(limit as usize)
         .collect();
 
     Ok(Json(LookupResult::with_source(
@@ -427,4 +490,18 @@ async fn get_gene_variants_from_hail(
         timer.elapsed(),
         "hail_gcs",
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::gene_annotation_match_query;
+
+    #[test]
+    fn slow_gene_query_requires_requested_gene_identity() {
+        let query = gene_annotation_match_query("exome_annotations");
+
+        assert!(query.contains("FROM exome_annotations"));
+        assert!(query.contains("gene_id = ?"));
+        assert_eq!(query.matches('?').count(), 3);
+    }
 }
