@@ -21,6 +21,7 @@ target/
 # Load-test runtime outputs
 /axaou-server/loadtest-*-results.json
 /axaou-server/loadtest-*-report.html
+/axaou-server/loadtest.db*
 /axaou-server/loadtest-ui/loadtest.db*
 
 # OS
