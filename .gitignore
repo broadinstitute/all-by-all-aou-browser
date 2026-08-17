@@ -17,7 +17,11 @@ override.tf.json
 
 # Rust
 target/
-Cargo.lock
+
+# Load-test runtime outputs
+/axaou-server/loadtest-*-results.json
+/axaou-server/loadtest-*-report.html
+/axaou-server/loadtest-ui/loadtest.db*
 
 # OS
 .DS_Store

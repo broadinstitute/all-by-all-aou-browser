@@ -85,7 +85,7 @@ export function EndpointLatencyChart({ records }: Props) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="t" tickFormatter={v => `${v}s`} />
           <YAxis unit="ms" />
-          <Tooltip labelFormatter={v => `${v}s`} formatter={(v: number) => [`${Math.round(v)}ms`]} />
+          <Tooltip labelFormatter={v => `${v}s`} formatter={v => [`${Math.round(Number(v ?? 0))}ms`]} />
           <Legend />
           {endpoints.map((ep, i) => (
             <Line

@@ -46,8 +46,8 @@ export function ThroughputChart({ data }: Props) {
   );
 }
 
-export function ActiveUsersChart({ data }: { data: UserCountPoint[] }) {
-  if (data.length < 2) return null;
+export function ActiveUsersChart({ data }: { data: UserCountPoint[] | undefined }) {
+  if (!data || data.length < 2) return null;
 
   return (
     <div style={{ background: 'white', padding: 16, borderRadius: 8, marginBottom: 16 }}>

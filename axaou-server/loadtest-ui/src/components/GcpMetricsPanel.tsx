@@ -10,33 +10,6 @@ interface Props {
   gcpConfigured: boolean;
 }
 
-const METRIC_LABELS: Record<string, { label: string; unit: string; color: string; format: (v: number) => string }> = {
-  'run.googleapis.com/container/instance_count': {
-    label: 'Instance Count', unit: '', color: '#2563eb',
-    format: v => String(Math.round(v)),
-  },
-  'run.googleapis.com/container/cpu/utilizations': {
-    label: 'CPU Utilization', unit: '%', color: '#dc2626',
-    format: v => (v * 100).toFixed(1) + '%',
-  },
-  'run.googleapis.com/container/memory/utilizations': {
-    label: 'Memory Utilization', unit: '%', color: '#7c3aed',
-    format: v => (v * 100).toFixed(1) + '%',
-  },
-  'run.googleapis.com/container/billable_instance_time': {
-    label: 'Billable Instance Time', unit: '/s', color: '#059669',
-    format: v => v.toFixed(3) + '/s',
-  },
-  'run.googleapis.com/container/network/sent_bytes_count': {
-    label: 'Network Sent', unit: '', color: '#f59e0b',
-    format: v => formatBytes(v) + '/s',
-  },
-  'run.googleapis.com/container/network/received_bytes_count': {
-    label: 'Network Received', unit: '', color: '#0891b2',
-    format: v => formatBytes(v) + '/s',
-  },
-};
-
 function formatBytes(b: number): string {
   if (b > 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
   if (b > 1024) return (b / 1024).toFixed(1) + ' KB';
@@ -162,7 +135,7 @@ export function GcpMetricsPanel({ runId, completed, gcpConfigured }: Props) {
               <YAxis tickFormatter={v => `${(v * 100).toFixed(0)}%`} />
               <Tooltip
                 labelFormatter={v => `${v}s`}
-                formatter={(v: number, name: string) => [`${(v * 100).toFixed(1)}%`, name]}
+                formatter={(v, name) => [`${(Number(v ?? 0) * 100).toFixed(1)}%`, String(name)]}
               />
               <Legend />
               <Line type="monotone" dataKey="cpu_utilizations" name="CPU p95" stroke="#dc2626" dot={false} strokeWidth={2} isAnimationActive={false} />
@@ -199,7 +172,7 @@ export function GcpMetricsPanel({ runId, completed, gcpConfigured }: Props) {
               <YAxis tickFormatter={v => formatBytes(v)} />
               <Tooltip
                 labelFormatter={v => `${v}s`}
-                formatter={(v: number, name: string) => [formatBytes(v) + '/s', name]}
+                formatter={(v, name) => [formatBytes(Number(v ?? 0)) + '/s', String(name)]}
               />
               <Legend />
               <Line type="monotone" dataKey="network_sent_bytes_count" name="Sent" stroke="#f59e0b" dot={false} strokeWidth={2} isAnimationActive={false} />

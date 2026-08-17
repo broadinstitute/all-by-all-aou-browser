@@ -119,6 +119,7 @@ export function useLoadTestStream(runId: string | null) {
       chartPoints: [],
       allRecords: [],
       chMetrics: [],
+      userCounts: [],
       gcpReady: false,
     });
   }, []);
@@ -213,7 +214,7 @@ export function useLoadTestStream(runId: string | null) {
           setState(prev => ({
             ...prev,
             summary: s,
-            userCounts: [...prev.userCounts, { t: Math.round(s.elapsed_secs), users: s.active_users }],
+            userCounts: [...(prev.userCounts ?? []), { t: Math.round(s.elapsed_secs), users: s.active_users }],
           }));
         } else if (event.type === 'gcp_metrics_ready') {
           setState(prev => ({ ...prev, gcpReady: true }));
