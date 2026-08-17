@@ -1,0 +1,8 @@
+
+*.{tsx,ts,html,css}
+*.{rs}
+Makefile
+
+@a:genohype-eco:genohype/cli/**/*.rs
+
+
