@@ -102,6 +102,22 @@ pub struct AggregatedVariantApi {
     pub matched_pvalue: Option<f64>,
 }
 
+/// Return a burden effect estimate only when one exists.
+///
+/// The ingested `beta_burden` column is overloaded for META rows: those rows
+/// contain `META_Stats_Burden`, a test statistic rather than an effect
+/// estimate. Never expose that statistic through a field labeled as beta.
+pub fn gene_beta_burden_for_ancestry(
+    ancestry: &str,
+    stored_value: Option<f64>,
+) -> Option<f64> {
+    if ancestry.eq_ignore_ascii_case("meta") {
+        None
+    } else {
+        stored_value
+    }
+}
+
 /// Gene association data for API responses.
 ///
 /// Field names match frontend GeneAssociationsHds type.
@@ -570,4 +586,24 @@ pub struct GnomadConstraint {
     pub syn_z: f64,
     // pLI score
     pub pli: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::gene_beta_burden_for_ancestry;
+
+    #[test]
+    fn meta_gene_test_statistic_is_not_exposed_as_beta() {
+        assert_eq!(gene_beta_burden_for_ancestry("meta", Some(12.5)), None);
+        assert_eq!(gene_beta_burden_for_ancestry("META", Some(-3.0)), None);
+    }
+
+    #[test]
+    fn ancestry_specific_gene_beta_is_preserved() {
+        assert_eq!(
+            gene_beta_burden_for_ancestry("afr", Some(-0.25)),
+            Some(-0.25)
+        );
+        assert_eq!(gene_beta_burden_for_ancestry("eur", None), None);
+    }
 }

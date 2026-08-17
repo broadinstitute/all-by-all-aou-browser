@@ -12,6 +12,7 @@ import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, burdenSetAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useRestoreFromUrl } from '../initialUrlState';
+import { hasGeneEffectEstimate } from '../geneAssociationSemantics';
 
 const Container = styled.div`
   width: 100%;
@@ -221,6 +222,7 @@ const VALID_VIEW_MODES = new Set<string>(['standard', 'overlay', 'heatmap', 'qqp
 
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
+  const showBeta = hasGeneEffectEstimate(ancestryGroup);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const { goToGene } = useAppNavigation();
 
@@ -641,28 +643,30 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
                 P SKAT
                 <SortIcon $active={sortKey === 'pvalue_skat'} $desc={sortDesc}>▲</SortIcon>
               </th>
-              <th onClick={() => handleSort('beta_burden')}>
-                Beta
-                <SortIcon $active={sortKey === 'beta_burden'} $desc={sortDesc}>▲</SortIcon>
-              </th>
+              {showBeta && (
+                <th onClick={() => handleSort('beta_burden')}>
+                  Beta
+                  <SortIcon $active={sortKey === 'beta_burden'} $desc={sortDesc}>▲</SortIcon>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {anyLoading() ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={showBeta ? 6 : 5} style={{ textAlign: 'center', padding: 20 }}>
                   Loading...
                 </td>
               </tr>
             ) : queryStates.geneData?.error ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
+                <td colSpan={showBeta ? 6 : 5} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   Gene burden data not available for this phenotype
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
+                <td colSpan={showBeta ? 6 : 5} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   No gene burden results found
                 </td>
               </tr>
@@ -697,7 +701,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue)}</td>
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue_burden)}</td>
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue_skat)}</td>
-                    <td onClick={() => handleGeneClick(gene)}>{formatBeta(gene.beta_burden)}</td>
+                    {showBeta && (
+                      <td onClick={() => handleGeneClick(gene)}>{formatBeta(gene.beta_burden)}</td>
+                    )}
                   </tr>
                 );
               })

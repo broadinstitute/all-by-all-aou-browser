@@ -19,6 +19,7 @@ import { AxaouConfig } from '../types'
 import { GeneAssociations, AnalysisMetadata } from '../types'
 import { processGeneBurden } from '../utils'
 import { useAppNavigation } from '../hooks/useAppNavigation'
+import { hasGeneEffectEstimate } from '../geneAssociationSemantics'
 
 const ResultsSection = styled.div`
   width: 100%;
@@ -109,7 +110,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
       },
       { url: `${axaouDevUrl}/config`, name: 'config' },
     ],
-    deps: [burdenSet, analysisId],
+    deps: [burdenSet, analysisId, ancestryGroup],
     cacheEnabled,
   })
 
@@ -186,7 +187,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
     // 'chrom',
     // 'position',
     'pvalue',
-    'beta_burden',
+    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : []),
     'show',
   ]
 

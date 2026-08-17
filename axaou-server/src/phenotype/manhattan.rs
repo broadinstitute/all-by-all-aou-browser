@@ -8,6 +8,7 @@ use crate::api::AppState;
 use crate::clickhouse::models::PlotRow;
 use crate::clickhouse::xpos::compute_xpos;
 use crate::error::AppError;
+use crate::models::gene_beta_burden_for_ancestry;
 use axum::{
     body::Body,
     extract::{Path, Query, State},
@@ -885,7 +886,7 @@ async fn get_gene_manhattan_overlay(
     data_version: &str,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay-v2", analysis_id, ancestry, contig, data_version);
+    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay-v3", analysis_id, ancestry, contig, data_version);
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
@@ -951,7 +952,7 @@ async fn get_gene_manhattan_overlay(
                 position: row.position,
                 pvalue: row.pvalue,
                 neg_log10_p,
-                beta: row.beta_burden,
+                beta: gene_beta_burden_for_ancestry(ancestry, row.beta_burden),
                 gene_symbol: Some(row.gene_symbol),
                 consequence: None,
                 hgvsc: None,

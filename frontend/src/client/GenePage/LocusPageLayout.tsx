@@ -14,6 +14,7 @@ import {
   geneIdAtom,
 } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
+import { hasGeneEffectEstimate } from '../geneAssociationSemantics'
 import { TinySpinner } from '../UserInterface'
 import {
   gwasCatalogOptionsAtom,
@@ -569,7 +570,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     'pvalue',
     'pvalue_skat',
     'pvalue_burden',
-    'beta_burden',
+    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : []),
     'show',
   ]
 

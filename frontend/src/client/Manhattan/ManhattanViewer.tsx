@@ -33,6 +33,8 @@ export interface ManhattanViewerProps {
   showYAxis?: boolean;
   /** Show stats bar with hit counts */
   showStats?: boolean;
+  /** Whether gene hits have a true ancestry-specific burden beta */
+  showGeneBeta?: boolean;
   /** Minimum width before horizontal scroll kicks in */
   minWidth?: number;
   /** Custom class name for the container */
@@ -66,6 +68,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
   onHitHover,
   showYAxis = true,
   showStats = true,
+  showGeneBeta = true,
   minWidth = 800,
   className,
   contig = 'all',
@@ -952,7 +955,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   <th>P SKAT-O</th>
                   <th>P Burden</th>
                   <th>P SKAT</th>
-                  <th>Beta</th>
+                  {showGeneBeta && <th>Beta</th>}
                 </tr>
               </thead>
               <tbody>
@@ -967,7 +970,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     <td>{hit.pvalue.toExponential(2)}</td>
                     <td>{hit.pvalue_burden?.toExponential(2) ?? '—'}</td>
                     <td>{hit.pvalue_skat?.toExponential(2) ?? '—'}</td>
-                    <td>{hit.beta?.toFixed(3) ?? '—'}</td>
+                    {showGeneBeta && <td>{hit.beta?.toFixed(3) ?? '—'}</td>}
                   </tr>
                 ))}
               </tbody>

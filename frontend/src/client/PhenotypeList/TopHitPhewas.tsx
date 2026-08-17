@@ -81,6 +81,7 @@ interface GenePhewasLayoutProps {
 const TopHitPhewasLayout = withSize()(
   ({ topHitPhenotypes, totalCount, categories, onPointClick, size }: GenePhewasLayoutProps) => {
     const burdenSet = useRecoilValue(burdenSetAtom)
+    const ancestryGroup = useRecoilValue(ancestryGroupAtom)
     const pValueType = useRecoilValue(pValueTypeAtom)
     const analyses = useRecoilValue(selectedAnalyses)
     const toggleSelectedAnalysis = useToggleSelectedAnalysis()
@@ -101,7 +102,7 @@ const TopHitPhewasLayout = withSize()(
       'info',
       'gene_name_top_hits',
       'pvalue',
-      'BETA',
+      ...(ancestryGroup === 'meta' ? [] : ['BETA']),
       'show_top_hits',
     ]
 

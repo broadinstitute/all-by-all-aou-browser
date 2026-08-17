@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
+import { geneBetaForAncestry, hasGeneEffectEstimate } from '../geneAssociationSemantics';
 
 const Container = styled.div`
   width: 100%;
@@ -228,6 +229,7 @@ interface Column {
 
 export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
+  const showEffectDirection = hasGeneEffectEstimate(ancestryGroup);
   const { goToGene } = useAppNavigation();
 
   const [hoveredCell, setHoveredCell] = useState<{
@@ -314,7 +316,10 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
         }
 
         const row = geneMap.get(gene.gene_id)!;
-        row.values[colKey] = { pvalue: gene.pvalue, beta: gene.beta_burden };
+        row.values[colKey] = {
+          pvalue: gene.pvalue,
+          beta: geneBetaForAncestry(ancestryGroup, gene.beta_burden),
+        };
 
         if (gene.pvalue != null) {
           row.minPvalue = Math.min(row.minPvalue, gene.pvalue);
@@ -359,7 +364,7 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
         synonymous: sigCounts.synonymous,
       },
     };
-  }, [queryStates]);
+  }, [queryStates, ancestryGroup]);
 
   const handleGeneClick = useCallback(
     (geneId: string) => {
@@ -495,14 +500,18 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             </div>
             <span>significant</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontWeight: 700 }}>+</span>
-            <span>risk</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontWeight: 700 }}>−</span>
-            <span>protective</span>
-          </div>
+          {showEffectDirection && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontWeight: 700 }}>+</span>
+                <span>risk</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontWeight: 700 }}>−</span>
+                <span>protective</span>
+              </div>
+            </>
+          )}
         </div>
       </Legend>
       </ScrollableArea>

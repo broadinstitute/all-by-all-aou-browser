@@ -138,6 +138,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
         onPeakClick={onPeakClick}
         onGeneClick={handleGeneClick}
         showStats={data.has_overlay}
+        showGeneBeta={plotType !== 'gene_manhattan' || ancestryGroup !== 'meta'}
         contig={contig}
         onContigClick={setContig}
         inset={inset}

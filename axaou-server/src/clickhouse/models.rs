@@ -4,8 +4,8 @@
 
 use crate::clickhouse::xpos::{make_variant_id, make_variant_id_from_xpos};
 use crate::models::{
-    Exon, GeneAssociationApi, GeneModel, GnomadConstraint, Locus, ManeSelectTranscript, Transcript,
-    VariantAnnotationApi, VariantAssociationApi,
+    gene_beta_burden_for_ancestry, Exon, GeneAssociationApi, GeneModel, GnomadConstraint, Locus,
+    ManeSelectTranscript, Transcript, VariantAnnotationApi, VariantAssociationApi,
 };
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
@@ -313,7 +313,7 @@ impl GeneAssociationRow {
             neg_log10_p_burden: Self::compute_neg_log10_p(self.pvalue_burden),
             pvalue_skat: self.pvalue_skat,
             neg_log10_p_skat: Self::compute_neg_log10_p(self.pvalue_skat),
-            beta_burden: self.beta_burden,
+            beta_burden: gene_beta_burden_for_ancestry(&self.ancestry, self.beta_burden),
             mac: self.mac,
             contig: self.contig.clone(),
             gene_start_position: self.gene_start_position,

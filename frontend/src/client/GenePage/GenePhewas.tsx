@@ -123,7 +123,9 @@ const GenePhewasLayout = ({
 
   const baseColumns = ['description_with_link', 'info', 'pvalue', 'select', 'show']
 
-  const mediumColumns = size.width > mediumBreakpoint ? ['BETA', 'n_cases', 'n_controls'] : []
+  const mediumColumns = size.width > mediumBreakpoint
+    ? [...(ancestryGroup === 'meta' ? [] : ['BETA']), 'n_cases', 'n_controls']
+    : []
 
   const wideColumns =
     resultLayout === 'full' ? ['phenotype', 'trait_type', 'sex', 'category'] : []

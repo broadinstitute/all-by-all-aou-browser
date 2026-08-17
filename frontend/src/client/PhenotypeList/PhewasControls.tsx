@@ -379,6 +379,7 @@ interface PhewasControlsProps {
 
   // Burden set (gene phewas only)
   isGenePhewas: boolean
+  showEffectEstimate: boolean
   burdenSet: string
   setBurdenSet: (value: any) => void
 
@@ -419,6 +420,7 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   onSearchChange,
   onClose,
   isGenePhewas,
+  showEffectEstimate,
   burdenSet,
   setBurdenSet,
   selectedMaf,
@@ -444,7 +446,9 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   onSelectAllCategories,
   onSelectNoCategories,
 }) => {
-  const plotTypeOptions = [{ value: 'P-value' }, { value: 'Beta' }, { value: 'Both' }]
+  const plotTypeOptions = showEffectEstimate
+    ? [{ value: 'P-value' }, { value: 'Beta' }, { value: 'Both' }]
+    : [{ value: 'P-value' }]
 
   return (
     <ControlsContainer>
@@ -518,14 +522,16 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
             />
             P-value ordered
           </label>
-          <label>
-            <input
-              type='checkbox'
-              checked={useDirectionalShapes}
-              onChange={onToggleDirectionalShapes}
-            />
-            Directional (▲ risk, ▼ protective)
-          </label>
+          {showEffectEstimate && (
+            <label>
+              <input
+                type='checkbox'
+                checked={useDirectionalShapes}
+                onChange={onToggleDirectionalShapes}
+              />
+              Directional (▲ risk, ▼ protective)
+            </label>
+          )}
         </PlotOptionCheckboxes>
       </ControlsSection>
 

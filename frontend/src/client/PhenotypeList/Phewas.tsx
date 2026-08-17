@@ -167,6 +167,8 @@ const Phewas = ({
   phewasType = 'gene', // "variant", "topHit", "gene", "locus"
 }: any) => {
   const isGenePhewas = phewasType === 'gene' || phewasType === 'topHit'
+  const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
+  const showEffectEstimate = !isGenePhewas || ancestryGroup !== 'meta'
 
   const [searchText, updateSearchText] = useState('')
 
@@ -351,10 +353,17 @@ const Phewas = ({
     }
   }, [pValueType])
 
-  const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
-
-  const [plotType, setPlotType] = useState(phewasType === 'topHit' ? 'P-value' : 'Both')
+  const [plotType, setPlotType] = useState(
+    phewasType === 'topHit' || !showEffectEstimate ? 'P-value' : 'Both'
+  )
   const [useDirectionalShapes, setUseDirectionalShapes] = useState(false)
+
+  React.useEffect(() => {
+    if (!showEffectEstimate) {
+      setPlotType('P-value')
+      setUseDirectionalShapes(false)
+    }
+  }, [showEffectEstimate])
 
   // Calculate individual plot heights based on total and plot type
   const pValuePlotHeight = plotType === 'Both' ? Math.floor(totalPlotHeight * 0.55) : totalPlotHeight
@@ -422,7 +431,7 @@ const Phewas = ({
   }
 
   const betaPlotWarningElem =
-    (!isGenePhewas || pValueType === P_VALUE_BURDEN) ? null : (
+    (!showEffectEstimate || !isGenePhewas || pValueType === P_VALUE_BURDEN) ? null : (
       <div>
         Note: the displayed pvalues and betas are derived from distinct statistical tests (
         {testMismatchWarningLabel} and Burden, respectively)
@@ -629,6 +638,7 @@ const Phewas = ({
             onSearchChange={updateSearchText}
             onClose={() => setShowPhewasControls(false)}
             isGenePhewas={isGenePhewas}
+            showEffectEstimate={showEffectEstimate}
             burdenSet={burdenSet}
             setBurdenSet={setBurdenSet}
             selectedMaf={selectedMaf}
@@ -679,7 +689,7 @@ const Phewas = ({
             </div>
           </div>
           <PlotContainer style={{ minHeight: totalPlotHeight }}>
-            {plotType === 'Both' && (
+            {showEffectEstimate && plotType === 'Both' && (
               <>
                 <PhewasPvaluePlot
                   analyses={displayPlotPhenotypes}
@@ -698,7 +708,7 @@ const Phewas = ({
                   labeledPhenoIds={labeledPhenoIds}
                   labelOverrides={pvalLabelOverrides}
                   onLabelDragEnd={handlePvalDragEnd}
-                  useDirectionalShapes={useDirectionalShapes}
+                  useDirectionalShapes={showEffectEstimate && useDirectionalShapes}
                 />
                 <PhewasBetaPlot
                   analyses={displayPlotPhenotypes}
@@ -735,10 +745,10 @@ const Phewas = ({
                 labeledPhenoIds={labeledPhenoIds}
                 labelOverrides={pvalLabelOverrides}
                 onLabelDragEnd={handlePvalDragEnd}
-                useDirectionalShapes={useDirectionalShapes}
+                useDirectionalShapes={showEffectEstimate && useDirectionalShapes}
               />
             )}
-            {plotType === 'Beta' && (
+            {showEffectEstimate && plotType === 'Beta' && (
               <PhewasBetaPlot
                 analyses={plotPhenotypes}
                 activeAnalyses={selected}

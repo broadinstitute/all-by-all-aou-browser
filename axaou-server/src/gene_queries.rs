@@ -8,8 +8,8 @@
 
 use crate::error::AppError;
 use crate::models::{
-    AnalysisAssetType, AnalysisAssets, AncestryGroup, GeneAssociationResponse,
-    GeneAssociationResult, GeneQueryParams,
+    gene_beta_burden_for_ancestry, AnalysisAssetType, AnalysisAssets, AncestryGroup,
+    GeneAssociationResponse, GeneAssociationResult, GeneQueryParams,
 };
 use genohype_core::codec::EncodedValue;
 use genohype_core::query::{KeyRange, KeyValue, QueryEngine};
@@ -321,7 +321,7 @@ fn transform_gene_result(
         pvalue,
         pvalue_burden,
         pvalue_skat,
-        beta_burden,
+        beta_burden: gene_beta_burden_for_ancestry(ancestry_group, beta_burden),
         se_burden,
         mac,
         number_rare,
