@@ -276,3 +276,17 @@ fn format_number(n: u64) -> String {
     }
     result.chars().rev().collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{GENE_ASSOCIATIONS_BY_GENE_DDL, GENE_ASSOCIATIONS_BY_GENE_POPULATE};
+
+    #[test]
+    fn by_gene_schema_and_population_include_split_mac_explicitly() {
+        assert!(GENE_ASSOCIATIONS_BY_GENE_DDL.contains("mac_case Nullable(Int64)"));
+        assert!(GENE_ASSOCIATIONS_BY_GENE_DDL.contains("mac_control Nullable(Int64)"));
+        assert!(GENE_ASSOCIATIONS_BY_GENE_POPULATE.contains("mac_case"));
+        assert!(GENE_ASSOCIATIONS_BY_GENE_POPULATE.contains("mac_control"));
+        assert!(!GENE_ASSOCIATIONS_BY_GENE_POPULATE.contains("SELECT *"));
+    }
+}

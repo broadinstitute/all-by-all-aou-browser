@@ -593,7 +593,7 @@ pub async fn list_gene_associations(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations
         WHERE phenotype = ? AND ancestry = ? AND max_maf = ? AND annotation = ?
         ORDER BY pvalue ASC
@@ -603,7 +603,7 @@ pub async fn list_gene_associations(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations
         WHERE phenotype = ? AND ancestry = ? AND max_maf = ?
         ORDER BY pvalue ASC

@@ -25,21 +25,29 @@ type Props = {
   exportFileName: string
   data: any[]
   columns: any[]
+  enableExport?: boolean
 }
 
-const ExportDataButton = ({ exportFileName, columns, data, ...rest }: Props) => (
-  <></>
-)
+const ExportDataButton = ({
+  exportFileName,
+  columns,
+  data,
+  enableExport = false,
+  ...rest
+}: Props) => {
+  if (!enableExport) {
+    return null
+  }
+
+  return (
+    <Button
+      {...rest}
+      disabled={data.length === 0}
+      onClick={() => exportDataToCSV(data, columns, exportFileName)}
+    >
+      Export data to CSV
+    </Button>
+  )
+}
 
 export default ExportDataButton
-
-
-{/* <Button */ }
-{/*   {...rest} */ }
-{/*   disabled={data.length === 0} */ }
-{/*   onClick={() => { */ }
-{/*     exportDataToCSV(data, columns, exportFileName) */ }
-{/*   }} */ }
-{/* > */ }
-{/*   Export data to CSV */ }
-{/* </Button> */ }

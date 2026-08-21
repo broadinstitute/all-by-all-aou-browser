@@ -102,6 +102,8 @@ const TopHitPhewasLayout = withSize()(
       'info',
       'gene_name_top_hits',
       'pvalue',
+      'mac_case',
+      'mac_control',
       ...(ancestryGroup === 'meta' ? [] : ['BETA']),
       'show_top_hits',
     ]
@@ -145,6 +147,7 @@ const TopHitPhewasLayout = withSize()(
           columns={phenotypesInGeneColumns}
           onPointClick={onPointClick}
           exportFileName={`gene-phewas-exomes_top-hits`}
+          enableExport
           showPlotTypeControls
           showAnalysisGroups
           showBurdenTestControls

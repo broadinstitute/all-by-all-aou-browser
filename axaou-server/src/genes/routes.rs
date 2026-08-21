@@ -71,7 +71,7 @@ pub async fn get_gene_phewas(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations_by_gene
         WHERE {} AND ancestry = ?
         {}
@@ -154,7 +154,7 @@ pub async fn get_top_associations(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations
         WHERE ancestry = ?
           AND pvalue IS NOT NULL
@@ -255,7 +255,7 @@ pub async fn get_genes_associations(
     let base_query = r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations
         WHERE gene_id = ? AND phenotype = ? AND ancestry = ?
         ORDER BY pvalue ASC
@@ -320,7 +320,7 @@ pub async fn get_genes_in_interval(
         r#"
         SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-               contig, gene_start_position, xpos
+               mac_case, mac_control, contig, gene_start_position, xpos
         FROM gene_associations
         WHERE ancestry = ?
           AND xpos >= ?

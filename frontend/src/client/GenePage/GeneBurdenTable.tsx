@@ -11,6 +11,7 @@ import {
   geneGreenThreshold,
   greenThresholdColor,
   RoundedNumber,
+  formatMacCount,
 } from '../PhenotypeList/Utils'
 import { GeneAssociations, AnalysisMetadata } from '../types'
 import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
@@ -163,6 +164,8 @@ export const GeneBurdenTable = ({
             <th scope='col'>P-value SKATO</th>
             <th scope='col'>P-value burden</th>
             <th scope='col'>P-value SKAT</th>
+            <th scope='col'>MAC cases</th>
+            <th scope='col'>MAC controls</th>
             {membershipFilters && <th scope='col'>Filter</th>}
           </tr>
         </thead>
@@ -180,6 +183,8 @@ export const GeneBurdenTable = ({
               <td>{renderPvalueCell(row.pvalue)}</td>
               <td>{renderPvalueCell(row.pvalue_burden)}</td>
               <td>{renderPvalueCell(row.pvalue_skat)}</td>
+              <td>{formatMacCount(row.mac_case)}</td>
+              <td>{formatMacCount(row.mac_control)}</td>
               {membershipFilters && (
                 <td>
                   <Checkbox
@@ -197,7 +202,7 @@ export const GeneBurdenTable = ({
           ))}
           {allRows.length === 0 && (
             <tr>
-              <td colSpan={membershipFilters ? 5 : 4} style={{ textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
+              <td colSpan={membershipFilters ? 7 : 6} style={{ textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
                 No burden test results available
               </td>
             </tr>

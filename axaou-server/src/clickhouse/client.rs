@@ -9,6 +9,10 @@ use std::env;
 /// Reads configuration from environment variables:
 /// - `CLICKHOUSE_URL`: Connection URL (default: `http://localhost:8123`)
 /// - `CLICKHOUSE_DATABASE`: Database name (default: `default`)
+///
+/// Gene-association queries in this server revision require the widened schema
+/// (`mac_case` and `mac_control`). Point deployments at the migrated clone; this
+/// revision intentionally has no fallback for the old primary schema.
 pub fn connect() -> Client {
     let url = env::var("CLICKHOUSE_URL").unwrap_or_else(|_| "http://localhost:8123".to_string());
     let database = env::var("CLICKHOUSE_DATABASE").unwrap_or_else(|_| "default".to_string());

@@ -1,2 +1,36 @@
-INSERT INTO gene_associations_by_gene
-SELECT * FROM gene_associations
+INSERT INTO gene_associations_by_gene (
+    gene_id,
+    gene_symbol,
+    annotation,
+    max_maf,
+    phenotype,
+    ancestry,
+    pvalue,
+    pvalue_burden,
+    pvalue_skat,
+    beta_burden,
+    mac,
+    mac_case,
+    mac_control,
+    contig,
+    gene_start_position,
+    xpos
+)
+SELECT
+    gene_id,
+    gene_symbol,
+    annotation,
+    max_maf,
+    phenotype,
+    ancestry,
+    pvalue,
+    pvalue_burden,
+    pvalue_skat,
+    beta_burden,
+    mac,
+    mac_case,
+    mac_control,
+    contig,
+    gene_start_position,
+    xpos
+FROM gene_associations

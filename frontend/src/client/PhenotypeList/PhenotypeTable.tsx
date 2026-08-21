@@ -12,6 +12,7 @@ import {
   renderPvalueCell,
   renderExponentialNumberCell,
   renderCount,
+  formatMacCount,
   renderBetaCell,
 } from './Utils'
 import { AnalysisMetadata, GenePhewasAnnotated, VariantAssociations } from '../types'
@@ -335,6 +336,26 @@ export const getPhenotypeColumns = ({
       isSortable: true,
       minWidth: width < 600 ? 90 : 90,
       render: renderCount,
+    },
+    {
+      key: 'mac_case',
+      displayId: 'mac_case',
+      heading: 'MAC cases',
+      grow: 0,
+      isSortable: true,
+      minWidth: 90,
+      render: (row: any) => formatMacCount(row.mac_case),
+      renderForCSV: (row: any) => formatMacCount(row.mac_case),
+    },
+    {
+      key: 'mac_control',
+      displayId: 'mac_control',
+      heading: 'MAC controls',
+      grow: 0,
+      isSortable: true,
+      minWidth: 100,
+      render: (row: any) => formatMacCount(row.mac_control),
+      renderForCSV: (row: any) => formatMacCount(row.mac_control),
     },
     {
       key: 'n_cases',

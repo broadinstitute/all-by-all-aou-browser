@@ -121,7 +121,15 @@ const GenePhewasLayout = ({
     ? mediumBreakpointMinWidth + 350
     : mediumBreakpointMinWidth
 
-  const baseColumns = ['description_with_link', 'info', 'pvalue', 'select', 'show']
+  const baseColumns = [
+    'description_with_link',
+    'info',
+    'pvalue',
+    'mac_case',
+    'mac_control',
+    'select',
+    'show',
+  ]
 
   const mediumColumns = size.width > mediumBreakpoint
     ? [...(ancestryGroup === 'meta' ? [] : ['BETA']), 'n_cases', 'n_controls']
@@ -171,6 +179,7 @@ const GenePhewasLayout = ({
         columns={phenotypesInGeneColumns}
         onPointClick={onPointClick}
         exportFileName={`gene-phewas-exomes_${geneSymbol}`}
+        enableExport
         showPlotTypeControls
         showAnalysisGroups
         showBurdenTestControls

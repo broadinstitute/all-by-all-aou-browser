@@ -187,6 +187,8 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
     // 'chrom',
     // 'position',
     'pvalue',
+    'mac_case',
+    'mac_control',
     ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : []),
     'show',
   ]

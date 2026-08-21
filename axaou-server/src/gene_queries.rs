@@ -298,8 +298,11 @@ fn transform_gene_result(
     let beta_burden = get_f64_opt(&fields_map, "BETA_Burden");
     let se_burden = get_f64_opt(&fields_map, "SE_Burden");
 
-    // Variant counts
+    // Variant counts. Split MAC fields may be absent (for example, for continuous
+    // phenotypes) and are Int32 in older ancestry tables but Int64 in META.
     let mac = get_i64_opt(&fields_map, "MAC");
+    let mac_case = get_i64_opt(&fields_map, "MAC_case");
+    let mac_control = get_i64_opt(&fields_map, "MAC_control");
     let number_rare = get_i32_opt(&fields_map, "Number_rare");
     let number_ultra_rare = get_i32_opt(&fields_map, "Number_ultra_rare");
     let total_variants = get_i32_opt(&fields_map, "total_variants");
@@ -324,6 +327,8 @@ fn transform_gene_result(
         beta_burden: gene_beta_burden_for_ancestry(ancestry_group, beta_burden),
         se_burden,
         mac,
+        mac_case,
+        mac_control,
         number_rare,
         number_ultra_rare,
         total_variants,
@@ -388,4 +393,51 @@ fn get_i32_opt(map: &HashMap<String, EncodedValue>, key: &str) -> Option<i32> {
         EncodedValue::Int64(i) => Some(*i as i32),
         _ => None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::transform_gene_result;
+    use genohype_core::codec::EncodedValue;
+
+    fn binary(value: &str) -> EncodedValue {
+        EncodedValue::Binary(value.as_bytes().to_vec())
+    }
+
+    fn base_fields() -> Vec<(String, EncodedValue)> {
+        vec![
+            ("gene_id".to_string(), binary("ENSG000001")),
+            ("gene_symbol".to_string(), binary("TEST")),
+            ("annotation".to_string(), binary("pLoF")),
+            ("max_MAF".to_string(), EncodedValue::Float64(0.001)),
+            ("MAC".to_string(), EncodedValue::Int64(42)),
+        ]
+    }
+
+    #[test]
+    fn split_mac_accepts_int32_and_int64_and_preserves_zero() {
+        let mut fields = base_fields();
+        fields.push(("MAC_case".to_string(), EncodedValue::Int32(0)));
+        fields.push(("MAC_control".to_string(), EncodedValue::Int64(42)));
+
+        let result = transform_gene_result(EncodedValue::Struct(fields), "binary", "META")
+            .expect("transform gene result");
+
+        assert_eq!(result.mac, Some(42));
+        assert_eq!(result.mac_case, Some(0));
+        assert_eq!(result.mac_control, Some(42));
+    }
+
+    #[test]
+    fn split_mac_is_missing_when_source_fields_are_absent() {
+        let result = transform_gene_result(
+            EncodedValue::Struct(base_fields()),
+            "continuous",
+            "META",
+        )
+        .expect("transform gene result");
+
+        assert_eq!(result.mac_case, None);
+        assert_eq!(result.mac_control, None);
+    }
 }

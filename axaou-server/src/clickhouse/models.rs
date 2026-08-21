@@ -281,6 +281,8 @@ pub struct GeneAssociationRow {
     pub pvalue_skat: Option<f64>,
     pub beta_burden: Option<f64>,
     pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
     pub contig: String,
     pub gene_start_position: i32,
     pub xpos: i64,
@@ -315,6 +317,8 @@ impl GeneAssociationRow {
             neg_log10_p_skat: Self::compute_neg_log10_p(self.pvalue_skat),
             beta_burden: gene_beta_burden_for_ancestry(&self.ancestry, self.beta_burden),
             mac: self.mac,
+            mac_case: self.mac_case,
+            mac_control: self.mac_control,
             contig: self.contig.clone(),
             gene_start_position: self.gene_start_position,
         }
@@ -726,5 +730,41 @@ impl AnalysisMetadataRow {
             keep_pheno_skat: self.keep_pheno_skat != 0,
             keep_pheno_skato: self.keep_pheno_skato != 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GeneAssociationRow;
+
+    #[test]
+    fn gene_association_api_preserves_zero_and_missing_split_mac() {
+        let row = GeneAssociationRow {
+            gene_id: "ENSG000001".to_string(),
+            gene_symbol: "TEST".to_string(),
+            annotation: "pLoF".to_string(),
+            max_maf: 0.001,
+            phenotype: "binary".to_string(),
+            ancestry: "meta".to_string(),
+            pvalue: Some(1e-6),
+            pvalue_burden: None,
+            pvalue_skat: None,
+            beta_burden: None,
+            mac: Some(10),
+            mac_case: Some(0),
+            mac_control: None,
+            contig: "chr1".to_string(),
+            gene_start_position: 100,
+            xpos: 1_000_000_100,
+        };
+
+        let api = row.to_api();
+        assert_eq!(api.mac, Some(10));
+        assert_eq!(api.mac_case, Some(0));
+        assert_eq!(api.mac_control, None);
+
+        let json = serde_json::to_value(api).expect("serialize gene association");
+        assert_eq!(json["mac_case"], 0);
+        assert!(json["mac_control"].is_null());
     }
 }

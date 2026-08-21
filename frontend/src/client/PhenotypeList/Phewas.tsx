@@ -161,6 +161,7 @@ const Phewas = ({
   uniquePhenotypes,
   categories,
   exportFileName,
+  enableExport = false,
   availableAncestries = ['afr', 'amr', 'eas', 'eur', 'mid', 'sas', 'meta'] as AncestryGroupCodes[],
   onHoverAnalysis,
   size,
@@ -797,6 +798,7 @@ const Phewas = ({
                       isRowHeader: true,
                     },
                   ]}
+                  enableExport={enableExport}
                 />
               </div>
               <Warnings>

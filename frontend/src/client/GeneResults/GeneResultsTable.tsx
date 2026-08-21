@@ -89,6 +89,7 @@ class GeneResultsTable extends PureComponent<Props, State> {
           exportFileName={`gene-burden-results-exomes_${burdenSet}_${analysisId}`}
           data={results}
           columns={exportColumns}
+          enableExport
         />
       </div>
     )

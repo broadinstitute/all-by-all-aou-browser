@@ -9,6 +9,9 @@ export interface GeneAssociationsHds {
   pvalue_burden?: number;
   pvalue_skat?: number;
   beta_burden?: number;
+  mac?: number | null;
+  mac_case?: number | null;
+  mac_control?: number | null;
   contig: string;
   gene_start_position: number;
   gene_interval: {

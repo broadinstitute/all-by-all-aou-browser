@@ -142,6 +142,8 @@ pub struct GeneAssociationApi {
     pub neg_log10_p_skat: Option<f64>,
     pub beta_burden: Option<f64>,
     pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
     /// Chromosome (e.g., "chr14")
     pub contig: String,
     /// Gene start position
@@ -523,6 +525,8 @@ pub struct GeneAssociationResult {
 
     // Variant counts
     pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
     pub number_rare: Option<i32>,
     pub number_ultra_rare: Option<i32>,
     pub total_variants: Option<i32>,

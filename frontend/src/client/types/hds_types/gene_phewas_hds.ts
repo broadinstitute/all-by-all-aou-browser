@@ -17,6 +17,9 @@ export interface Data {
     gene_start_position: number | null;
     gene_symbol:         string;
     max_maf:             number;
+    mac?:                number | null;
+    mac_case?:           number | null;
+    mac_control?:        number | null;
     pvalue:              number | null;
     pvalue_burden:       number | null;
     pvalue_skat:         number | null;

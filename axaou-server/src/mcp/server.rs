@@ -188,6 +188,10 @@ struct ApiGeneAssociation {
     beta_burden: Option<f64>,
     #[serde(default)]
     mac: Option<i64>,
+    #[serde(default)]
+    mac_case: Option<i64>,
+    #[serde(default)]
+    mac_control: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

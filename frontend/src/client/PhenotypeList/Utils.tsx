@@ -216,6 +216,9 @@ export const renderNumberCell = (row: any, key: any) => {
   return truncated
 }
 
+export const formatMacCount = (value: number | null | undefined) =>
+  value === null || value === undefined ? '\u2013' : Math.floor(value).toLocaleString()
+
 export const CountCell = styled.span`
   overflow: hidden;
   width: 100%;

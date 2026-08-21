@@ -7,6 +7,7 @@ import {
   P_VALUE_BURDEN,
   P_VALUE_SKAT,
   P_VALUE_SKAT_O,
+  formatMacCount,
   renderBetaCell,
   renderPvalueCell,
 } from '../PhenotypeList/Utils'
@@ -215,6 +216,24 @@ const geneResultsColumns = [
     minWidth: 100,
     grow: 0,
     render: renderBetaCell(),
+  },
+  {
+    key: 'mac_case',
+    displayId: 'mac_case',
+    heading: 'MAC cases',
+    minWidth: 90,
+    grow: 0,
+    render: (row: GeneAssociations) => formatMacCount(row.mac_case),
+    renderForCSV: (row: GeneAssociations) => formatMacCount(row.mac_case),
+  },
+  {
+    key: 'mac_control',
+    displayId: 'mac_control',
+    heading: 'MAC controls',
+    minWidth: 100,
+    grow: 0,
+    render: (row: GeneAssociations) => formatMacCount(row.mac_control),
+    renderForCSV: (row: GeneAssociations) => formatMacCount(row.mac_control),
   },
   {
     key: 'total_variants',

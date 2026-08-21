@@ -596,7 +596,7 @@ async fn warm_cache(state: Arc<AppState>) {
         let query = r#"
             SELECT gene_id, gene_symbol, annotation, max_maf, phenotype, ancestry,
                    pvalue, pvalue_burden, pvalue_skat, beta_burden, mac,
-                   contig, gene_start_position, xpos
+                   mac_case, mac_control, contig, gene_start_position, xpos
             FROM gene_associations
             WHERE ancestry = 'meta'
               AND pvalue IS NOT NULL

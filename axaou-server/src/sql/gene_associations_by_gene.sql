@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS gene_associations_by_gene (
     pvalue_skat Nullable(Float64),
     beta_burden Nullable(Float64),
     mac Nullable(Int64),
+    mac_case Nullable(Int64),
+    mac_control Nullable(Int64),
     contig LowCardinality(String),
     gene_start_position Int32,
     xpos Int64
