@@ -173,8 +173,15 @@ const AppStyles = styled.div`
     background-color: ${(props) => props.theme.headerBg};
     color: ${(props) => props.theme.headerText};
     padding: 10px;
+    line-height: 1.4;
     text-align: center;
     z-index: 1;
+
+    a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
   }
 
   h1 {
