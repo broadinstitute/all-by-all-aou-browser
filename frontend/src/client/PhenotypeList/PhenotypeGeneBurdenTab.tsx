@@ -12,9 +12,15 @@ import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, burdenSetAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useRestoreFromUrl } from '../initialUrlState';
-import { hasGeneEffectEstimate, shouldShowMacCaseControlColumns } from '../geneAssociationSemantics';
+import {
+  formatBurdenDirection,
+  hasGeneEffectEstimate,
+  shouldShowMacCaseControlColumns,
+  type BurdenDirection,
+} from '../geneAssociationSemantics';
 import ExportDataButton from '../ExportDataButton';
 import { formatMacCount } from './Utils';
+import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator';
 
 const Container = styled.div`
   width: 100%;
@@ -216,12 +222,14 @@ const PageButton = styled.button`
 interface GeneAssociationResult {
   gene_id: string;
   gene_symbol: string;
+  ancestry_group: string;
   contig: string;
   gene_start_position: number;
   pvalue: number | null;
   pvalue_burden: number | null;
   pvalue_skat: number | null;
   beta_burden: number | null;
+  burden_direction: BurdenDirection | null;
   mac: number | null;
   mac_case?: number | null;
   mac_control?: number | null;
@@ -258,8 +266,9 @@ const VALID_VIEW_MODES = new Set<string>(['standard', 'overlay', 'heatmap', 'qqp
 export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const showBeta = hasGeneEffectEstimate(ancestryGroup);
+  const showDirection = !showBeta;
   const showMacColumns = shouldShowMacCaseControlColumns(traitType);
-  const tableColumnCount = (showBeta ? 6 : 5) + (showMacColumns ? 2 : 0);
+  const tableColumnCount = 6 + (showMacColumns ? 2 : 0);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const { goToGene } = useAppNavigation();
 
@@ -295,7 +304,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=${burdenSet}&max_maf=${maxMaf}&limit=50000`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=${burdenSet}&max_maf=${maxMaf}&limit=50000&gene_contract=burden_direction_v1`,
         name: 'geneData',
       },
     ],
@@ -486,7 +495,14 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
     { key: 'pvalue', heading: 'P SKAT-O' },
     { key: 'pvalue_burden', heading: 'P Burden' },
     { key: 'pvalue_skat', heading: 'P SKAT' },
-    ...(showBeta ? [{ key: 'beta_burden', heading: 'Beta' }] : []),
+    ...(showBeta
+      ? [{ key: 'beta_burden', heading: 'Beta' }]
+      : [{
+          key: 'burden_direction',
+          heading: 'Burden direction',
+          renderForCSV: (row: GeneAssociationResult) =>
+            formatBurdenDirection(row.burden_direction),
+        }]),
     ...(showMacColumns ? [
       {
         key: 'mac_case',
@@ -740,6 +756,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
                   <SortIcon $active={sortKey === 'beta_burden'} $desc={sortDesc}>▲</SortIcon>
                 </th>
               )}
+              {showDirection && (
+                <th title="META burden-statistic direction; magnitude unavailable">Direction</th>
+              )}
               {showMacColumns && (
                 <>
                   <th aria-sort={getAriaSort('mac_case')}>
@@ -818,6 +837,11 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
                     <td onClick={() => handleGeneClick(gene)}>{formatPvalue(gene.pvalue_skat)}</td>
                     {showBeta && (
                       <td onClick={() => handleGeneClick(gene)}>{formatBeta(gene.beta_burden)}</td>
+                    )}
+                    {showDirection && (
+                      <td onClick={() => handleGeneClick(gene)}>
+                        <BurdenDirectionIndicator direction={gene.burden_direction} />
+                      </td>
                     )}
                     {showMacColumns && (
                       <>

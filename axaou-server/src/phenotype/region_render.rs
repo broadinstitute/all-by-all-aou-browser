@@ -443,6 +443,7 @@ pub async fn render_region_overlay(
                 pvalue: v.pvalue,
                 neg_log10_p: Some(v.neg_log10_p as f64),
                 beta: v.beta,
+                burden_direction: None,
                 gene_symbol: v.gene_symbol.clone(),
                 consequence: v.consequence.clone(),
                 hgvsc: v.hgvsc.clone(),

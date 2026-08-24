@@ -616,7 +616,7 @@ async fn warm_cache(state: Arc<AppState>) {
             Ok(rows) => {
                 let api_rows: Vec<crate::models::GeneAssociationApi> =
                     rows.into_iter().map(|r| r.to_api()).collect();
-                let key = format!("top_genes:meta:{}:0:0.0001:{}", annotation, dv);
+                let key = format!("top_genes_v2:meta:{}:0:0.0001:{}", annotation, dv);
                 if let Ok(bytes) =
                     serde_json::to_vec(&LookupResult::new(api_rows, timer.elapsed()))
                 {

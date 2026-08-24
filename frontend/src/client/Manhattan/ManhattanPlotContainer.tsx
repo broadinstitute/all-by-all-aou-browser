@@ -55,6 +55,12 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = process.env.DATA_VERSION || configState.data?.data_version || '';
+  // The data version does not change when only the API response schema changes.
+  // Include an explicit gene-overlay contract in the URL so PouchDB cannot
+  // serve an older cached payload that lacks burden_direction.
+  const geneContract = plotType === 'gene_manhattan'
+    ? '&gene_contract=burden_direction_v1'
+    : '';
 
   const handleGeneClick = React.useCallback((geneId: string) => {
     goToGene(geneId, { fromPhenotype: true });
@@ -68,7 +74,7 @@ export const ManhattanPlotContainer: React.FC<ManhattanPlotContainerProps> = ({
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}&contig=${contig}&v=${dataVersion}`,
+        url: `${axaouDevUrl}/phenotype/${analysisId}/manhattan?ancestry=${ancestryGroup}&plot_type=${plotType}&contig=${contig}&v=${dataVersion}${geneContract}`,
         name: 'manhattanData',
       },
     ],

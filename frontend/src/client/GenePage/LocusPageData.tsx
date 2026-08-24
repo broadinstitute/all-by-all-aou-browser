@@ -219,7 +219,7 @@ export const LocusPageDataContainer = () => {
       name: 'geneModels',
     },
     {
-      url: `${axaouDevUrl}/genes/associations?gene_id=${geneIdOrName}&analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id`,
+      url: `${axaouDevUrl}/genes/associations?gene_id=${geneIdOrName}&analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id&gene_contract=burden_direction_v1`,
       name: 'geneAssociations',
     },
   ]
@@ -261,7 +261,7 @@ export const LocusPageDataContainer = () => {
       name: 'geneModels',
     },
     {
-      url: `${axaouDevUrl}/genes/associations/interval/chr${apiRegionId}?analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id`,
+      url: `${axaouDevUrl}/genes/associations/interval/chr${apiRegionId}?analysis_id=${analysisId}&ancestry_group=${ancestryGroup}&use_index=idx_gene_associations_hds_gene_id&gene_contract=burden_direction_v1`,
       name: `geneAssociations`,
     },
   ]

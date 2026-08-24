@@ -15,6 +15,7 @@ import type { ManhattanOverlay, DisplayHit } from './types';
 import { regionIdAtom } from '../sharedState';
 import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import './ManhattanViewer.css';
+import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator';
 
 const Y_AXIS_WIDTH = 50;
 
@@ -955,7 +956,9 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                   <th>P SKAT-O</th>
                   <th>P Burden</th>
                   <th>P SKAT</th>
-                  {showGeneBeta && <th>Beta</th>}
+                  <th title={showGeneBeta ? undefined : 'META burden-statistic direction; magnitude unavailable'}>
+                    {showGeneBeta ? 'Beta' : 'Direction'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -970,7 +973,11 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                     <td>{hit.pvalue.toExponential(2)}</td>
                     <td>{hit.pvalue_burden?.toExponential(2) ?? '—'}</td>
                     <td>{hit.pvalue_skat?.toExponential(2) ?? '—'}</td>
-                    {showGeneBeta && <td>{hit.beta?.toFixed(3) ?? '—'}</td>}
+                    <td>
+                      {showGeneBeta
+                        ? (hit.beta?.toFixed(3) ?? '—')
+                        : <BurdenDirectionIndicator direction={hit.burden_direction} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -20,6 +20,8 @@ import { useAppNavigation } from '../hooks/useAppNavigation'
 import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
+import { formatBurdenDirection } from '../geneAssociationSemantics'
+import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
 
 // A wrapper to hold state for gene link context menus
 const GeneLinkRenderer = ({ row }: any) => {
@@ -216,6 +218,17 @@ const geneResultsColumns = [
     minWidth: 100,
     grow: 0,
     render: renderBetaCell(),
+  },
+  {
+    key: 'burden_direction',
+    displayId: 'burden_direction',
+    heading: 'Direction',
+    minWidth: 70,
+    grow: 0,
+    render: (row: GeneAssociations) => (
+      <BurdenDirectionIndicator direction={row.burden_direction} />
+    ),
+    renderForCSV: (row: GeneAssociations) => formatBurdenDirection(row.burden_direction),
   },
   {
     key: 'mac_case',

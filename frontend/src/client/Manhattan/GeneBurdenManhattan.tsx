@@ -7,6 +7,11 @@ import { getChromosomeLayout, getYScale } from './layout';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { analysisIdAtom } from '../sharedState';
 import './OverviewManhattan.css';
+import {
+  formatBurdenDirection,
+  geneBetaForAncestry,
+  type BurdenDirection,
+} from '../geneAssociationSemantics';
 
 const Y_AXIS_WIDTH = 50;
 const PLOT_HEIGHT = 400; // Fixed plot height
@@ -15,12 +20,14 @@ const SIG_THRESHOLD = 2.5e-6; // Gene burden significance threshold
 export interface GeneAssociationResult {
   gene_id: string;
   gene_symbol: string;
+  ancestry_group: string;
   contig: string;
   gene_start_position: number;
   pvalue: number | null;
   pvalue_burden: number | null;
   pvalue_skat: number | null;
   beta_burden: number | null;
+  burden_direction: BurdenDirection | null;
 }
 
 export interface GeneBurdenManhattanProps {
@@ -193,7 +200,21 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
 
       ctx.fillStyle = colors[chrNum % 2];
       ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
+      if (g.burden_direction === 'positive') {
+        ctx.moveTo(x, y - 4);
+        ctx.lineTo(x - 4, y + 3);
+        ctx.lineTo(x + 4, y + 3);
+        ctx.closePath();
+      } else if (g.burden_direction === 'negative') {
+        ctx.moveTo(x - 4, y - 3);
+        ctx.lineTo(x + 4, y - 3);
+        ctx.lineTo(x, y + 4);
+        ctx.closePath();
+      } else if (g.burden_direction === 'zero') {
+        ctx.rect(x - 3, y - 3, 6, 6);
+      } else {
+        ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
+      }
       ctx.fill();
 
       plotted.push({ gene: g, x, y });
@@ -325,6 +346,10 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
     [hoveredGene]
   );
 
+  const hoveredBeta = hoveredGene
+    ? geneBetaForAncestry(hoveredGene.ancestry_group, hoveredGene.beta_burden)
+    : null;
+
   return (
     <div className="manhattan-container">
       <div className="manhattan-plot-row" style={{ display: 'flex' }}>
@@ -398,6 +423,20 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
                   <span style={{ fontFamily: 'monospace' }}>
                     {hoveredGene.pvalue_skat.toExponential(2)}
                   </span>
+                </div>
+              )}
+              {hoveredBeta != null && (
+                <div>
+                  <span style={{ color: 'var(--theme-text-muted)' }}>Beta: </span>
+                  <span style={{ fontFamily: 'monospace' }}>
+                    {hoveredBeta.toExponential(2)}
+                  </span>
+                </div>
+              )}
+              {hoveredGene.burden_direction != null && (
+                <div>
+                  <span style={{ color: 'var(--theme-text-muted)' }}>Burden direction: </span>
+                  <span>{formatBurdenDirection(hoveredGene.burden_direction)}</span>
                 </div>
               )}
             </div>
@@ -484,6 +523,14 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
           <span className="manhattan-stats-label">Threshold:</span>
           <span className="manhattan-stats-value">P &lt; 2.5e-6</span>
         </div>
+        {geneData.some((gene) => gene.burden_direction != null) && (
+          <div className="manhattan-stats-item">
+            <span className="manhattan-stats-label">META burden direction:</span>
+            <span className="manhattan-stats-value">
+              ▲ positive · ▼ negative · ■ zero · ● unavailable
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Context menu */}

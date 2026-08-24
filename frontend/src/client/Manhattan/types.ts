@@ -4,6 +4,8 @@
  * Supports both variant hits (exome/genome Manhattan) and gene hits (gene burden Manhattan).
  */
 
+import type { BurdenDirection } from '../geneAssociationSemantics';
+
 /**
  * Type of Manhattan plot hit
  */
@@ -28,8 +30,10 @@ export interface SignificantHit {
   pvalue: number;
   /** -log10(pvalue) - preserves precision for extremely small p-values */
   neg_log10_p?: number;
-  /** Effect size (beta coefficient for variants, beta_burden for genes) */
+  /** Effect size (variant beta or genuine non-META gene burden beta) */
   beta?: number;
+  /** Sign only from META_Stats_Burden; never its magnitude */
+  burden_direction?: BurdenDirection;
   /** Gene symbol from annotations (for variants) or primary gene symbol (for genes) */
   gene_symbol?: string;
   /** Variant consequence (e.g., "missense_variant", "intron_variant") - variants only */
@@ -48,6 +52,8 @@ export interface SignificantHit {
 
 /**
  * Burden test results for a specific annotation category.
+ * Aggregated locus/overview routes are p-value-only and cannot provide the
+ * source statistic, so direction must not be inferred for this payload.
  */
 export interface BurdenResult {
   /** Annotation category (e.g., "pLoF", "missenseLC", "synonymous") */

@@ -134,7 +134,7 @@ pub async fn get_top_associations(
 
     let dv = state.data_version.as_deref().unwrap_or("none");
     let cache_key = format!(
-        "top_genes:{}:{}:{}:{}:{}",
+        "top_genes_v2:{}:{}:{}:{}:{}",
         params.ancestry,
         params.annotation.as_deref().unwrap_or("none"),
         min_p,

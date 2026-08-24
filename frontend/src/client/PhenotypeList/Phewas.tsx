@@ -33,6 +33,7 @@ import PhenotypeTable from './PhenotypeTable'
 import { preparePhenotypesText } from './phenotypeUtils'
 import PhewasBetaPlot from './PhewasBetaPlot'
 import PhewasPvaluePlot from './PhewasPvaluePlot'
+import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
 import PhewasControls from './PhewasControls'
 import { Button } from '@gnomad/ui'
 import {
@@ -170,6 +171,7 @@ const Phewas = ({
   const isGenePhewas = phewasType === 'gene' || phewasType === 'topHit'
   const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
   const showEffectEstimate = !isGenePhewas || ancestryGroup !== 'meta'
+  const showMetaBurdenDirection = isGenePhewas && ancestryGroup === 'meta'
 
   const [searchText, updateSearchText] = useState('')
 
@@ -709,7 +711,7 @@ const Phewas = ({
                   labeledPhenoIds={labeledPhenoIds}
                   labelOverrides={pvalLabelOverrides}
                   onLabelDragEnd={handlePvalDragEnd}
-                  useDirectionalShapes={showEffectEstimate && useDirectionalShapes}
+                  useDirectionalShapes={showMetaBurdenDirection || (showEffectEstimate && useDirectionalShapes)}
                 />
                 <PhewasBetaPlot
                   analyses={displayPlotPhenotypes}
@@ -746,7 +748,7 @@ const Phewas = ({
                 labeledPhenoIds={labeledPhenoIds}
                 labelOverrides={pvalLabelOverrides}
                 onLabelDragEnd={handlePvalDragEnd}
-                useDirectionalShapes={showEffectEstimate && useDirectionalShapes}
+                useDirectionalShapes={showMetaBurdenDirection || (showEffectEstimate && useDirectionalShapes)}
               />
             )}
             {showEffectEstimate && plotType === 'Beta' && (
@@ -802,6 +804,15 @@ const Phewas = ({
                 />
               </div>
               <Warnings>
+                {showMetaBurdenDirection && (
+                  <span title="Direction comes from META_Stats_Burden; its magnitude is not shown.">
+                    META direction:{' '}
+                    <BurdenDirectionIndicator direction="positive" fillCell={false} /> positive ·{' '}
+                    <BurdenDirectionIndicator direction="negative" fillCell={false} /> negative ·{' '}
+                    <BurdenDirectionIndicator direction="zero" fillCell={false} /> zero ·{' '}
+                    <BurdenDirectionIndicator direction={null} fillCell={false} /> unavailable
+                  </span>
+                )}
                 {betaPlotWarningElem && (
                   <span>
                     <TooltipAnchor tooltip={betaPlotWarningElem}>

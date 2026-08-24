@@ -570,7 +570,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     'pvalue',
     'pvalue_skat',
     'pvalue_burden',
-    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : []),
+    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : ['burden_direction']),
     'show',
   ]
 

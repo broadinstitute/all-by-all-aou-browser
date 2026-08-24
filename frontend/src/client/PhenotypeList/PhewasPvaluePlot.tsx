@@ -6,6 +6,12 @@ import { withSize } from 'react-sizeme'
 import { pValueTypeToPValueKeyName, P_VALUE_SKAT, P_VALUE_BURDEN, P_VALUE_SKAT_O } from './Utils'
 import { GeneAssociations } from '../types'
 import { PhewasLabelsOverlay } from './PhewasLabelsOverlay'
+import {
+  directionFromFiniteNumber,
+  formatBurdenDirection,
+  geneBurdenDirection,
+  type BurdenDirection,
+} from '../geneAssociationSemantics'
 
 type threshold = {
   color: string
@@ -16,6 +22,17 @@ type threshold = {
 interface Analysis extends GeneAssociations {
   color: string
   [key: string]: any
+}
+
+const directionForPlotPoint = (
+  data: Analysis,
+  phewasType: string
+): BurdenDirection | null => {
+  const beta = data.BETA_Burden ?? data.BETA
+  if (phewasType === 'gene' || phewasType === 'topHit') {
+    return geneBurdenDirection(data.ancestry_group, data.burden_direction, beta)
+  }
+  return directionFromFiniteNumber(beta)
 }
 
 interface Props {
@@ -308,20 +325,29 @@ const PhewasPvaluePlot = ({
       ctx.beginPath()
 
       if (useDirectionalShapes) {
-        const beta = point.data.BETA_Burden ?? point.data.BETA ?? 0;
+        const direction = directionForPlotPoint(point.data, phewasType);
         const r = pointRadius * 1.5; // Slightly larger visually to match circle area
 
-        if (beta > 0) {
-          // Upward pointing triangle (Risk)
+        if (direction === 'positive') {
+          // Upward triangle: positive burden direction
           ctx.moveTo(point.x, point.y - r);
           ctx.lineTo(point.x - r, point.y + r);
           ctx.lineTo(point.x + r, point.y + r);
-        } else if (beta < 0) {
-          // Downward pointing triangle (Protective)
+        } else if (direction === 'negative') {
+          // Downward triangle: negative burden direction
           ctx.moveTo(point.x - r, point.y - r);
           ctx.lineTo(point.x + r, point.y - r);
           ctx.lineTo(point.x, point.y + r);
+        } else if (direction === 'zero') {
+          // Square: explicit zero direction.
+          ctx.rect(
+            point.x - pointRadius,
+            point.y - pointRadius,
+            pointRadius * 2,
+            pointRadius * 2
+          );
         } else {
+          // Circle: direction unavailable.
           ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false);
         }
         ctx.closePath();
@@ -343,16 +369,23 @@ const PhewasPvaluePlot = ({
         ctx.beginPath()
         if (useDirectionalShapes) {
           // Redraw the path for the stroke
-          const beta = point.data.BETA_Burden ?? point.data.BETA ?? 0;
+          const direction = directionForPlotPoint(point.data, phewasType);
           const r = pointRadius * 1.5;
-          if (beta > 0) {
+          if (direction === 'positive') {
             ctx.moveTo(point.x, point.y - r);
             ctx.lineTo(point.x - r, point.y + r);
             ctx.lineTo(point.x + r, point.y + r);
-          } else if (beta < 0) {
+          } else if (direction === 'negative') {
             ctx.moveTo(point.x - r, point.y - r);
             ctx.lineTo(point.x + r, point.y - r);
             ctx.lineTo(point.x, point.y + r);
+          } else if (direction === 'zero') {
+            ctx.rect(
+              point.x - pointRadius,
+              point.y - pointRadius,
+              pointRadius * 2,
+              pointRadius * 2
+            );
           } else {
             ctx.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI, false);
           }
@@ -399,7 +432,7 @@ const PhewasPvaluePlot = ({
     // Labels are now handled by PhewasLabelsOverlay
 
     return canvas
-  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme, logLogEnabled, phewasType, scale, categoryBands, points, margin, pointPadding, yScaleLogLog, yScaleNormal, showStroke, pointRadius, activeAnalyses, activeGene, selectedPhenotype, primaryAnalysisId])
+  }, [analyses, height, pointColor, width, xLabel, yLabel, thresholds, theme, logLogEnabled, phewasType, scale, categoryBands, points, margin, pointPadding, yScaleLogLog, yScaleNormal, showStroke, pointRadius, activeAnalyses, activeGene, selectedPhenotype, primaryAnalysisId, useDirectionalShapes])
 
   const overlayPoints = useMemo(() => {
     return points.map(p => {
@@ -469,7 +502,17 @@ const PhewasPvaluePlot = ({
         const { width: textWidth } = ctx.measureText(label)
 
         const categoryLabel = nearestPoint.data.category || 'Unknown'
-        const fullLabel = `${label} | ${categoryLabel}`
+        const direction = phewasType === 'gene' || phewasType === 'topHit'
+          ? geneBurdenDirection(
+              nearestPoint.data.ancestry_group,
+              nearestPoint.data.burden_direction,
+              nearestPoint.data.BETA_Burden ?? nearestPoint.data.BETA
+            )
+          : null
+        const directionLabel = direction
+          ? ` | Burden direction: ${formatBurdenDirection(direction)}`
+          : ''
+        const fullLabel = `${label} | ${categoryLabel}${directionLabel}`
         const { width: fullTextWidth } = ctx.measureText(fullLabel)
 
         const labelX = x < width / 2 ? nearestPoint.x : nearestPoint.x - fullTextWidth - 10

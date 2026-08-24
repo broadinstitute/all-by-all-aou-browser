@@ -5,7 +5,13 @@ import styled from 'styled-components';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
-import { geneBetaForAncestry, hasGeneEffectEstimate } from '../geneAssociationSemantics';
+import {
+  burdenDirectionSign,
+  formatBurdenDirection,
+  geneBetaForAncestry,
+  geneBurdenDirection,
+  type BurdenDirection,
+} from '../geneAssociationSemantics';
 
 const Container = styled.div`
   width: 100%;
@@ -182,6 +188,7 @@ interface GeneAssociationResult {
   pvalue_burden: number | null;
   pvalue_skat: number | null;
   beta_burden: number | null;
+  burden_direction: BurdenDirection | null;
 }
 
 const ANNOTATIONS = ['pLoF', 'missenseLC', 'synonymous'] as const;
@@ -215,7 +222,11 @@ interface GeneRow {
   gene_symbol: string;
   contig: string;
   gene_start_position: number;
-  values: Record<ColumnKey, { pvalue: number | null; beta: number | null }>;
+  values: Record<ColumnKey, {
+    pvalue: number | null;
+    beta: number | null;
+    direction: BurdenDirection | null;
+  }>;
   minPvalue: number;
   significantCount: number;
 }
@@ -229,7 +240,6 @@ interface Column {
 
 export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
-  const showEffectDirection = hasGeneEffectEstimate(ancestryGroup);
   const { goToGene } = useAppNavigation();
 
   const [hoveredCell, setHoveredCell] = useState<{
@@ -255,15 +265,15 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
   const { queryStates, anyLoading } = useQuery<Data>({
     dbName: pouchDbName,
     queries: [
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.01&limit=50000`, name: 'pLoF_001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.001&limit=50000`, name: 'pLoF_0001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.0001&limit=50000`, name: 'pLoF_00001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.01&limit=50000`, name: 'missenseLC_001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.001&limit=50000`, name: 'missenseLC_0001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.0001&limit=50000`, name: 'missenseLC_00001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.01&limit=50000`, name: 'synonymous_001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.001&limit=50000`, name: 'synonymous_0001' },
-      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.0001&limit=50000`, name: 'synonymous_00001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.01&limit=50000&gene_contract=burden_direction_v1`, name: 'pLoF_001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.001&limit=50000&gene_contract=burden_direction_v1`, name: 'pLoF_0001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=pLoF&max_maf=0.0001&limit=50000&gene_contract=burden_direction_v1`, name: 'pLoF_00001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.01&limit=50000&gene_contract=burden_direction_v1`, name: 'missenseLC_001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.001&limit=50000&gene_contract=burden_direction_v1`, name: 'missenseLC_0001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=missenseLC&max_maf=0.0001&limit=50000&gene_contract=burden_direction_v1`, name: 'missenseLC_00001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.01&limit=50000&gene_contract=burden_direction_v1`, name: 'synonymous_001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.001&limit=50000&gene_contract=burden_direction_v1`, name: 'synonymous_0001' },
+      { url: `${axaouDevUrl}/phenotype/${analysisId}/genes?ancestry=${ancestryGroup}&annotation=synonymous&max_maf=0.0001&limit=50000&gene_contract=burden_direction_v1`, name: 'synonymous_00001' },
     ],
     deps: [analysisId, ancestryGroup],
     cacheEnabled,
@@ -309,7 +319,7 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             gene_symbol: gene.gene_symbol,
             contig: gene.contig,
             gene_start_position: gene.gene_start_position,
-            values: {} as Record<ColumnKey, { pvalue: number | null; beta: number | null }>,
+            values: {} as GeneRow['values'],
             minPvalue: Infinity,
             significantCount: 0,
           });
@@ -319,6 +329,11 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
         row.values[colKey] = {
           pvalue: gene.pvalue,
           beta: geneBetaForAncestry(ancestryGroup, gene.beta_burden),
+          direction: geneBurdenDirection(
+            ancestryGroup,
+            gene.burden_direction,
+            gene.beta_burden
+          ),
         };
 
         if (gene.pvalue != null) {
@@ -444,7 +459,7 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
                 {columns.map((col) => {
                   const cellData = gene.values[col.key];
                   const pvalue = cellData?.pvalue ?? null;
-                  const beta = cellData?.beta ?? null;
+                  const direction = cellData?.direction ?? null;
                   const negLogP = pvalue != null ? -Math.log10(pvalue) : 0;
                   const intensity = Math.min(negLogP / 15, 1);
                   const isSignificant = pvalue != null && pvalue < SIG_THRESHOLD;
@@ -459,12 +474,12 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
                       onMouseEnter={(e) => handleCellHover(gene, col, e)}
                       onMouseLeave={handleCellLeave}
                     >
-                      {beta !== null && isSignificant && (
+                      {direction !== null && isSignificant && (
                         <span style={{
                           fontWeight: 700,
                           color: intensity > 0.5 ? '#fff' : 'var(--theme-text, #333)',
                         }}>
-                          {beta > 0 ? '+' : '-'}
+                          {burdenDirectionSign(direction)}
                         </span>
                       )}
                     </DataCell>
@@ -500,18 +515,18 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             </div>
             <span>significant</span>
           </div>
-          {showEffectDirection && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontWeight: 700 }}>+</span>
-                <span>risk</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontWeight: 700 }}>−</span>
-                <span>protective</span>
-              </div>
-            </>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>+</span>
+            <span>positive burden direction</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>−</span>
+            <span>negative burden direction</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>0</span>
+            <span>zero burden direction</span>
+          </div>
         </div>
       </Legend>
       </ScrollableArea>
@@ -529,6 +544,16 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
               {hoveredCell.gene.values[hoveredCell.column.key]?.pvalue?.toExponential(2) ?? 'N/A'}
             </span>
           </div>
+          {hoveredCell.gene.values[hoveredCell.column.key]?.direction != null && (
+            <div>
+              <span style={{ color: 'var(--theme-text-muted, #666)' }}>Burden direction: </span>
+              <span>
+                {formatBurdenDirection(
+                  hoveredCell.gene.values[hoveredCell.column.key]?.direction
+                )}
+              </span>
+            </div>
+          )}
           {hoveredCell.gene.values[hoveredCell.column.key]?.beta != null && (
             <div>
               <span style={{ color: 'var(--theme-text-muted, #666)' }}>Beta: </span>

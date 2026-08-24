@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DisplayHit } from '../types';
+import { formatBurdenDirection } from '../../geneAssociationSemantics';
 
 interface TooltipProps {
   hit: DisplayHit;
@@ -65,6 +66,14 @@ export const Tooltip: React.FC<TooltipProps> = ({ hit, x, y, containerWidth }) =
       {isGene && hit.id && (
         <div style={{ color: '#888', fontSize: '11px' }}>
           {hit.id}
+        </div>
+      )}
+      {isGene && hit.beta !== undefined && Number.isFinite(hit.beta) && (
+        <div style={{ color: '#aaa' }}>Beta = {hit.beta.toExponential(2)}</div>
+      )}
+      {isGene && hit.burden_direction !== undefined && (
+        <div style={{ color: '#aaa' }}>
+          Burden direction = {formatBurdenDirection(hit.burden_direction)}
         </div>
       )}
       <div style={{ color: '#888', fontSize: '11px', marginTop: '4px' }}>

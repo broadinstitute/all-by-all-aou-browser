@@ -1,3 +1,5 @@
+import type { BurdenDirection } from '../../geneAssociationSemantics'
+
 export interface GeneAssociationsHds {
   gene_id: string;
   gene_symbol: string;
@@ -8,7 +10,8 @@ export interface GeneAssociationsHds {
   pvalue?: number;
   pvalue_burden?: number;
   pvalue_skat?: number;
-  beta_burden?: number;
+  beta_burden?: number | null;
+  burden_direction?: BurdenDirection | null;
   mac?: number | null;
   mac_case?: number | null;
   mac_control?: number | null;

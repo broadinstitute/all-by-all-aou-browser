@@ -101,7 +101,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/genes/associations?ancestry_group=${ancestryGroup}&annotation=${burdenSet}&analysis_id=${analysisId}`,
+        url: `${axaouDevUrl}/genes/associations?ancestry_group=${ancestryGroup}&annotation=${burdenSet}&analysis_id=${analysisId}&gene_contract=burden_direction_v1`,
         name: 'geneManhattan',
       },
       {
@@ -192,7 +192,7 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
     // 'position',
     'pvalue',
     ...(showMacColumns ? ['mac_case', 'mac_control'] : []),
-    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : []),
+    ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : ['burden_direction']),
     'show',
   ]
 

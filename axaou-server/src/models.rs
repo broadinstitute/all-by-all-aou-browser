@@ -102,20 +102,52 @@ pub struct AggregatedVariantApi {
     pub matched_pvalue: Option<f64>,
 }
 
+/// Direction of the META burden test statistic.
+///
+/// This deliberately carries no numeric value: the magnitude of
+/// `META_Stats_Burden` is not an interpretable effect estimate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BurdenDirection {
+    Negative,
+    Zero,
+    Positive,
+}
+
 /// Return a burden effect estimate only when one exists.
 ///
 /// The ingested `beta_burden` column is overloaded for META rows: those rows
 /// contain `META_Stats_Burden`, a test statistic rather than an effect
 /// estimate. Never expose that statistic through a field labeled as beta.
-pub fn gene_beta_burden_for_ancestry(
-    ancestry: &str,
-    stored_value: Option<f64>,
-) -> Option<f64> {
+pub fn gene_beta_burden_for_ancestry(ancestry: &str, stored_value: Option<f64>) -> Option<f64> {
     if ancestry.eq_ignore_ascii_case("meta") {
         None
     } else {
-        stored_value
+        stored_value.filter(|value| value.is_finite())
     }
+}
+
+/// Convert a META burden statistic to its direction without exposing magnitude.
+///
+/// Non-META rows have a genuine beta and therefore do not also receive this
+/// META-only field. Missing and non-finite statistics have no safe direction.
+pub fn meta_burden_direction_for_ancestry(
+    ancestry: &str,
+    statistic: Option<f64>,
+) -> Option<BurdenDirection> {
+    if !ancestry.eq_ignore_ascii_case("meta") {
+        return None;
+    }
+
+    statistic.filter(|value| value.is_finite()).map(|value| {
+        if value > 0.0 {
+            BurdenDirection::Positive
+        } else if value < 0.0 {
+            BurdenDirection::Negative
+        } else {
+            BurdenDirection::Zero
+        }
+    })
 }
 
 /// Gene association data for API responses.
@@ -140,7 +172,10 @@ pub struct GeneAssociationApi {
     pub pvalue_skat: Option<f64>,
     /// -log10(pvalue_skat) for precise display
     pub neg_log10_p_skat: Option<f64>,
+    /// Genuine ancestry-specific burden effect estimate; always null for META.
     pub beta_burden: Option<f64>,
+    /// Sign only from META_Stats_Burden; always null outside META.
+    pub burden_direction: Option<BurdenDirection>,
     pub mac: Option<i64>,
     pub mac_case: Option<i64>,
     pub mac_control: Option<i64>,
@@ -520,7 +555,10 @@ pub struct GeneAssociationResult {
     pub pvalue: Option<f64>,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
+    /// Genuine ancestry-specific BETA_Burden; always null for META.
     pub beta_burden: Option<f64>,
+    /// Sign only from META_Stats_Burden; always null outside META.
+    pub burden_direction: Option<BurdenDirection>,
     pub se_burden: Option<f64>,
 
     // Variant counts
@@ -594,7 +632,9 @@ pub struct GnomadConstraint {
 
 #[cfg(test)]
 mod tests {
-    use super::gene_beta_burden_for_ancestry;
+    use super::{
+        gene_beta_burden_for_ancestry, meta_burden_direction_for_ancestry, BurdenDirection,
+    };
 
     #[test]
     fn meta_gene_test_statistic_is_not_exposed_as_beta() {
@@ -603,11 +643,50 @@ mod tests {
     }
 
     #[test]
-    fn ancestry_specific_gene_beta_is_preserved() {
+    fn ancestry_specific_gene_beta_is_preserved_when_finite() {
         assert_eq!(
             gene_beta_burden_for_ancestry("afr", Some(-0.25)),
             Some(-0.25)
         );
         assert_eq!(gene_beta_burden_for_ancestry("eur", None), None);
+        assert_eq!(gene_beta_burden_for_ancestry("eur", Some(f64::NAN)), None);
+        assert_eq!(
+            gene_beta_burden_for_ancestry("eur", Some(f64::INFINITY)),
+            None
+        );
+    }
+
+    #[test]
+    fn meta_burden_direction_is_typed_and_magnitude_free() {
+        assert_eq!(
+            meta_burden_direction_for_ancestry("meta", Some(12.5)),
+            Some(BurdenDirection::Positive)
+        );
+        assert_eq!(
+            meta_burden_direction_for_ancestry("META", Some(-3.0)),
+            Some(BurdenDirection::Negative)
+        );
+        assert_eq!(
+            meta_burden_direction_for_ancestry("meta", Some(-0.0)),
+            Some(BurdenDirection::Zero)
+        );
+        assert_eq!(meta_burden_direction_for_ancestry("meta", None), None);
+        assert_eq!(
+            meta_burden_direction_for_ancestry("meta", Some(f64::NAN)),
+            None
+        );
+        assert_eq!(
+            meta_burden_direction_for_ancestry("meta", Some(f64::NEG_INFINITY)),
+            None
+        );
+        assert_eq!(meta_burden_direction_for_ancestry("afr", Some(1.0)), None);
+    }
+
+    #[test]
+    fn burden_direction_serializes_as_a_string_enum() {
+        assert_eq!(
+            serde_json::to_string(&BurdenDirection::Negative).unwrap(),
+            "\"negative\""
+        );
     }
 }

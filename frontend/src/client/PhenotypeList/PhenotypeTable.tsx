@@ -25,6 +25,8 @@ import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { useAppNavigation } from '../hooks/useAppNavigation'
+import { formatBurdenDirection } from '../geneAssociationSemantics'
+import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -503,6 +505,19 @@ export const getPhenotypeColumns = ({
       isSortable: true,
       minWidth: 80,
       render: renderBetaCell(),
+    },
+    {
+      key: 'burden_direction',
+      displayId: 'burden_direction',
+      heading: 'Direction',
+      grow: 0,
+      isSortable: true,
+      minWidth: 70,
+      render: (row: GenePhewasAnnotated) => (
+        <BurdenDirectionIndicator direction={row.burden_direction} />
+      ),
+      renderForCSV: (row: GenePhewasAnnotated) =>
+        formatBurdenDirection(row.burden_direction),
     },
     {
       key: 'variant_count',

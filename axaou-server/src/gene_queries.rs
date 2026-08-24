@@ -4,12 +4,13 @@
 //! Each phenotype has its own gene_results.ht with the following schema:
 //!
 //! Key: (gene_id, gene_symbol, annotation, max_MAF)
-//! Values: Pvalue, Pvalue_Burden, Pvalue_SKAT, BETA_Burden, SE_Burden, MAC, etc.
+//! Values include Pvalue, Pvalue_Burden, Pvalue_SKAT, ancestry-specific
+//! BETA_Burden, META_Stats_Burden, SE_Burden, MAC, etc.
 
 use crate::error::AppError;
 use crate::models::{
-    gene_beta_burden_for_ancestry, AnalysisAssetType, AnalysisAssets, AncestryGroup,
-    GeneAssociationResponse, GeneAssociationResult, GeneQueryParams,
+    gene_beta_burden_for_ancestry, meta_burden_direction_for_ancestry, AnalysisAssetType,
+    AnalysisAssets, AncestryGroup, GeneAssociationResponse, GeneAssociationResult, GeneQueryParams,
 };
 use genohype_core::codec::EncodedValue;
 use genohype_core::query::{KeyRange, KeyValue, QueryEngine};
@@ -296,6 +297,7 @@ fn transform_gene_result(
     let pvalue_burden = get_f64_opt(&fields_map, "Pvalue_Burden");
     let pvalue_skat = get_f64_opt(&fields_map, "Pvalue_SKAT");
     let beta_burden = get_f64_opt(&fields_map, "BETA_Burden");
+    let meta_stats_burden = get_f64_opt(&fields_map, "META_Stats_Burden");
     let se_burden = get_f64_opt(&fields_map, "SE_Burden");
 
     // Variant counts. Split MAC fields may be absent (for example, for continuous
@@ -325,6 +327,7 @@ fn transform_gene_result(
         pvalue_burden,
         pvalue_skat,
         beta_burden: gene_beta_burden_for_ancestry(ancestry_group, beta_burden),
+        burden_direction: meta_burden_direction_for_ancestry(ancestry_group, meta_stats_burden),
         se_burden,
         mac,
         mac_case,
@@ -359,14 +362,9 @@ fn get_f64(map: &HashMap<String, EncodedValue>, key: &str) -> f64 {
 }
 
 fn get_f64_opt(map: &HashMap<String, EncodedValue>, key: &str) -> Option<f64> {
-    map.get(key).and_then(|v| extract_f64(v)).and_then(|f| {
-        // Return None for NaN values
-        if f.is_nan() {
-            None
-        } else {
-            Some(f)
-        }
-    })
+    map.get(key)
+        .and_then(extract_f64)
+        .filter(|value| value.is_finite())
 }
 
 fn extract_f64(val: &EncodedValue) -> Option<f64> {
@@ -398,6 +396,7 @@ fn get_i32_opt(map: &HashMap<String, EncodedValue>, key: &str) -> Option<i32> {
 #[cfg(test)]
 mod tests {
     use super::transform_gene_result;
+    use crate::models::BurdenDirection;
     use genohype_core::codec::EncodedValue;
 
     fn binary(value: &str) -> EncodedValue {
@@ -439,5 +438,60 @@ mod tests {
 
         assert_eq!(result.mac_case, None);
         assert_eq!(result.mac_control, None);
+    }
+
+    #[test]
+    fn direct_hail_meta_uses_only_the_meta_statistic_sign() {
+        let mut fields = base_fields();
+        fields.push(("BETA_Burden".to_string(), EncodedValue::Float64(99.0)));
+        fields.push((
+            "META_Stats_Burden".to_string(),
+            EncodedValue::Float64(-4.25),
+        ));
+
+        let result = transform_gene_result(EncodedValue::Struct(fields), "height", "META")
+            .expect("transform META gene result");
+
+        assert_eq!(result.beta_burden, None);
+        assert_eq!(result.burden_direction, Some(BurdenDirection::Negative));
+    }
+
+    #[test]
+    fn direct_hail_ancestry_preserves_beta_and_ignores_meta_statistic() {
+        let mut fields = base_fields();
+        fields.push(("BETA_Burden".to_string(), EncodedValue::Float64(0.125)));
+        fields.push((
+            "META_Stats_Burden".to_string(),
+            EncodedValue::Float64(-4.25),
+        ));
+
+        let result = transform_gene_result(EncodedValue::Struct(fields), "height", "AFR")
+            .expect("transform AFR gene result");
+
+        assert_eq!(result.beta_burden, Some(0.125));
+        assert_eq!(result.burden_direction, None);
+    }
+
+    #[test]
+    fn direct_hail_meta_handles_zero_missing_and_non_finite_statistics() {
+        for (statistic, expected) in [
+            (Some(0.0), Some(BurdenDirection::Zero)),
+            (Some(f64::NAN), None),
+            (Some(f64::INFINITY), None),
+            (None, None),
+        ] {
+            let mut fields = base_fields();
+            if let Some(value) = statistic {
+                fields.push((
+                    "META_Stats_Burden".to_string(),
+                    EncodedValue::Float64(value),
+                ));
+            }
+
+            let result = transform_gene_result(EncodedValue::Struct(fields), "height", "meta")
+                .expect("transform META gene result");
+            assert_eq!(result.beta_burden, None);
+            assert_eq!(result.burden_direction, expected);
+        }
     }
 }

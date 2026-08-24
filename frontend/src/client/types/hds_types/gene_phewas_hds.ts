@@ -1,3 +1,5 @@
+import type { BurdenDirection } from '../../geneAssociationSemantics'
+
 export interface GenePhewasHds {
     ancestry_group: string;
     annotation:     string;
@@ -12,6 +14,7 @@ export interface Data {
     ancestry_group:      string;
     annotation:          string;
     beta_burden:         number | null;
+    burden_direction:    BurdenDirection | null;
     contig:              null | string;
     gene_id:             string;
     gene_start_position: number | null;

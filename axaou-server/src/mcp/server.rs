@@ -14,6 +14,7 @@ use genohype_mcp::GenomicDataProvider;
 use genohype_mcp::tools::{gene::*, region::*, variant::*};
 
 use crate::mcp::provider::AxaouMcpProvider;
+use crate::models::BurdenDirection;
 
 // ---------------------------------------------------------------------------
 // AoU API Client
@@ -186,6 +187,8 @@ struct ApiGeneAssociation {
     pvalue_skat: Option<f64>,
     #[serde(default)]
     beta_burden: Option<f64>,
+    #[serde(default)]
+    burden_direction: Option<BurdenDirection>,
     #[serde(default)]
     mac: Option<i64>,
     #[serde(default)]

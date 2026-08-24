@@ -56,7 +56,7 @@ When zooming into a specific signal, a per-chromosome view with a dedicated chro
 
 For genes, a quantile-quantile (QQ) plot is also provided to help visualize the distribution of p-values. This plot is used to identify any deviations from the expected null distribution, which can signal potential true associations or inflation in the test statistics.
 
-Below the plots, there is a detailed tabular display of associations. Each row corresponds to a gene or variant and includes columns for various statistics such as p-values, effect sizes (betas), and other relevant metrics.
+Below the plots, there is a detailed tabular display of associations. Each row corresponds to a gene or variant and includes p-values and other relevant metrics. Effect estimates (betas) are shown only where they are available and scientifically interpretable.
 
 ### Genome-wide burden results
 
@@ -74,7 +74,18 @@ The Burden Set control allows you to specify a mutation class of interest:
 
 <img src="/SVG/4-walkthrough-gene-burden-manhattan@4x.png" />
 
-In addition to the standard plots, gene burden results can be explored using a **Heatmap view**. The heatmap displays `+` or `−` signs in cells to indicate the effect direction (risk or protective based on the beta), corner triangles to denote significance, and precise beta values on hover tooltips.
+In addition to the standard plots, gene burden results can be explored using a **Heatmap view**. The heatmap displays direction symbols and corner triangles for significance. Ancestry-specific results show their genuine burden beta on hover.
+
+#### Interpreting META burden direction
+
+META gene results combine ancestry-specific burden tests using a weighted Stouffer statistic. This statistic preserves the direction of the combined evidence, but its magnitude is **not** a beta, effect size, or odds ratio. The browser therefore shows only its sign:
+
+* <span style="color:#0072b2">▲</span> **positive direction**
+* <span style="color:#d55e00">▼</span> **negative direction**
+* <span style="color:#6b7280">■</span> **zero direction**
+* **—** direction unavailable
+
+The symbols use both shape and color and include explanatory hover text. Positive and negative describe the sign of `META_Stats_Burden`; they do **not** by themselves mean increased risk, protection, or a particular effect magnitude. Use the corresponding burden p-value to assess statistical evidence. Ancestry-specific views continue to show genuine burden beta estimates where available.
 
 <img src="/SVG/6-walkthrough-heatmap@4x.png" />
 

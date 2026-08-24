@@ -4,8 +4,9 @@
 
 use crate::clickhouse::xpos::{make_variant_id, make_variant_id_from_xpos};
 use crate::models::{
-    gene_beta_burden_for_ancestry, Exon, GeneAssociationApi, GeneModel, GnomadConstraint, Locus,
-    ManeSelectTranscript, Transcript, VariantAnnotationApi, VariantAssociationApi,
+    gene_beta_burden_for_ancestry, meta_burden_direction_for_ancestry, Exon, GeneAssociationApi,
+    GeneModel, GnomadConstraint, Locus, ManeSelectTranscript, Transcript, VariantAnnotationApi,
+    VariantAssociationApi,
 };
 use clickhouse::Row;
 use serde::{Deserialize, Serialize};
@@ -316,6 +317,7 @@ impl GeneAssociationRow {
             pvalue_skat: self.pvalue_skat,
             neg_log10_p_skat: Self::compute_neg_log10_p(self.pvalue_skat),
             beta_burden: gene_beta_burden_for_ancestry(&self.ancestry, self.beta_burden),
+            burden_direction: meta_burden_direction_for_ancestry(&self.ancestry, self.beta_burden),
             mac: self.mac,
             mac_case: self.mac_case,
             mac_control: self.mac_control,
@@ -749,7 +751,7 @@ mod tests {
             pvalue: Some(1e-6),
             pvalue_burden: None,
             pvalue_skat: None,
-            beta_burden: None,
+            beta_burden: Some(-8.75),
             mac: Some(10),
             mac_case: Some(0),
             mac_control: None,
@@ -759,11 +761,18 @@ mod tests {
         };
 
         let api = row.to_api();
+        assert_eq!(api.beta_burden, None);
+        assert_eq!(
+            api.burden_direction,
+            Some(crate::models::BurdenDirection::Negative)
+        );
         assert_eq!(api.mac, Some(10));
         assert_eq!(api.mac_case, Some(0));
         assert_eq!(api.mac_control, None);
 
         let json = serde_json::to_value(api).expect("serialize gene association");
+        assert!(json["beta_burden"].is_null());
+        assert_eq!(json["burden_direction"], "negative");
         assert_eq!(json["mac_case"], 0);
         assert!(json["mac_control"].is_null());
     }

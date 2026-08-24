@@ -125,6 +125,7 @@ const GenePhewasLayout = ({
     'description_with_link',
     'info',
     'pvalue',
+    ...(ancestryGroup === 'meta' ? ['burden_direction'] : []),
     'mac_case',
     'mac_control',
     'select',
@@ -208,7 +209,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
     dbName: pouchDbName,
     queries: [
       {
-        url: `${axaouDevUrl}/genes/phewas/${geneIdOrName}`,
+        url: `${axaouDevUrl}/genes/phewas/${geneIdOrName}?gene_contract=burden_direction_v1`,
         name: 'geneAssociations',
       },
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },

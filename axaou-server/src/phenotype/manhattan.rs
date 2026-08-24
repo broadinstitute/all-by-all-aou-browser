@@ -8,7 +8,9 @@ use crate::api::AppState;
 use crate::clickhouse::models::PlotRow;
 use crate::clickhouse::xpos::compute_xpos;
 use crate::error::AppError;
-use crate::models::gene_beta_burden_for_ancestry;
+use crate::models::{
+    gene_beta_burden_for_ancestry, meta_burden_direction_for_ancestry, BurdenDirection,
+};
 use axum::{
     body::Body,
     extract::{Path, Query, State},
@@ -118,7 +120,12 @@ pub fn compute_neg_log10_p(p: Option<f64>) -> Option<f64> {
     })
 }
 
-/// Burden test results for a specific annotation category
+/// Burden test results for a specific annotation category.
+///
+/// Used by the aggregated locus/overview routes, whose source query is
+/// p-value-only and cannot provide `META_Stats_Burden`; this payload therefore
+/// intentionally has neither beta nor burden direction. Clients must not infer
+/// direction from these p-values.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BurdenResult {
     pub annotation: String,
@@ -215,9 +222,12 @@ pub struct SignificantHit {
     /// -log10(pvalue) - preserves precision for extremely small p-values
     #[serde(skip_serializing_if = "Option::is_none")]
     pub neg_log10_p: Option<f64>,
-    /// Effect size (beta coefficient for variants, beta_burden for genes)
+    /// Effect size (beta coefficient for variants, genuine beta_burden for non-META genes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beta: Option<f64>,
+    /// Sign only from META_Stats_Burden; never carries its magnitude.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub burden_direction: Option<BurdenDirection>,
     /// Gene symbol from annotations (for variants) or primary gene symbol (for genes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gene_symbol: Option<String>,
@@ -829,6 +839,7 @@ pub async fn get_manhattan_overlay(
                     pvalue: row.pvalue,
                     neg_log10_p: Some(row.neg_log10_p),
                     beta: Some(row.beta),
+                    burden_direction: None,
                     gene_symbol: row.gene_symbol,
                     consequence: row.consequence,
                     hgvsc: row.hgvsc,
@@ -886,7 +897,10 @@ async fn get_gene_manhattan_overlay(
     data_version: &str,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-gene_manhattan-{}-{}-overlay-v3", analysis_id, ancestry, contig, data_version);
+    let cache_key = format!(
+        "{}-{}-gene_manhattan-{}-{}-overlay-v4",
+        analysis_id, ancestry, contig, data_version
+    );
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
@@ -953,6 +967,7 @@ async fn get_gene_manhattan_overlay(
                 pvalue: row.pvalue,
                 neg_log10_p,
                 beta: gene_beta_burden_for_ancestry(ancestry, row.beta_burden),
+                burden_direction: meta_burden_direction_for_ancestry(ancestry, row.beta_burden),
                 gene_symbol: Some(row.gene_symbol),
                 consequence: None,
                 hgvsc: None,

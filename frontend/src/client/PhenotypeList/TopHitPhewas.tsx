@@ -104,7 +104,7 @@ const TopHitPhewasLayout = withSize()(
       'pvalue',
       'mac_case',
       'mac_control',
-      ...(ancestryGroup === 'meta' ? [] : ['BETA']),
+      ...(ancestryGroup === 'meta' ? ['burden_direction'] : ['BETA']),
       'show_top_hits',
     ]
 
@@ -175,7 +175,7 @@ const TopHitPhewas: React.FC<Props> = () => {
       { url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`, name: 'analysesMetadata' },
       { url: `${axaouDevUrl}/categories`, name: 'categories' },
       {
-        url: `${axaouDevUrl}/genes/top-associations?ancestry=${ancestryGroup}&annotation=${burdenSet}&limit=100000`,
+        url: `${axaouDevUrl}/genes/top-associations?ancestry=${ancestryGroup}&annotation=${burdenSet}&limit=100000&gene_contract=burden_direction_v1`,
         name: 'geneAssociations',
       },
       { url: `${axaouDevUrl}/config`, name: 'config' },
