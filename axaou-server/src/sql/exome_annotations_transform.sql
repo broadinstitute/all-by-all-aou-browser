@@ -5,6 +5,17 @@
 -- and computes xpos from locus coordinates.
 
 INSERT INTO exome_annotations
+WITH
+    coalesce(vep.most_severe_consequence, most_severe_csq_variant) AS selected_consequence,
+    arrayElement(
+        arrayConcat(
+            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, selected_consequence), vep.transcript_consequences),
+            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
+            arrayFilter(x -> has(x.consequence_terms, selected_consequence), vep.transcript_consequences),
+            vep.transcript_consequences
+        ),
+        1
+    ) AS selected_transcript
 SELECT
     -- Compute xpos from locus (chromosome index * 1B + position)
     (multiIf(
@@ -47,71 +58,19 @@ SELECT
     freq.`ALL`.AN AS an,
     freq.`ALL`.homozygote_count[2] AS hom,
 
-    -- VEP transcript extraction: pick the best transcript for annotation fields.
-    -- Priority: 1) canonical transcript matching most_severe_consequence
-    --           2) any canonical transcript
-    --           3) any transcript matching most_severe_consequence
-    --           4) first transcript
-    -- This ensures gene_symbol/hgvsc/hgvsp are consistent with the consequence shown.
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).gene_id AS gene_id,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).gene_symbol AS gene_symbol,
-    -- Consequence: use VEP's pre-computed most_severe_consequence (severity-ranked).
-    -- Fall back to top-level most_severe_csq_variant for variants with no VEP data.
-    coalesce(vep.most_severe_consequence, most_severe_csq_variant) AS consequence,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).hgvsc AS hgvsc,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).hgvsp AS hgvsp,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).amino_acids AS amino_acids,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).polyphen_prediction AS polyphen2,
-    arrayFirst(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence),
-        arrayConcat(
-            arrayFilter(x -> x.canonical = 1 AND has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            arrayFilter(x -> x.canonical = 1, vep.transcript_consequences),
-            arrayFilter(x -> has(x.consequence_terms, vep.most_severe_consequence), vep.transcript_consequences),
-            vep.transcript_consequences
-        )
-    ).lof AS lof,
+    -- VEP transcript extraction: use the first transcript in the priority-ordered
+    -- candidate list computed above. All gene/HGVS fields come from that one row.
+    -- Priority: 1) canonical + selected consequence, 2) canonical,
+    --           3) selected consequence, 4) first transcript.
+    selected_transcript.gene_id AS gene_id,
+    selected_transcript.gene_symbol AS gene_symbol,
+    -- Prefer VEP's severity-ranked consequence and preserve the source-level fallback.
+    selected_consequence AS consequence,
+    selected_transcript.hgvsc AS hgvsc,
+    selected_transcript.hgvsp AS hgvsp,
+    selected_transcript.amino_acids AS amino_acids,
+    selected_transcript.polyphen_prediction AS polyphen2,
+    selected_transcript.lof AS lof,
 
     -- Convert Set to Array for filters
     arrayMap(x -> x, filters) AS filters

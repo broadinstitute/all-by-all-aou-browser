@@ -3,7 +3,12 @@
 //! Unlike `ingest` which loads external Hail Tables, `derive` creates tables
 //! by running aggregation queries over already-ingested data.
 
+use super::ingest::{
+    execute_single_sql, get_schema_signature, get_table_stats, query_clickhouse, render_ddl,
+    require_exact_stats, validate_identifier,
+};
 use anyhow::{bail, Context, Result};
+use chrono::Utc;
 use clap::{Args, Subcommand};
 use std::process::Command;
 use tracing::info;
@@ -16,8 +21,7 @@ const PHENOTYPE_SUMMARY_DDL: &str = include_str!("../sql/phenotype_summary.sql")
 const PHENOTYPE_SUMMARY_POPULATE: &str = include_str!("../sql/phenotype_summary_populate.sql");
 const GENE_SUMMARY_DDL: &str = include_str!("../sql/gene_summary.sql");
 const GENE_SUMMARY_POPULATE: &str = include_str!("../sql/gene_summary_populate.sql");
-const GENE_ASSOCIATIONS_BY_GENE_DDL: &str =
-    include_str!("../sql/gene_associations_by_gene.sql");
+const GENE_ASSOCIATIONS_BY_GENE_DDL: &str = include_str!("../sql/gene_associations_by_gene.sql");
 const GENE_ASSOCIATIONS_BY_GENE_POPULATE: &str =
     include_str!("../sql/gene_associations_by_gene_populate.sql");
 
@@ -90,6 +94,9 @@ pub enum DeriveCommand {
     /// Build all derived tables
     All(DeriveArgs),
 
+    /// Atomically exchange a validated top-variants candidate with the serving table
+    PromoteTopVariants(PromoteTopVariantsArgs),
+
     /// Show row counts for all derived tables
     Status {
         /// ClickHouse URL
@@ -109,17 +116,39 @@ pub struct DeriveArgs {
     #[arg(long, default_value = "default")]
     pub database: String,
 
-    /// Drop and recreate the table (default: true)
+    /// Drop and recreate the table (legacy derived tables only)
     #[arg(long, default_value = "true")]
     pub replace: bool,
+
+    /// Explicit candidate name for top_variants_aggregated
+    #[arg(long)]
+    pub candidate_name: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct PromoteTopVariantsArgs {
+    /// Validated candidate. After exchange this name retains the old serving data.
+    #[arg(long)]
+    pub candidate: String,
+
+    /// ClickHouse URL
+    #[arg(long, default_value = "http://localhost:8123")]
+    pub clickhouse_url: String,
+
+    /// ClickHouse database
+    #[arg(long, default_value = "default")]
+    pub database: String,
+
+    /// Required explicit acknowledgement that this changes a serving table name
+    #[arg(long)]
+    pub approved: bool,
 }
 
 /// Run the derive command
 pub async fn run_derive(command: DeriveCommand) -> Result<()> {
     match command {
         DeriveCommand::TopVariantsAggregated(args) => {
-            let config = DerivedTableConfig::top_variants_aggregated();
-            build_derived_table(&config, &args).await?;
+            build_top_variants_candidate(&args).await?;
         }
         DeriveCommand::PhenotypeSummary(args) => {
             let config = DerivedTableConfig::phenotype_summary();
@@ -134,13 +163,10 @@ pub async fn run_derive(command: DeriveCommand) -> Result<()> {
             build_derived_table(&config, &args).await?;
         }
         DeriveCommand::All(args) => {
-            info!("Building all derived tables...");
-            for config in DerivedTableConfig::all() {
-                info!("--- Building {} ---", config.name);
-                if let Err(e) = build_derived_table(&config, &args).await {
-                    tracing::warn!("Failed to build {}: {}", config.name, e);
-                }
-            }
+            bail!("derive all is disabled because top_variants_aggregated requires candidate publication; run each derived table explicitly");
+        }
+        DeriveCommand::PromoteTopVariants(args) => {
+            promote_top_variants_candidate(&args).await?;
         }
         DeriveCommand::Status { clickhouse_url } => {
             show_status(&clickhouse_url).await?;
@@ -149,7 +175,200 @@ pub async fn run_derive(command: DeriveCommand) -> Result<()> {
     Ok(())
 }
 
-/// Build a single derived table
+const TOP_VARIANTS_SERVING: &str = "top_variants_aggregated";
+
+async fn build_top_variants_candidate(args: &DeriveArgs) -> Result<()> {
+    if !args.replace {
+        bail!("top-variants candidate builds do not support append mode");
+    }
+    let candidate = args.candidate_name.clone().unwrap_or_else(|| {
+        format!(
+            "{}_candidate_{}",
+            TOP_VARIANTS_SERVING,
+            Utc::now().format("%Y%m%dT%H%M%SZ")
+        )
+    });
+    validate_top_variants_candidate(&candidate)?;
+    ensure_derived_table_absent(&args.clickhouse_url, &args.database, &candidate).await?;
+
+    let expected_rows = expected_top_variants_rows(&args.clickhouse_url, &args.database).await?;
+    if expected_rows == 0 {
+        bail!("significant_variants produced zero expected top-variant groups");
+    }
+
+    let ddl = render_ddl(
+        TOP_VARIANTS_AGGREGATED_DDL,
+        TOP_VARIANTS_SERVING,
+        &candidate,
+    )?;
+    execute_sql(&args.clickhouse_url, &args.database, &ddl).await?;
+    let populate = render_top_variants_populate(&candidate)?;
+    execute_sql(&args.clickhouse_url, &args.database, &populate).await?;
+
+    let stats = get_table_stats(
+        &args.clickhouse_url,
+        &args.database,
+        &candidate,
+        "tuple(xpos, ref, alt, ancestry)",
+    )
+    .await?;
+    require_exact_stats("top-variants candidate", stats, expected_rows)?;
+    validate_top_variants_nod2(&args.clickhouse_url, &args.database, &candidate).await?;
+
+    let executable = std::env::current_exe()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|_| "axaou-server".to_string());
+    println!("\nTop-variants candidate validated; serving table was not changed.");
+    println!(
+        "  candidate: {} ({} exact unique rows)",
+        candidate, stats.rows
+    );
+    println!("  serving:   {} (untouched)", TOP_VARIANTS_SERVING);
+    println!("\nPromotion command (requires a fresh operator gate):");
+    println!(
+        "  {executable} derive promote-top-variants --candidate {} --clickhouse-url {} --database {} --approved",
+        candidate, args.clickhouse_url, args.database
+    );
+    println!("Rollback after promotion uses the same atomic exchange:");
+    println!(
+        "  curl -sS --fail-with-body '{}/?database={}' --data-binary 'EXCHANGE TABLES {} AND {}'",
+        args.clickhouse_url, args.database, TOP_VARIANTS_SERVING, candidate
+    );
+    Ok(())
+}
+
+async fn promote_top_variants_candidate(args: &PromoteTopVariantsArgs) -> Result<()> {
+    if !args.approved {
+        bail!("refusing promotion without --approved from the immediate operator gate");
+    }
+    validate_top_variants_candidate(&args.candidate)?;
+    let expected_rows = expected_top_variants_rows(&args.clickhouse_url, &args.database).await?;
+    let stats = get_table_stats(
+        &args.clickhouse_url,
+        &args.database,
+        &args.candidate,
+        "tuple(xpos, ref, alt, ancestry)",
+    )
+    .await?;
+    require_exact_stats("top-variants promotion candidate", stats, expected_rows)?;
+    validate_top_variants_nod2(&args.clickhouse_url, &args.database, &args.candidate).await?;
+
+    let serving_schema =
+        get_schema_signature(&args.clickhouse_url, &args.database, TOP_VARIANTS_SERVING).await?;
+    let candidate_schema =
+        get_schema_signature(&args.clickhouse_url, &args.database, &args.candidate).await?;
+    if serving_schema != candidate_schema {
+        bail!("candidate and serving schemas differ; refusing atomic exchange");
+    }
+
+    let active_writers: u64 = query_clickhouse(
+        &args.clickhouse_url,
+        &args.database,
+        "SELECT count() FROM system.processes WHERE query_kind IN ('Insert', 'Alter', 'Create', 'Drop', 'Rename')",
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse active-writer count")?;
+    if active_writers != 0 {
+        bail!("{active_writers} active ClickHouse writer(s); refusing promotion");
+    }
+
+    let exchange = format!(
+        "EXCHANGE TABLES {} AND {}",
+        TOP_VARIANTS_SERVING, args.candidate
+    );
+    execute_single_sql(&args.clickhouse_url, &args.database, &exchange).await?;
+    let promoted = get_table_stats(
+        &args.clickhouse_url,
+        &args.database,
+        TOP_VARIANTS_SERVING,
+        "tuple(xpos, ref, alt, ancestry)",
+    )
+    .await?;
+    require_exact_stats("promoted top-variants table", promoted, expected_rows)?;
+    validate_top_variants_nod2(&args.clickhouse_url, &args.database, TOP_VARIANTS_SERVING).await?;
+
+    println!("Atomic top-variants promotion complete.");
+    println!("  serving: {} (new data)", TOP_VARIANTS_SERVING);
+    println!(
+        "  rollback: {} (old serving data; preserved)",
+        args.candidate
+    );
+    println!("  rollback SQL: {}", exchange);
+    Ok(())
+}
+
+fn validate_top_variants_candidate(candidate: &str) -> Result<()> {
+    validate_identifier(candidate)?;
+    let prefix = format!("{TOP_VARIANTS_SERVING}_candidate_");
+    if !candidate.starts_with(&prefix) {
+        bail!("candidate must start with {prefix}");
+    }
+    Ok(())
+}
+
+fn render_top_variants_populate(candidate: &str) -> Result<String> {
+    let needle = format!("INSERT INTO {TOP_VARIANTS_SERVING}");
+    if TOP_VARIANTS_AGGREGATED_POPULATE.matches(&needle).count() != 1 {
+        bail!("top-variants populate SQL has an ambiguous target");
+    }
+    Ok(TOP_VARIANTS_AGGREGATED_POPULATE.replacen(&needle, &format!("INSERT INTO {candidate}"), 1))
+}
+
+async fn ensure_derived_table_absent(url: &str, database: &str, table: &str) -> Result<()> {
+    let exists: u64 = query_clickhouse(
+        url,
+        database,
+        &format!(
+            "SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = '{table}'"
+        ),
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse table-existence check")?;
+    if exists != 0 {
+        bail!("table {database}.{table} already exists; candidate builds never replace it");
+    }
+    Ok(())
+}
+
+async fn expected_top_variants_rows(url: &str, database: &str) -> Result<u64> {
+    query_clickhouse(
+        url,
+        database,
+        "SELECT count() FROM (SELECT xpos, contig, position, ref, alt, ancestry FROM significant_variants WHERE ancestry = 'meta' GROUP BY xpos, contig, position, ref, alt, ancestry)",
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse expected top-variants row count")
+}
+
+async fn validate_top_variants_nod2(url: &str, database: &str, table: &str) -> Result<()> {
+    validate_identifier(table)?;
+    let output = query_clickhouse(
+        url,
+        database,
+        &format!(
+            "SELECT count(), countIf(ifNull(gene_symbol, '') = 'NOD2' AND ifNull(consequence, '') = 'synonymous_variant') FROM {table} WHERE xpos = 16050711288 AND ref = 'C' AND alt = 'T' FORMAT TabSeparated"
+        ),
+    )
+    .await?;
+    let (rows, correct) = output
+        .trim()
+        .split_once('\t')
+        .context("invalid top-variants NOD2 validation output")?;
+    let rows: u64 = rows.parse()?;
+    let correct: u64 = correct.parse()?;
+    if rows == 0 || rows != correct {
+        bail!("top-variants NOD2 regression mismatch: rows={rows}, correct={correct}");
+    }
+    Ok(())
+}
+
+/// Build a single legacy derived table
 async fn build_derived_table(config: &DerivedTableConfig, args: &DeriveArgs) -> Result<()> {
     info!("Building derived table '{}'...", config.name);
 
@@ -233,12 +452,10 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
         .map(|s| s.trim())
         .filter(|s| {
             !s.is_empty()
-                && !s
-                    .lines()
-                    .all(|line| {
-                        let trimmed = line.trim();
-                        trimmed.is_empty() || trimmed.starts_with("--")
-                    })
+                && !s.lines().all(|line| {
+                    let trimmed = line.trim();
+                    trimmed.is_empty() || trimmed.starts_with("--")
+                })
         })
         .map(|s| s.to_string())
         .collect()
@@ -279,7 +496,20 @@ fn format_number(n: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{GENE_ASSOCIATIONS_BY_GENE_DDL, GENE_ASSOCIATIONS_BY_GENE_POPULATE};
+    use super::{
+        render_top_variants_populate, validate_top_variants_candidate,
+        GENE_ASSOCIATIONS_BY_GENE_DDL, GENE_ASSOCIATIONS_BY_GENE_POPULATE,
+    };
+
+    #[test]
+    fn top_variants_candidate_rendering_never_targets_serving_table() {
+        let sql = render_top_variants_populate("top_variants_aggregated_candidate_test").unwrap();
+        assert!(sql.contains("INSERT INTO top_variants_aggregated_candidate_test"));
+        assert!(!sql.contains("INSERT INTO top_variants_aggregated\n"));
+        assert!(validate_top_variants_candidate("top_variants_aggregated_candidate_test").is_ok());
+        assert!(validate_top_variants_candidate("top_variants_aggregated").is_err());
+        assert!(validate_top_variants_candidate("gene_models_candidate_test").is_err());
+    }
 
     #[test]
     fn by_gene_schema_and_population_include_split_mac_explicitly() {

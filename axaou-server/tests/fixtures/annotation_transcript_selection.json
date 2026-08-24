@@ -1,0 +1,75 @@
+[
+  {
+    "name": "canonical_and_most_severe",
+    "vep_consequence": "missense_variant",
+    "top_level_consequence": "intron_variant",
+    "transcripts": [
+      {"id": "noncanonical", "canonical": false, "mane": false, "consequences": ["missense_variant"], "gene_symbol": "WRONG"},
+      {"id": "canonical_match", "canonical": true, "mane": false, "consequences": ["missense_variant"], "gene_symbol": "RIGHT"}
+    ],
+    "expected_transcript": "canonical_match",
+    "expected_consequence": "missense_variant"
+  },
+  {
+    "name": "mane_nod2_chr16_50711288_C_T",
+    "vep_consequence": "synonymous_variant",
+    "top_level_consequence": "synonymous_variant",
+    "transcripts": [
+      {"id": "ENST00000602304", "canonical": true, "mane": false, "consequences": ["upstream_gene_variant"], "gene_symbol": null},
+      {"id": "ENST00000300589", "canonical": false, "mane": false, "consequences": ["synonymous_variant"], "gene_symbol": "NOD2"},
+      {"id": "ENST00000647318", "canonical": true, "mane": true, "consequences": ["synonymous_variant"], "gene_symbol": "NOD2"}
+    ],
+    "expected_transcript": "ENST00000647318",
+    "expected_consequence": "synonymous_variant"
+  },
+  {
+    "name": "canonical_absent_uses_severity_match",
+    "vep_consequence": "splice_region_variant",
+    "top_level_consequence": null,
+    "transcripts": [
+      {"id": "first_unrelated", "canonical": false, "mane": false, "consequences": ["intron_variant"], "gene_symbol": "A"},
+      {"id": "severity_match", "canonical": false, "mane": false, "consequences": ["splice_region_variant"], "gene_symbol": "B"}
+    ],
+    "expected_transcript": "severity_match",
+    "expected_consequence": "splice_region_variant"
+  },
+  {
+    "name": "first_transcript_fallback",
+    "vep_consequence": null,
+    "top_level_consequence": null,
+    "transcripts": [
+      {"id": "first", "canonical": false, "mane": false, "consequences": ["intron_variant"], "gene_symbol": "FIRST"},
+      {"id": "second", "canonical": false, "mane": false, "consequences": ["upstream_gene_variant"], "gene_symbol": "SECOND"}
+    ],
+    "expected_transcript": "first",
+    "expected_consequence": null
+  },
+  {
+    "name": "vep_null_uses_top_level_consequence",
+    "vep_consequence": null,
+    "top_level_consequence": "intergenic_variant",
+    "transcripts": [],
+    "expected_transcript": null,
+    "expected_consequence": "intergenic_variant"
+  },
+  {
+    "name": "multiple_canonical_transcripts_keep_first_priority_match",
+    "vep_consequence": "synonymous_variant",
+    "top_level_consequence": null,
+    "transcripts": [
+      {"id": "canonical_unrelated", "canonical": true, "mane": false, "consequences": ["upstream_gene_variant"], "gene_symbol": "WRONG"},
+      {"id": "canonical_match_first", "canonical": true, "mane": true, "consequences": ["synonymous_variant"], "gene_symbol": "RIGHT_FIRST"},
+      {"id": "canonical_match_second", "canonical": true, "mane": false, "consequences": ["synonymous_variant"], "gene_symbol": "RIGHT_SECOND"}
+    ],
+    "expected_transcript": "canonical_match_first",
+    "expected_consequence": "synonymous_variant"
+  },
+  {
+    "name": "fully_null_annotations",
+    "vep_consequence": null,
+    "top_level_consequence": null,
+    "transcripts": [],
+    "expected_transcript": null,
+    "expected_consequence": null
+  }
+]
