@@ -12,7 +12,7 @@ import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, burdenSetAtom, showQQOverlayAtom, geneBurdenViewModeAtom, geneBurdenShowSigAtom, locusMafAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useRestoreFromUrl } from '../initialUrlState';
-import { hasGeneEffectEstimate } from '../geneAssociationSemantics';
+import { hasGeneEffectEstimate, shouldShowMacCaseControlColumns } from '../geneAssociationSemantics';
 import ExportDataButton from '../ExportDataButton';
 import { formatMacCount } from './Utils';
 
@@ -240,6 +240,7 @@ const SIG_THRESHOLD = 2.5e-6;
 
 interface Props {
   analysisId: string;
+  traitType?: string | null;
 }
 
 type ViewMode = 'standard' | 'overlay' | 'heatmap' | 'qqplot';
@@ -254,9 +255,11 @@ const TEST_OPTIONS: Array<{ key: TestType; label: string }> = [
 
 const VALID_VIEW_MODES = new Set<string>(['standard', 'overlay', 'heatmap', 'qqplot'])
 
-export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
+export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const showBeta = hasGeneEffectEstimate(ancestryGroup);
+  const showMacColumns = shouldShowMacCaseControlColumns(traitType);
+  const tableColumnCount = (showBeta ? 6 : 5) + (showMacColumns ? 2 : 0);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const { goToGene } = useAppNavigation();
 
@@ -484,17 +487,19 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
     { key: 'pvalue_burden', heading: 'P Burden' },
     { key: 'pvalue_skat', heading: 'P SKAT' },
     ...(showBeta ? [{ key: 'beta_burden', heading: 'Beta' }] : []),
-    {
-      key: 'mac_case',
-      heading: 'MAC cases',
-      renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_case),
-    },
-    {
-      key: 'mac_control',
-      heading: 'MAC controls',
-      renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_control),
-    },
-  ], [showBeta]);
+    ...(showMacColumns ? [
+      {
+        key: 'mac_case',
+        heading: 'MAC cases',
+        renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_case),
+      },
+      {
+        key: 'mac_control',
+        heading: 'MAC controls',
+        renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_control),
+      },
+    ] : []),
+  ], [showBeta, showMacColumns]);
 
   return (
     <Container>
@@ -735,44 +740,48 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
                   <SortIcon $active={sortKey === 'beta_burden'} $desc={sortDesc}>▲</SortIcon>
                 </th>
               )}
-              <th aria-sort={getAriaSort('mac_case')}>
-                <SortHeaderButton
-                  type="button"
-                  onClick={() => handleSort('mac_case')}
-                  aria-label={`Sort by MAC cases; currently ${getAriaSort('mac_case')}`}
-                >
-                  MAC cases
-                  <SortIcon $active={sortKey === 'mac_case'} $desc={sortDesc}>▲</SortIcon>
-                </SortHeaderButton>
-              </th>
-              <th aria-sort={getAriaSort('mac_control')}>
-                <SortHeaderButton
-                  type="button"
-                  onClick={() => handleSort('mac_control')}
-                  aria-label={`Sort by MAC controls; currently ${getAriaSort('mac_control')}`}
-                >
-                  MAC controls
-                  <SortIcon $active={sortKey === 'mac_control'} $desc={sortDesc}>▲</SortIcon>
-                </SortHeaderButton>
-              </th>
+              {showMacColumns && (
+                <>
+                  <th aria-sort={getAriaSort('mac_case')}>
+                    <SortHeaderButton
+                      type="button"
+                      onClick={() => handleSort('mac_case')}
+                      aria-label={`Sort by MAC cases; currently ${getAriaSort('mac_case')}`}
+                    >
+                      MAC cases
+                      <SortIcon $active={sortKey === 'mac_case'} $desc={sortDesc}>▲</SortIcon>
+                    </SortHeaderButton>
+                  </th>
+                  <th aria-sort={getAriaSort('mac_control')}>
+                    <SortHeaderButton
+                      type="button"
+                      onClick={() => handleSort('mac_control')}
+                      aria-label={`Sort by MAC controls; currently ${getAriaSort('mac_control')}`}
+                    >
+                      MAC controls
+                      <SortIcon $active={sortKey === 'mac_control'} $desc={sortDesc}>▲</SortIcon>
+                    </SortHeaderButton>
+                  </th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
             {anyLoading() ? (
               <tr>
-                <td colSpan={showBeta ? 8 : 7} style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: 20 }}>
                   Loading...
                 </td>
               </tr>
             ) : queryStates.geneData?.error ? (
               <tr>
-                <td colSpan={showBeta ? 8 : 7} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
+                <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   Gene burden data not available for this phenotype
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={showBeta ? 8 : 7} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
+                <td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: 20, color: 'var(--theme-text-muted, #666)' }}>
                   No gene burden results found
                 </td>
               </tr>
@@ -810,8 +819,12 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId }) => {
                     {showBeta && (
                       <td onClick={() => handleGeneClick(gene)}>{formatBeta(gene.beta_burden)}</td>
                     )}
-                    <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_case)}</td>
-                    <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_control)}</td>
+                    {showMacColumns && (
+                      <>
+                        <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_case)}</td>
+                        <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_control)}</td>
+                      </>
+                    )}
                   </tr>
                 );
               })

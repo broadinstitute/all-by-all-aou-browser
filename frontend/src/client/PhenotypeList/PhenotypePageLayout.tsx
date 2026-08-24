@@ -274,6 +274,7 @@ export const PhenotypePageLayout: React.FC<PhenotypePageLayoutProps> = ({ size }
       return (
         <PhenotypeGeneBurdenTab
           analysisId={analysisMetadataPrepared.analysis_id}
+          traitType={analysisMetadataPrepared.trait_type}
         />
       );
     }
