@@ -4,8 +4,8 @@
 //! by running aggregation queries over already-ingested data.
 
 use super::ingest::{
-    execute_single_sql, get_schema_signature, get_table_stats, query_clickhouse, render_ddl,
-    require_exact_stats, validate_identifier,
+    ensure_no_active_clickhouse_writes, execute_single_sql, get_schema_signature, get_table_stats,
+    query_clickhouse, render_ddl, require_exact_stats, shell_quote, validate_identifier,
 };
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
@@ -213,6 +213,7 @@ async fn build_top_variants_candidate(args: &DeriveArgs) -> Result<()> {
     )
     .await?;
     require_exact_stats("top-variants candidate", stats, expected_rows)?;
+    require_exact_top_variants_key_parity(&args.clickhouse_url, &args.database, &candidate).await?;
     validate_top_variants_nod2(&args.clickhouse_url, &args.database, &candidate).await?;
 
     let executable = std::env::current_exe()
@@ -226,8 +227,11 @@ async fn build_top_variants_candidate(args: &DeriveArgs) -> Result<()> {
     println!("  serving:   {} (untouched)", TOP_VARIANTS_SERVING);
     println!("\nPromotion command (requires a fresh operator gate):");
     println!(
-        "  {executable} derive promote-top-variants --candidate {} --clickhouse-url {} --database {} --approved",
-        candidate, args.clickhouse_url, args.database
+        "  {} derive promote-top-variants --candidate {} --clickhouse-url {} --database {} --approved",
+        shell_quote(&executable),
+        shell_quote(&candidate),
+        shell_quote(&args.clickhouse_url),
+        shell_quote(&args.database)
     );
     println!("Rollback after promotion uses the same atomic exchange:");
     println!(
@@ -251,6 +255,8 @@ async fn promote_top_variants_candidate(args: &PromoteTopVariantsArgs) -> Result
     )
     .await?;
     require_exact_stats("top-variants promotion candidate", stats, expected_rows)?;
+    require_exact_top_variants_key_parity(&args.clickhouse_url, &args.database, &args.candidate)
+        .await?;
     validate_top_variants_nod2(&args.clickhouse_url, &args.database, &args.candidate).await?;
 
     let serving_schema =
@@ -261,33 +267,37 @@ async fn promote_top_variants_candidate(args: &PromoteTopVariantsArgs) -> Result
         bail!("candidate and serving schemas differ; refusing atomic exchange");
     }
 
-    let active_writers: u64 = query_clickhouse(
-        &args.clickhouse_url,
-        &args.database,
-        "SELECT count() FROM system.processes WHERE query_kind IN ('Insert', 'Alter', 'Create', 'Drop', 'Rename')",
-    )
-    .await?
-    .trim()
-    .parse()
-    .context("failed to parse active-writer count")?;
-    if active_writers != 0 {
-        bail!("{active_writers} active ClickHouse writer(s); refusing promotion");
-    }
+    ensure_no_active_clickhouse_writes(&args.clickhouse_url, &args.database).await?;
 
     let exchange = format!(
         "EXCHANGE TABLES {} AND {}",
         TOP_VARIANTS_SERVING, args.candidate
     );
     execute_single_sql(&args.clickhouse_url, &args.database, &exchange).await?;
-    let promoted = get_table_stats(
-        &args.clickhouse_url,
-        &args.database,
-        TOP_VARIANTS_SERVING,
-        "tuple(xpos, ref, alt, ancestry)",
-    )
-    .await?;
-    require_exact_stats("promoted top-variants table", promoted, expected_rows)?;
-    validate_top_variants_nod2(&args.clickhouse_url, &args.database, TOP_VARIANTS_SERVING).await?;
+    let post_validation: Result<()> = async {
+        let promoted = get_table_stats(
+            &args.clickhouse_url,
+            &args.database,
+            TOP_VARIANTS_SERVING,
+            "tuple(xpos, ref, alt, ancestry)",
+        )
+        .await?;
+        require_exact_stats("promoted top-variants table", promoted, expected_rows)?;
+        validate_top_variants_nod2(&args.clickhouse_url, &args.database, TOP_VARIANTS_SERVING)
+            .await?;
+        Ok(())
+    }
+    .await;
+    if let Err(validation_error) = post_validation {
+        return match execute_single_sql(&args.clickhouse_url, &args.database, &exchange).await {
+            Ok(()) => Err(validation_error.context(
+                "post-promotion validation failed; the atomic exchange was rolled back",
+            )),
+            Err(rollback_error) => bail!(
+                "post-promotion validation failed ({validation_error:#}); automatic rollback also failed ({rollback_error:#}); table identity is uncertain"
+            ),
+        };
+    }
 
     println!("Atomic top-variants promotion complete.");
     println!("  serving: {} (new data)", TOP_VARIANTS_SERVING);
@@ -344,6 +354,32 @@ async fn expected_top_variants_rows(url: &str, database: &str) -> Result<u64> {
     .trim()
     .parse()
     .context("failed to parse expected top-variants row count")
+}
+
+fn top_variants_key_parity_sql(candidate: &str) -> Result<String> {
+    validate_identifier(candidate)?;
+    Ok(format!(
+        "SELECT count() FROM (SELECT xpos, ref, alt, ancestry FROM (SELECT xpos, ref, alt, ancestry, 1 AS delta FROM (SELECT xpos, ref, alt, ancestry FROM significant_variants WHERE ancestry = 'meta' GROUP BY xpos, ref, alt, ancestry) UNION ALL SELECT xpos, ref, alt, ancestry, -1 AS delta FROM {candidate}) GROUP BY xpos, ref, alt, ancestry HAVING sum(delta) != 0)"
+    ))
+}
+
+async fn require_exact_top_variants_key_parity(
+    url: &str,
+    database: &str,
+    candidate: &str,
+) -> Result<()> {
+    let differing_keys: u64 =
+        query_clickhouse(url, database, &top_variants_key_parity_sql(candidate)?)
+            .await?
+            .trim()
+            .parse()
+            .context("failed to parse top-variants key-parity count")?;
+    if differing_keys != 0 {
+        bail!(
+            "top-variants candidate differs from significant_variants by {differing_keys} key(s)"
+        );
+    }
+    Ok(())
 }
 
 async fn validate_top_variants_nod2(url: &str, database: &str, table: &str) -> Result<()> {
@@ -497,7 +533,7 @@ fn format_number(n: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_top_variants_populate, validate_top_variants_candidate,
+        render_top_variants_populate, top_variants_key_parity_sql, validate_top_variants_candidate,
         GENE_ASSOCIATIONS_BY_GENE_DDL, GENE_ASSOCIATIONS_BY_GENE_POPULATE,
     };
 
@@ -509,6 +545,11 @@ mod tests {
         assert!(validate_top_variants_candidate("top_variants_aggregated_candidate_test").is_ok());
         assert!(validate_top_variants_candidate("top_variants_aggregated").is_err());
         assert!(validate_top_variants_candidate("gene_models_candidate_test").is_err());
+
+        let parity = top_variants_key_parity_sql("top_variants_aggregated_candidate_test").unwrap();
+        assert!(parity.contains("FROM significant_variants"));
+        assert!(parity.contains("FROM top_variants_aggregated_candidate_test"));
+        assert!(top_variants_key_parity_sql("unsafe;candidate").is_err());
     }
 
     #[test]

@@ -400,6 +400,11 @@ async fn orchestrate_annotation_candidate_load(
     if !matches!(args.init_strategy, InitStrategy::Replace) {
         bail!("annotation candidates do not support create/append strategies");
     }
+    if args.limit.is_some() {
+        bail!(
+            "annotation candidates do not support --limit because exact source parity is required"
+        );
+    }
 
     let input_path = args.input.as_deref().unwrap_or(config.default_path);
     // Source identity/count is established before the first DDL statement.
@@ -487,6 +492,8 @@ async fn orchestrate_annotation_candidate_load(
     if raw_contigs != candidate_contigs {
         bail!("candidate chromosome strata differ from the exact raw export");
     }
+    require_exact_annotation_key_parity(&args.clickhouse_url, &args.database, &staging, &candidate)
+        .await?;
 
     let raw_null_strata = query_clickhouse(
         &args.clickhouse_url,
@@ -531,12 +538,14 @@ async fn orchestrate_annotation_candidate_load(
     println!("  serving:    {} (untouched)", config.name);
     println!("\nPromotion command (requires a fresh operator gate):");
     println!(
-        "  {executable} ingest promote-annotation --table {} --candidate {} --clickhouse-url {} --database {} --hail-decoder {} --approved",
+        "  {} ingest promote-annotation --table {} --candidate {} --clickhouse-url {} --database {} --input {} --hail-decoder {} --approved",
+        shell_quote(&executable),
         if config.name == "exome_annotations" { "exome" } else { "genome" },
-        candidate,
-        args.clickhouse_url,
-        args.database,
-        args.hail_decoder
+        shell_quote(&candidate),
+        shell_quote(&args.clickhouse_url),
+        shell_quote(&args.database),
+        shell_quote(input_path),
+        shell_quote(&args.hail_decoder)
     );
     println!("Rollback after promotion uses the same atomic exchange:");
     println!(
@@ -569,6 +578,22 @@ async fn promote_annotation_candidate(args: &PromoteAnnotationArgs) -> Result<()
     )
     .await?;
     require_exact_stats("promotion candidate", candidate_stats, source.total_rows)?;
+    let staging = format!("{}_raw", args.candidate);
+    let raw_stats = get_table_stats(
+        &args.clickhouse_url,
+        &args.database,
+        &staging,
+        "tuple(locus.contig, locus.position, alleles[1], alleles[2])",
+    )
+    .await?;
+    require_exact_stats("promotion raw candidate", raw_stats, source.total_rows)?;
+    require_exact_annotation_key_parity(
+        &args.clickhouse_url,
+        &args.database,
+        &staging,
+        &args.candidate,
+    )
+    .await?;
 
     let serving_schema =
         get_schema_signature(&args.clickhouse_url, &args.database, config.name).await?;
@@ -578,31 +603,7 @@ async fn promote_annotation_candidate(args: &PromoteAnnotationArgs) -> Result<()
         bail!("candidate and serving schemas differ; refusing atomic exchange");
     }
 
-    let active_writers: u64 = query_clickhouse(
-        &args.clickhouse_url,
-        &args.database,
-        "SELECT count() FROM system.processes WHERE query_kind IN ('Insert', 'Alter', 'Create', 'Drop', 'Rename')",
-    )
-    .await?
-    .trim()
-    .parse()
-    .context("failed to parse active-writer count")?;
-    if active_writers != 0 {
-        bail!("{active_writers} active ClickHouse writer(s); refusing promotion");
-    }
-
-    let active_mutations: u64 = query_clickhouse(
-        &args.clickhouse_url,
-        &args.database,
-        "SELECT count() FROM system.mutations WHERE NOT is_done",
-    )
-    .await?
-    .trim()
-    .parse()
-    .context("failed to parse active-mutation count")?;
-    if active_mutations != 0 {
-        bail!("{active_mutations} active ClickHouse mutation(s); refusing promotion");
-    }
+    ensure_no_active_clickhouse_writes(&args.clickhouse_url, &args.database).await?;
 
     let exchange = format!("EXCHANGE TABLES {} AND {}", config.name, args.candidate);
     info!(
@@ -613,16 +614,30 @@ async fn promote_annotation_candidate(args: &PromoteAnnotationArgs) -> Result<()
     );
     execute_single_sql(&args.clickhouse_url, &args.database, &exchange).await?;
 
-    let promoted_stats = get_table_stats(
-        &args.clickhouse_url,
-        &args.database,
-        config.name,
-        "tuple(xpos, ref, alt)",
-    )
-    .await?;
-    require_exact_stats("promoted serving table", promoted_stats, source.total_rows)?;
-    if config.name == "exome_annotations" {
-        validate_nod2_regression(&args.clickhouse_url, &args.database, config.name).await?;
+    let post_validation: Result<()> = async {
+        let promoted_stats = get_table_stats(
+            &args.clickhouse_url,
+            &args.database,
+            config.name,
+            "tuple(xpos, ref, alt)",
+        )
+        .await?;
+        require_exact_stats("promoted serving table", promoted_stats, source.total_rows)?;
+        if config.name == "exome_annotations" {
+            validate_nod2_regression(&args.clickhouse_url, &args.database, config.name).await?;
+        }
+        Ok(())
+    }
+    .await;
+    if let Err(validation_error) = post_validation {
+        return match execute_single_sql(&args.clickhouse_url, &args.database, &exchange).await {
+            Ok(()) => Err(validation_error.context(
+                "post-promotion validation failed; the atomic exchange was rolled back",
+            )),
+            Err(rollback_error) => bail!(
+                "post-promotion validation failed ({validation_error:#}); automatic rollback also failed ({rollback_error:#}); table identity is uncertain"
+            ),
+        };
     }
 
     println!("Atomic promotion complete.");
@@ -812,10 +827,68 @@ pub(super) async fn get_schema_signature(url: &str, database: &str, table: &str)
         url,
         database,
         &format!(
-            "SELECT groupArray(concat(name, ':', type)) FROM (SELECT name, type FROM system.columns WHERE database = currentDatabase() AND table = '{table}' ORDER BY position) FORMAT TabSeparated"
+            "SELECT (SELECT groupArray(concat(name, ':', type)) FROM (SELECT name, type FROM system.columns WHERE database = currentDatabase() AND table = '{table}' ORDER BY position)) AS column_signature, engine_full, partition_key, sorting_key, primary_key, sampling_key FROM system.tables WHERE database = currentDatabase() AND name = '{table}' FORMAT TabSeparated"
         ),
     )
     .await
+}
+
+pub(super) async fn ensure_no_active_clickhouse_writes(url: &str, database: &str) -> Result<()> {
+    let active_writers: u64 = query_clickhouse(
+        url,
+        database,
+        "SELECT count() FROM system.processes WHERE query_kind IN ('Insert', 'Alter', 'Create', 'Drop', 'Rename')",
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse active-writer count")?;
+    if active_writers != 0 {
+        bail!("{active_writers} active ClickHouse writer(s); refusing promotion");
+    }
+
+    let active_mutations: u64 = query_clickhouse(
+        url,
+        database,
+        "SELECT count() FROM system.mutations WHERE NOT is_done",
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse active-mutation count")?;
+    if active_mutations != 0 {
+        bail!("{active_mutations} active ClickHouse mutation(s); refusing promotion");
+    }
+    Ok(())
+}
+
+fn annotation_key_parity_sql(staging: &str, candidate: &str) -> Result<String> {
+    validate_identifier(staging)?;
+    validate_identifier(candidate)?;
+    Ok(format!(
+        "SELECT count() FROM (SELECT contig, position, ref, alt FROM (SELECT locus.contig AS contig, locus.position AS position, alleles[1] AS ref, alleles[2] AS alt, 1 AS delta FROM {staging} UNION ALL SELECT contig, position, ref, alt, -1 AS delta FROM {candidate}) GROUP BY contig, position, ref, alt HAVING sum(delta) != 0)"
+    ))
+}
+
+async fn require_exact_annotation_key_parity(
+    url: &str,
+    database: &str,
+    staging: &str,
+    candidate: &str,
+) -> Result<()> {
+    let differing_keys: u64 = query_clickhouse(
+        url,
+        database,
+        &annotation_key_parity_sql(staging, candidate)?,
+    )
+    .await?
+    .trim()
+    .parse()
+    .context("failed to parse annotation key-parity count")?;
+    if differing_keys != 0 {
+        bail!("annotation candidate differs from raw export by {differing_keys} key(s)");
+    }
+    Ok(())
 }
 
 async fn validate_nod2_regression(url: &str, database: &str, table: &str) -> Result<()> {
@@ -1137,6 +1210,10 @@ async fn show_status(url: &str) -> Result<()> {
     Ok(())
 }
 
+pub(super) fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
 /// Format a number with thousands separators
 fn format_number(n: u64) -> String {
     let s = n.to_string();
@@ -1294,6 +1371,21 @@ mod tests {
         );
         assert!(validate_candidate_name("exome_annotations", "genome_annotations").is_err());
         assert!(validate_identifier("candidate; DROP TABLE gene_models").is_err());
+
+        let parity = annotation_key_parity_sql(
+            "exome_annotations_candidate_test_raw",
+            "exome_annotations_candidate_test",
+        )
+        .unwrap();
+        assert!(parity.contains("FROM exome_annotations_candidate_test_raw"));
+        assert!(parity.contains("FROM exome_annotations_candidate_test"));
+        assert!(annotation_key_parity_sql("unsafe;raw", "safe_candidate").is_err());
+    }
+
+    #[test]
+    fn generated_commands_can_quote_custom_source_paths() {
+        assert_eq!(shell_quote("gs://bucket/path"), "'gs://bucket/path'");
+        assert_eq!(shell_quote("a'b"), "'a'\"'\"'b'");
     }
 
     #[test]
