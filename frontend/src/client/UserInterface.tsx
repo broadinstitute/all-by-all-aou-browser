@@ -9,6 +9,7 @@ import { Page, Link as BaseLink, Modal, TextButton, ExternalLink as BaseExternal
 import { useEffect } from 'react'
 import { greenThresholdColor, yellowThresholdColor } from './PhenotypeList/Utils'
 import { ExperienceMode } from './experienceNavigation'
+import { browsingModeControlContract } from './browserUiContracts'
 
 export const ShowControlsButton = styled.button<{ $right?: boolean }>`
   position: absolute;
@@ -62,6 +63,11 @@ export const ControlsCloseButton = styled.button`
   &:hover {
     background: var(--theme-border, #e0e0e0);
     color: var(--theme-text, #333);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
   }
 `
 
@@ -561,38 +567,34 @@ const ExperienceModeToggleContainer = styled.fieldset`
   background: var(--theme-surface-alt, #e8e8e8);
 
   legend {
-    align-self: center;
-    padding: 0 5px 0 0;
-    color: var(--theme-text-muted, #555);
-    font-size: 12px;
-    font-weight: 600;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 `
 
 const ExperienceModeOption = styled.button<{ $active: boolean }>`
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 104px;
-  padding: 4px 8px;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 5px 10px;
   border: 1px solid ${({ $active }) => ($active ? '#262262' : 'transparent')};
   border-radius: 4px;
   background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
   color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
   cursor: pointer;
   font-family: GothamBook, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.15;
-  text-align: left;
-
-  strong {
-    font-size: 12px;
-  }
-
-  span {
-    margin-top: 2px;
-    color: ${({ $active }) => ($active ? '#eee' : 'var(--theme-text-muted, #666)')};
-    font-size: 10px;
-  }
+  white-space: nowrap;
 
   &:hover {
     background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
@@ -608,26 +610,19 @@ export const ExperienceModeToggle: React.FC<{
   value: ExperienceMode
   onChange: (mode: ExperienceMode) => void
 }> = ({ value, onChange }) => (
-  <ExperienceModeToggleContainer aria-label="Browsing mode">
-    <legend>View</legend>
-    <ExperienceModeOption
-      type="button"
-      $active={value === 'focused'}
-      aria-pressed={value === 'focused'}
-      onClick={() => onChange('focused')}
-    >
-      <strong>Focused</strong>
-      <span className="mode-option-description">One page at a time</span>
-    </ExperienceModeOption>
-    <ExperienceModeOption
-      type="button"
-      $active={value === 'sideBySide'}
-      aria-pressed={value === 'sideBySide'}
-      onClick={() => onChange('sideBySide')}
-    >
-      <strong>Side by side</strong>
-      <span className="mode-option-description">Compare results and details</span>
-    </ExperienceModeOption>
+  <ExperienceModeToggleContainer>
+    <legend>{browsingModeControlContract.groupLabel}</legend>
+    {browsingModeControlContract.options.map((option) => (
+      <ExperienceModeOption
+        key={option.value}
+        type="button"
+        $active={value === option.value}
+        aria-pressed={value === option.value}
+        onClick={() => onChange(option.value)}
+      >
+        {option.label}
+      </ExperienceModeOption>
+    ))}
   </ExperienceModeToggleContainer>
 )
 

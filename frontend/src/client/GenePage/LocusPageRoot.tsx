@@ -11,6 +11,7 @@ import {
   variantIdAtom,
 } from '../sharedState'
 import { ShowControlsButton } from '../UserInterface'
+import { getDetailOptionsLabel, optionPanelContract } from '../browserUiContracts'
 
 const EmptyState = styled.div`
   display: flex;
@@ -62,6 +63,7 @@ export const LocusPageRoot: React.FC = () => {
   const geneId = useRecoilValue(geneIdAtom)
   const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
+  const optionsLabel = getDetailOptionsLabel({ variantId, regionId })
 
   if (!analysisId) {
     return <EmptyState>Choose a phenotype to see association details.</EmptyState>
@@ -76,8 +78,16 @@ export const LocusPageRoot: React.FC = () => {
       <LocusPageDataContainer />
       {!hideGeneOptions && <GenePageControls />}
       {hideGeneOptions && (
-        <ShowControlsButton type="button" $right onClick={() => setHideGeneOptions(false)} aria-label="Show controls">
-          Controls
+        <ShowControlsButton
+          type="button"
+          $right
+          onClick={() => setHideGeneOptions(false)}
+          title={`Show ${optionsLabel}`}
+          aria-label={`Show ${optionsLabel}`}
+          aria-expanded={false}
+          aria-controls={optionPanelContract.detail.id}
+        >
+          {optionsLabel}
         </ShowControlsButton>
       )}
     </Container>

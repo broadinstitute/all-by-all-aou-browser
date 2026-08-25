@@ -47,6 +47,7 @@ import {
 import { GeneAssociations } from '../types'
 import filterPhenotypes from './filterPhenotypes'
 import { ShowControlsButton } from '../UserInterface'
+import { optionPanelContract } from '../browserUiContracts'
 import {
   filterToComparedPhenotypes,
   shouldShowComparedOnly,
@@ -692,8 +693,15 @@ const Phewas = ({
           />
         )}
         {!showPhewasControls && size.width > 700 && (
-          <ShowControlsButton onClick={() => setShowPhewasControls(true)}>
-            Controls
+          <ShowControlsButton
+            type="button"
+            onClick={() => setShowPhewasControls(true)}
+            title={`Show ${optionPanelContract.phewas.label}`}
+            aria-label={`Show ${optionPanelContract.phewas.label}`}
+            aria-expanded={false}
+            aria-controls={optionPanelContract.phewas.id}
+          >
+            {optionPanelContract.phewas.label}
           </ShowControlsButton>
         )}
         <div className='data-container' style={{ position: 'relative' }}>

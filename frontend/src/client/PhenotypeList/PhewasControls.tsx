@@ -12,6 +12,7 @@ import {
 } from '../UserInterface'
 import { mafSignificanceAtom, MafOption, AnnotationCategory, burdenTestSignificanceAtom, BurdenTestType } from '../sharedState'
 import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
+import { optionPanelContract } from '../browserUiContracts'
 import {
   P_VALUE_BURDEN,
   P_VALUE_SKAT,
@@ -451,11 +452,18 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
     : [{ value: 'P-value' }]
 
   return (
-    <ControlsContainer>
+    <ControlsContainer id={optionPanelContract.phewas.id}>
       <ControlsHeader>
-        <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
-        <ControlsCloseButton onClick={onClose} title="Hide controls">
-          &times;
+        <ControlsHeaderTitle>{optionPanelContract.phewas.label}</ControlsHeaderTitle>
+        <ControlsCloseButton
+          type="button"
+          onClick={onClose}
+          title={`Hide ${optionPanelContract.phewas.label}`}
+          aria-label={`Hide ${optionPanelContract.phewas.label}`}
+          aria-expanded={true}
+          aria-controls={optionPanelContract.phewas.id}
+        >
+          <span aria-hidden="true">‹</span>
         </ControlsCloseButton>
       </ControlsHeader>
 

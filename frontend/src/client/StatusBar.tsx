@@ -53,10 +53,6 @@ const Container = styled.div<{ $compact?: boolean }>`
     align-items: flex-start;
     font-size: 14px;
 
-    .mode-option-description {
-      display: none;
-    }
-
     .narrow-mode-note {
       flex-basis: 100%;
       order: 3;

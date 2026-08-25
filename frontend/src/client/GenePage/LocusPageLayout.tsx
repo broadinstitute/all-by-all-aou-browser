@@ -36,7 +36,11 @@ import { ZoomRegion } from './LocusPlotControls'
 import GeneBurdenTable from './GeneBurdenTable'
 import GenesTrackContainer from './GenesTrackContainer'
 import getColumns from '../GeneResults/geneResultColumns'
-import { geneDetailGridContract, normalizeRegionViewerWidth } from '../geneDetailLayout'
+import {
+  GENE_DETAIL_INLINE_GUTTER_PX,
+  geneDetailGridContract,
+  normalizeRegionViewerWidth,
+} from '../geneDetailLayout'
 
 import {
   GeneAssociations,
@@ -72,7 +76,7 @@ const GenePageGridStyles = styled.div`
     min-height: 0;
     overflow-y: auto;
     overflow-x: auto;
-    padding-right: 20px;
+    padding-inline: ${GENE_DETAIL_INLINE_GUTTER_PX}px;
     padding-bottom: 50px;
 
     display: grid;
@@ -147,7 +151,6 @@ const GenePageGridStyles = styled.div`
 
     .associations-page-grid {
       grid-template-columns: minmax(0, 1fr);
-      padding-right: 0;
     }
 
     .grid-area-plot-controls {

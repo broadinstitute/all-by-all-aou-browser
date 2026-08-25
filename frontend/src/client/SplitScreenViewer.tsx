@@ -368,6 +368,7 @@ const Container = styled.div<{ item1Size: number; item2Size: number }>`
 
   .resizable-grid-item2 .resizable-inner-container {
     box-sizing: border-box;
+    padding: 0;
     overflow: hidden;
   }
 `

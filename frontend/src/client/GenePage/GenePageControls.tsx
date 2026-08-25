@@ -48,6 +48,7 @@ import {
 import { getAlleleFrequencyScale, consequenceCategoryColors } from './LocusPagePlots'
 import { ancestryGroupAtom, regionIdAtom, variantIdAtom, locusMafAtom, MafOption, hideGeneOptsAtom, mafSignificanceAtom, AnnotationCategory } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
+import { getDetailOptionsLabel, optionPanelContract } from '../browserUiContracts'
 
 const TooltipHint = styled(TooltipHintBase)`
   background-image: none;
@@ -836,7 +837,10 @@ const UnselectVariant: React.FC = () => {
 
 export const GenePageControls = () => {
   const variantId = useRecoilValue(variantIdAtom)
+  const regionId = useRecoilValue(regionIdAtom)
   const setHideGeneOpts = useSetRecoilState(hideGeneOptsAtom)
+  const optionsLabel = getDetailOptionsLabel({ variantId, regionId })
+  const hideOptionsLabel = `Hide ${optionsLabel}`
 
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
 
@@ -844,9 +848,16 @@ export const GenePageControls = () => {
     return (
       <>
         <ControlsHeaderWrapper>
-          <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
-          <ControlsCloseButton type="button" onClick={() => setHideGeneOpts(true)} title="Hide controls" aria-label="Hide controls">
-            &times;
+          <ControlsHeaderTitle>{optionsLabel}</ControlsHeaderTitle>
+          <ControlsCloseButton
+            type="button"
+            onClick={() => setHideGeneOpts(true)}
+            title={hideOptionsLabel}
+            aria-label={hideOptionsLabel}
+            aria-expanded={true}
+            aria-controls={optionPanelContract.detail.id}
+          >
+            <span aria-hidden="true">›</span>
           </ControlsCloseButton>
         </ControlsHeaderWrapper>
         <MafSelector />
@@ -872,9 +883,16 @@ export const GenePageControls = () => {
     return (
       <>
         <ControlsHeaderWrapper>
-          <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
-          <ControlsCloseButton type="button" onClick={() => setHideGeneOpts(true)} title="Hide controls" aria-label="Hide controls">
-            &times;
+          <ControlsHeaderTitle>{optionsLabel}</ControlsHeaderTitle>
+          <ControlsCloseButton
+            type="button"
+            onClick={() => setHideGeneOpts(true)}
+            title={hideOptionsLabel}
+            aria-label={hideOptionsLabel}
+            aria-expanded={true}
+            aria-controls={optionPanelContract.detail.id}
+          >
+            <span aria-hidden="true">›</span>
           </ControlsCloseButton>
         </ControlsHeaderWrapper>
         <UnselectVariant />
@@ -896,14 +914,14 @@ export const GenePageControls = () => {
 
   if (variantId) {
     return (
-      <GenePageControlStylesVariantFocus>
+      <GenePageControlStylesVariantFocus id={optionPanelContract.detail.id}>
         <VariantPageControls />
       </GenePageControlStylesVariantFocus>
     )
   }
 
   return (
-    <GenePageControlsGeneFocus>
+    <GenePageControlsGeneFocus id={optionPanelContract.detail.id}>
       <GenePageControlsItems />
     </GenePageControlsGeneFocus>
   )

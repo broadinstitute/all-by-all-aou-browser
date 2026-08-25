@@ -1,6 +1,9 @@
+export const GENE_DETAIL_INLINE_GUTTER_PX = 16
+
 export const geneDetailGridContract = {
   intrinsicRowSizing: 'max-content',
   regionRowWithoutVariantDetails: 'region-viewer region-viewer region-viewer',
+  inlineGutterPx: GENE_DETAIL_INLINE_GUTTER_PX,
 } as const
 
 const MIN_REGION_VIEWER_WIDTH = 90

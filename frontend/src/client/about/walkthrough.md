@@ -112,13 +112,13 @@ Clicking on a variant ID in the table or a point in the Manhattan plot will navi
 
 ## Exploring associations by gene
 
-Clicking on a gene name will display all phenotypes associated with a particular gene in phenome-wide association studies (PheWAS) plot and tabular formats with a set of controls.
+Clicking on a gene name will display all phenotypes associated with a particular gene in phenome-wide association studies (PheWAS) plot and tabular formats with display options.
 
 <img src="/SVG/2-walkthrough-1-overview@4x.png" />
 
-### PheWAS controls
+### PheWAS options
 
-Use the phenotype control panel to finetune which set of phenotypes and test statistics to display. You can specify one of three burden tests (Burden, SKAT, SKAT-O) or burden sets (pLoF, missense, synonymous) shown in the table and plot.
+Use the PheWAS options panel to fine-tune which set of phenotypes and test statistics to display. You can specify one of three burden tests (Burden, SKAT, SKAT-O) or burden sets (pLoF, missense, synonymous) shown in the table and plot.
 
 <img src="/SVG/9-walkthrough-pheno-controls@4x.png" />
 
@@ -139,9 +139,9 @@ Each variant is represented as a row in the table containing detailed summary st
 
 <img src="/SVG/7-walkthrough-gene-plot-with-variants@4x.png" />
 
-### Gene controls
+### Gene options
 
-The single variant analysis control panel is used to configure data displayed related to single variants. Variants can be filtered by identifier or by annotation using the search box. You can focus on particular parts of the allele frequency spectrum by dragging the allele frequency filter slider.
+The gene options panel is used to configure data displayed related to single variants. Variants can be filtered by identifier or by annotation using the search box. You can focus on particular parts of the allele frequency spectrum by dragging the allele frequency filter slider.
 
 You can also specify which columns to display using the column selection checkboxes or by choosing one of the column group presets. Each preset will select a particular set of columns that can be compared side-by-side (e.g. allele counts, frequencies, population counts, and columns best suited for categorical or continuous trait types). This section also enables features related to viewing multi-phenotypes and genome-wide association study (GWAS) catalog data.
 

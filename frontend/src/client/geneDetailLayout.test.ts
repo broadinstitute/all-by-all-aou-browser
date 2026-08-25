@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { geneDetailGridContract, normalizeRegionViewerWidth } from './geneDetailLayout'
+import {
+  GENE_DETAIL_INLINE_GUTTER_PX,
+  geneDetailGridContract,
+  normalizeRegionViewerWidth,
+} from './geneDetailLayout'
 
 test('gene details give every generated grid row an intrinsic max-content track', () => {
   assert.equal(geneDetailGridContract.intrinsicRowSizing, 'max-content')
+})
+
+test('gene detail scrolling content owns a symmetric inline gutter', () => {
+  assert.equal(GENE_DETAIL_INLINE_GUTTER_PX, 16)
+  assert.equal(geneDetailGridContract.inlineGutterPx, GENE_DETAIL_INLINE_GUTTER_PX)
 })
 
 test('gene details without variant details give the region viewer the entire row', () => {

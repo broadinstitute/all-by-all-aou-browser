@@ -166,7 +166,7 @@ export const NavButtons: React.FC = () => {
         full
       </button>
       <Checkbox
-        label='Phewas options'
+        label='PheWAS options'
         checked={showPhewasControls}
         id='phewas-controls-checkbox'
         disabled={false}
