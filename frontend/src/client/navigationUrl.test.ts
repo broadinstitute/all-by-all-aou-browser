@@ -3,11 +3,21 @@ import test from 'node:test'
 
 import {
   buildCanonicalNavigationUrl,
+  getAppRouteBeforeNavigation,
   getInitialActiveSurface,
   parseNavigationState,
 } from './navigationUrl'
 
 const stateFrom = (href: string) => parseNavigationState(new URL(href))
+
+test('search enters /app before state changes without dropping deep-link query state', () => {
+  const search = '?state=%7B%22geneId%22%3A%22ENSG-old%22%7D&dataset=v8'
+  assert.deepEqual(getAppRouteBeforeNavigation('/about', search), {
+    pathname: '/app',
+    search,
+  })
+  assert.equal(getAppRouteBeforeNavigation('/app', search), null)
+})
 
 test('legacy URL layout initializes active surface unless the URL specifies one', () => {
   const urlFor = (state: Record<string, unknown>) =>

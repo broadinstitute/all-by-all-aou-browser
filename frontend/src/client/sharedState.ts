@@ -14,7 +14,10 @@ import randomColor from 'randomcolor'
 import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Utils'
 import { clampSplitPaneWidth } from './paneLayout'
 import { getInitialActiveSurface } from './navigationUrl'
-import { ActiveSurface } from './experienceNavigation'
+import {
+  ActiveSurface,
+  PRESENTATION_URL_HISTORY,
+} from './experienceNavigation'
 
 export type { ActiveSurface, ExperienceMode } from './experienceNavigation'
 export {
@@ -456,7 +459,7 @@ export const activeSurfaceAtom = atom<ActiveSurface>({
   effects: [
     urlSyncEffect({
       refine: activeSurfaceChecker,
-      history: 'push',
+      history: PRESENTATION_URL_HISTORY,
     }),
   ],
 })
@@ -496,7 +499,7 @@ export const resultLayoutAtom = atom<ResultLayout>({
   effects: [
     urlSyncEffect({
       refine: resultLayoutChecker,
-      history: 'push',
+      history: PRESENTATION_URL_HISTORY,
       syncDefault: true,
     }),
   ],

@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import styled from 'styled-components';
 import axios from 'axios';
+import { useHistory, useLocation } from 'react-router-dom';
 import { filteredAnalysesQuery, geneSymbolsQuery } from './queryStates';
 import { axaouDevUrl } from './Query';
 import { v4 as uuidv4 } from 'uuid';
 import { selectedAnalyses } from './sharedState';
 import { useAppNavigation } from './hooks/useAppNavigation';
+import { getAppRouteBeforeNavigation } from './navigationUrl';
 import { AnalysisMetadata, GeneSymbol } from './types';
 import { ColorMarker } from './UserInterface';
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from './vepConsequences';
@@ -170,6 +172,8 @@ export const NewSearchBar: React.FC = () => {
   const analysisMetadata = useRecoilValue(filteredAnalysesQuery);
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
   const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
+  const history = useHistory();
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightedRef = useRef<HTMLDivElement>(null);
 
@@ -365,6 +369,15 @@ export const NewSearchBar: React.FC = () => {
   };
 
   const onSelect = (searchChoice: SearchChoice) => {
+    // Router navigation must happen first. If it runs after the Recoil
+    // transaction, its stale location can overwrite the freshly serialized
+    // destination state when search is used from Home, About, or another page.
+    const appRoute = getAppRouteBeforeNavigation(
+      location.pathname,
+      location.search
+    );
+    if (appRoute) history.push(appRoute);
+
     if (searchChoice.resultType === 'gene') {
       goToGene(searchChoice.id, {
         destination: 'phewas',

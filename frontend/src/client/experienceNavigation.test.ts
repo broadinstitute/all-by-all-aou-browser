@@ -3,12 +3,14 @@ import test from 'node:test'
 
 import {
   buildDestinationState,
+  getCanonicalNewTabPresentation,
   getFocusedSurfaceForLayout,
   getNavigationPresentation,
   getSideBySideLayoutForSurface,
   loadInitialExperienceMode,
   parseExperienceMode,
   persistExperienceMode,
+  PRESENTATION_URL_HISTORY,
   resolveExperienceModeForVisit,
   resolveInitialActiveSurface,
 } from './experienceNavigation'
@@ -49,6 +51,10 @@ test('one-time mode migration distinguishes explicit, existing, fresh, and corru
   const corrupt = makeStorage({ experienceMode: '{not valid json' })
   assert.equal(loadInitialExperienceMode(corrupt), 'sideBySide')
   assert.equal(corrupt.value('experienceMode'), JSON.stringify('sideBySide'))
+})
+
+test('presentation URL changes replace the current visit instead of pushing history', () => {
+  assert.equal(PRESENTATION_URL_HISTORY, 'replace')
 })
 
 test('a URL visit override is transient and leaves the saved preference unchanged', () => {
@@ -107,6 +113,26 @@ test('narrow navigation changes only the active surface and remembers the wide l
       experienceMode: 'sideBySide',
       activeSurface: 'results',
       resultLayout: 'detail',
+    }
+  )
+})
+
+test('canonical new-tab detail links are visible after a narrow source tab opens wide', () => {
+  const responsiveCurrentTab = getNavigationPresentation(
+    'sideBySide',
+    'full',
+    'details',
+    { singleSurface: true }
+  )
+  assert.equal(responsiveCurrentTab.resultLayout, 'full')
+  assert.equal(responsiveCurrentTab.activeSurface, 'details')
+
+  assert.deepEqual(
+    getCanonicalNewTabPresentation('sideBySide', 'full', 'details'),
+    {
+      experienceMode: 'sideBySide',
+      activeSurface: 'details',
+      resultLayout: 'split',
     }
   )
 })

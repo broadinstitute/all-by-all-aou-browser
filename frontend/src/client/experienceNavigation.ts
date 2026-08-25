@@ -6,6 +6,11 @@ export type ResultLayout = 'detail' | 'split' | 'full'
 export const EXPERIENCE_MODE_STORAGE_KEY = 'experienceMode'
 export const EXISTING_PROFILE_STORAGE_KEY = 'axaou_data_version'
 
+// Presentation controls update the current visit rather than creating a new
+// semantic destination. Keeping their URL writes replace-only prevents mode,
+// pane, and responsive layout changes from adding phantom Back entries.
+export const PRESENTATION_URL_HISTORY = 'replace' as const
+
 export const parseExperienceMode = (value: string | null): ExperienceMode | null => {
   if (value == null) return null
 
@@ -134,6 +139,19 @@ export const getNavigationPresentation = (
     resultLayout: currentLayout === 'full' ? 'split' : currentLayout,
   }
 }
+
+/**
+ * Resolve a canonical new-tab presentation for the viewport it will open in.
+ * The source tab may currently be narrow, but carrying that responsive
+ * single-pane preservation into a wide tab can hide the requested destination.
+ */
+export const getCanonicalNewTabPresentation = (
+  experienceMode: ExperienceMode,
+  currentLayout: ResultLayout,
+  destination: NavigationDestination,
+  options: { resultsOnly?: boolean } = {}
+): NavigationPresentation =>
+  getNavigationPresentation(experienceMode, currentLayout, destination, options)
 
 export const buildDestinationState = (
   stateUpdates: Record<string, unknown>,

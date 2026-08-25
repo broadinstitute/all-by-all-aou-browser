@@ -6,6 +6,7 @@ import {
   ExperienceMode,
   loadInitialExperienceMode,
   persistExperienceMode,
+  PRESENTATION_URL_HISTORY,
   resolveExperienceModeForVisit,
 } from './experienceNavigation'
 
@@ -43,7 +44,7 @@ export const experienceModeUrlOverrideAtom = atom<
     urlSyncEffect({
       itemKey: 'experienceMode',
       refine: nullable(experienceModeChecker),
-      history: 'push',
+      history: PRESENTATION_URL_HISTORY,
     }),
   ],
 })

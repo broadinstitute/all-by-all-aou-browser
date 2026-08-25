@@ -26,6 +26,7 @@ import {
 } from '../navigationUrl';
 import {
   buildDestinationState,
+  getCanonicalNewTabPresentation,
   getFocusedSurfaceForLayout,
   getNavigationPresentation,
   getSideBySideLayoutForSurface,
@@ -54,8 +55,6 @@ type PresentationOptions = {
 export function useAppNavigation() {
   const experienceMode = useRecoilValue(experienceModeAtom);
   const resultLayout = useRecoilValue(resultLayoutAtom);
-  const browserContainerWidth = useRecoilValue(browserContainerWidthAtom);
-  const singleSurface = !canFitTwoPanes(browserContainerWidth);
 
   // All state that defines one visible destination is committed together. This
   // also lets recoil-sync produce a single coherent history state.
@@ -315,14 +314,13 @@ export function useAppNavigation() {
         stateUpdates.resultLayout === 'full'
           ? stateUpdates.resultLayout
           : resultLayout;
-      const presentation = getNavigationPresentation(
+      const presentation = getCanonicalNewTabPresentation(
         experienceMode,
         requestedLayout,
         destination,
         {
           resultsOnly:
             options.resultsOnly ?? stateUpdates.resultLayout === 'full',
-          singleSurface,
         }
       );
       window.open(
@@ -334,7 +332,7 @@ export function useAppNavigation() {
         '_blank'
       );
     },
-    [experienceMode, resultLayout, singleSurface]
+    [experienceMode, resultLayout]
   );
 
   const setExperienceMode = useRecoilTransaction_UNSTABLE(

@@ -11,6 +11,22 @@ const LEGACY_TOP_LEVEL_STATE_KEYS = [
 
 export type NavigationState = Record<string, unknown>
 
+export interface AppRouteLocation {
+  pathname: '/app'
+  search: string
+}
+
+/**
+ * Route into the browser before committing a Recoil navigation transaction.
+ * Preserving the existing query lets recoil-sync merge the transaction into
+ * the current deep-link state instead of a Router update overwriting it.
+ */
+export const getAppRouteBeforeNavigation = (
+  pathname: string,
+  search: string
+): AppRouteLocation | null =>
+  pathname === '/app' ? null : { pathname: '/app', search }
+
 export const parseNavigationState = (url: URL): NavigationState => {
   const encodedState = url.searchParams.get('state')
   if (!encodedState) return {}
