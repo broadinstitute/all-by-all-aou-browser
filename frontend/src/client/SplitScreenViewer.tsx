@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Resizable } from 're-resizable'
 import { withSize } from 'react-sizeme'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
@@ -7,6 +8,7 @@ import GeneResultsPage from './GeneResults/GeneResultsPage'
 import VariantResultsPage from './VariantResults/VariantResultsPage'
 import {
   activeSurfaceAtom,
+  browserContainerWidthAtom,
   experienceModeAtom,
   resultLayoutAtom,
   firstItemWidthSelector,
@@ -22,13 +24,22 @@ import LocusPhewas from './GenePage/LocusPhewas'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
 import {
   canCompareSideBySide,
+  canFitTwoPanes,
   getBackToResultsLabel,
-  getBrowserShellRenderMode,
   getDetailsContextLabel,
+  getResponsiveBrowserShellRenderMode,
+  getResponsivePagePadding,
 } from './browserShell'
 import { useAppNavigation } from './hooks/useAppNavigation'
 
 type SurfaceSize = { width: number; height: number }
+
+const SurfaceViewport = styled.div`
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+`
 
 export const ResultsSurface = ({ size }: { size: SurfaceSize }) => {
   const { resultIndex, variantId } = useGetActiveItems()
@@ -43,9 +54,9 @@ export const ResultsSurface = ({ size }: { size: SurfaceSize }) => {
   if (resultIndex === 'analyses') ResultIndexComponent = AvailableAnalyses
 
   return (
-    <div data-browser-surface="results" style={{ height: '100%' }}>
+    <SurfaceViewport data-browser-surface="results">
       <ResultIndexComponent size={size} />
-    </div>
+    </SurfaceViewport>
   )
 }
 
@@ -57,10 +68,11 @@ const FocusedDetails = styled.div`
   min-height: 0;
 `
 
-const FocusedDetailsHeader = styled.div`
+const FocusedDetailsHeader = styled.nav`
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   flex: 0 0 auto;
   padding: 10px 18px;
   border-bottom: 1px solid var(--theme-border, #ddd);
@@ -90,11 +102,27 @@ const FocusedDetailsHeader = styled.div`
   .compare-surfaces {
     margin-left: auto;
   }
+
+  button:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 600px) {
+    padding: 8px 12px;
+
+    .details-context {
+      order: 3;
+      width: 100%;
+    }
+  }
 `
 
 const FocusedDetailsBody = styled.div`
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
+  overflow: auto;
 `
 
 export const DetailsSurface = ({
@@ -125,7 +153,7 @@ export const DetailsSurface = ({
 
   return (
     <FocusedDetails data-browser-surface="details">
-      <FocusedDetailsHeader aria-label="Focused details navigation">
+      <FocusedDetailsHeader aria-label="Details navigation">
         <button
           type="button"
           className="back-to-results"
@@ -156,14 +184,14 @@ export const DetailsSurface = ({
 
 const ResizableItems = withSize({
   refreshMode: 'debounce',
-  refreshRate: 500,
+  refreshRate: 100,
 })(
   ({
     size,
     item1MinSize,
     item2MinSize,
   }: {
-    size: { width: number; height: number }
+    size?: { width?: number; height?: number }
     item1MinSize: number
     item2MinSize: number
   }) => {
@@ -171,37 +199,57 @@ const ResizableItems = withSize({
     const activeSurface = useRecoilValue(activeSurfaceAtom)
     const resultsLayout = useRecoilValue(resultLayoutAtom)
 
-    size = size || { width: undefined, height: undefined }
+    const measuredWidth = Number.isFinite(size?.width) ? size?.width : undefined
+    const setBrowserContainerWidth = useSetRecoilState(browserContainerWidthAtom)
+
+    useEffect(() => {
+      setBrowserContainerWidth(measuredWidth ?? null)
+    }, [measuredWidth, setBrowserContainerWidth])
 
     const defaultWidth = useRecoilValue(
       firstItemWidthSelector({
-        containerWidth: size.width,
+        containerWidth: measuredWidth ?? 0,
       })
     )
     const windowSize = useRecoilValue(windowSizeAtom)
     const setResizableWidth = useSetRecoilState(resizableWidthAtom)
 
-    const containerHeight = size.height || windowSize.height
+    const containerHeight = size?.height || windowSize.height
     const leftPanelSize = { width: defaultWidth, height: containerHeight }
-    const shellRenderMode = getBrowserShellRenderMode(
+    const shellRenderMode = getResponsiveBrowserShellRenderMode(
       experienceMode,
       activeSurface,
-      resultsLayout
+      resultsLayout,
+      measuredWidth
     )
+    const twoPanesFit = canFitTwoPanes(measuredWidth)
+    const renderSingleSurface = experienceMode === 'focused' || !twoPanesFit
+    const pagePadding = getResponsivePagePadding(measuredWidth)
+    const resultsSurfaceSize = {
+      width: Math.max(0, (measuredWidth ?? 0) - pagePadding * 2),
+      height: containerHeight,
+    }
 
-    if (experienceMode === 'focused') {
+    if (renderSingleSurface) {
       return (
         <div
-          data-browser-experience="focused"
+          data-browser-experience={experienceMode === 'focused' ? 'focused' : 'side-by-side'}
+          data-responsive-layout="single-surface"
           data-pane-render-mode={shellRenderMode}
           style={{ height: '100%', width: '100%', overflow: 'auto' }}
         >
           {shellRenderMode === 'results-only' ? (
-            <div style={{ height: '100%', padding: '10px 100px 0' }}>
-              <ResultsSurface size={{ width: size.width, height: containerHeight }} />
+            <div
+              style={{
+                boxSizing: 'border-box',
+                height: '100%',
+                padding: `10px ${pagePadding}px 0`,
+              }}
+            >
+              <ResultsSurface size={resultsSurfaceSize} />
             </div>
           ) : (
-            <DetailsSurface focused width={size.width} />
+            <DetailsSurface focused width={measuredWidth} />
           )}
         </div>
       )
@@ -212,9 +260,15 @@ const ResizableItems = withSize({
         <div
           data-browser-experience="side-by-side"
           data-pane-render-mode="results-only"
-          style={{ height: '100%', overflow: 'auto', padding: '10px 100px 0' }}
+          data-responsive-layout="wide"
+          style={{
+            boxSizing: 'border-box',
+            height: '100%',
+            overflow: 'auto',
+            padding: `10px ${pagePadding}px 0`,
+          }}
         >
-          <ResultsSurface size={leftPanelSize} />
+          <ResultsSurface size={resultsSurfaceSize} />
         </div>
       )
     }
@@ -224,6 +278,7 @@ const ResizableItems = withSize({
         <div
           data-browser-experience="side-by-side"
           data-pane-render-mode="details-only"
+          data-responsive-layout="wide"
           style={{ height: '100%', width: '100%' }}
         >
           <DetailsSurface />
@@ -232,7 +287,11 @@ const ResizableItems = withSize({
     }
 
     return (
-      <div className="resizable-items" data-browser-experience="side-by-side">
+      <div
+        className="resizable-items"
+        data-browser-experience="side-by-side"
+        data-responsive-layout="wide"
+      >
         <Resizable
           defaultSize={{
             width: defaultWidth,
@@ -240,7 +299,7 @@ const ResizableItems = withSize({
           }}
           size={{ width: defaultWidth, height: containerHeight }}
           minWidth={item1MinSize}
-          maxWidth={size.width - item2MinSize}
+          maxWidth={(measuredWidth as number) - item2MinSize}
           style={{
             borderRight: '1px dashed var(--theme-border, black)',
             paddingRight: '15px',

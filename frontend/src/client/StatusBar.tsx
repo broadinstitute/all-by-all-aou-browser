@@ -1,11 +1,11 @@
 import React from 'react'
 import styled from 'styled-components'
 
-import { Link } from '@gnomad/ui'
 import { useQuery } from '@axaou/ui'
 import { useRecoilState, useRecoilValue, useResetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {
+  browserContainerWidthAtom,
   experienceModeAtom,
   resultLayoutAtom,
   resizableWidthAtom,
@@ -21,24 +21,83 @@ import {
 } from './UserInterface'
 import { getAnalysisDisplayTitle } from './utils'
 import { useAppNavigation } from './hooks/useAppNavigation'
-const Container = styled.div`
+import { canFitTwoPanes, shouldShowLayoutControls } from './browserShell'
+
+const Container = styled.div<{ $compact?: boolean }>`
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  box-sizing: border-box;
   min-height: 2.5em;
   width: 100%;
   background-color: ${(props) => props.theme.surfaceAlt};
   border-bottom: 1px dashed ${(props) => props.theme.border};
-  padding-left: 20px;
+  padding: 6px clamp(10px, 2vw, 20px);
   color: ${(props) => props.theme.text};
   font-size: 16px;
 
   .status-bar-item {
-    margin-right: 20px;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
+
+  .narrow-mode-note {
+    color: var(--theme-text-muted, #666);
+    font-size: 12px;
+    white-space: normal;
+  }
+
+  ${({ $compact }) => $compact && `
+    align-items: flex-start;
+    font-size: 14px;
+
+    .mode-option-description {
+      display: none;
+    }
+
+    .narrow-mode-note {
+      flex-basis: 100%;
+      order: 3;
+    }
+  `}
 
   strong {
     margin-right: 3px;
+  }
+`
+
+const StatusControls = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-left: auto;
+
+  @media (max-width: 700px) {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+`
+
+const StatusLink = styled.button`
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--theme-primary, #262262);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+
+  &:hover {
+    background: transparent;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
   }
 `
 
@@ -99,6 +158,12 @@ export const StatusBar: React.FC = () => {
 
   const experienceMode = useRecoilValue(experienceModeAtom)
   const resultsLayout = useRecoilValue(resultLayoutAtom)
+  const browserContainerWidth = useRecoilValue(browserContainerWidthAtom)
+  const twoPanesFit = canFitTwoPanes(browserContainerWidth)
+  const showLayoutControls = shouldShowLayoutControls(
+    experienceMode,
+    browserContainerWidth
+  )
   const {
     goToGene,
     goToPhenotype,
@@ -145,27 +210,28 @@ export const StatusBar: React.FC = () => {
   const rightLabel = regionId ? 'Locus' : geneId && geneId !== 'undefined' ? 'Gene' : 'Details';
 
   return (
-    <Container>
+    <Container $compact={!twoPanesFit}>
       {analysisId && analysisMetadataData && analysisMetadataData[0] && (
         <div className='status-bar-item'>
           <strong>Phenotype:</strong>
-          <Link onClick={() => {
+          <StatusLink type="button" onClick={() => {
             goToPhenotype(analysisId, {
               destination: 'overview',
               keepContext: true,
               resultIndex: 'pheno-info',
             })
-          }} style={{ cursor: 'pointer' }}>
+          }} aria-label={`Open phenotype ${getAnalysisDisplayTitle(analysisMetadataData[0])}`}>
             {getAnalysisDisplayTitle(analysisMetadataData[0])}
-          </Link>
+          </StatusLink>
           {selectedAnalyses.length > 1 ? ` + ${selectedAnalyses.length - 1} more selected` : ''}
         </div>
       )}
       {geneModel && geneId && geneId !== 'undefined' && (
         <div className='status-bar-item'>
           <strong>Gene:</strong>
-          <Link
-            style={{ cursor: 'pointer' }}
+          <StatusLink
+            type="button"
+            aria-label={`Open gene results for ${geneModel.symbol}`}
             onClick={() => {
               goToGene(geneId, {
                 destination: 'phewas',
@@ -175,7 +241,7 @@ export const StatusBar: React.FC = () => {
             }}
           >
             {`${geneModel.symbol} `} ({geneId})
-          </Link>
+          </StatusLink>
         </div>
       )}
       {regionId && (
@@ -187,8 +253,9 @@ export const StatusBar: React.FC = () => {
       {variantId && (
         <div className='status-bar-item'>
           <strong>Variant:</strong>
-          <Link
-            style={{ cursor: 'pointer' }}
+          <StatusLink
+            type="button"
+            aria-label={`Open variant results for ${variantId}`}
             onClick={() => {
               goToVariant(variantId, {
                 destination: 'phewas',
@@ -197,15 +264,15 @@ export const StatusBar: React.FC = () => {
             }}
           >
             {variantId}
-          </Link>
+          </StatusLink>
         </div>
       )}
-      <div className="status-bar-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, marginRight: 20 }}>
+      <StatusControls className="status-bar-item">
         <ExperienceModeToggle
           value={experienceMode}
           onChange={setExperienceMode}
         />
-        {experienceMode === 'sideBySide' && (
+        {showLayoutControls && (
           <LayoutToggle
             value={resultsLayout as LayoutMode}
             onChange={(mode) => {
@@ -216,7 +283,12 @@ export const StatusBar: React.FC = () => {
           />
         )}
         <ThemeToggleWrapper />
-      </div>
+      </StatusControls>
+      {experienceMode === 'sideBySide' && !twoPanesFit && (
+        <span className="narrow-mode-note" role="status">
+          One page at a time at this width; your Side-by-side layout is preserved.
+        </span>
+      )}
     </Container>
   )
 }

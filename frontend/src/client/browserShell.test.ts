@@ -3,9 +3,13 @@ import test from 'node:test'
 
 import {
   canCompareSideBySide,
+  canFitTwoPanes,
   getBackToResultsLabel,
   getBrowserShellRenderMode,
   getDetailsContextLabel,
+  getResponsiveBrowserShellRenderMode,
+  getResponsivePagePadding,
+  shouldShowLayoutControls,
 } from './browserShell'
 
 test('Focused mounts exactly its active surface while Side by side honors its layout', () => {
@@ -14,6 +18,37 @@ test('Focused mounts exactly its active surface while Side by side honors its la
   assert.equal(getBrowserShellRenderMode('sideBySide', 'details', 'full'), 'results-only')
   assert.equal(getBrowserShellRenderMode('sideBySide', 'results', 'detail'), 'details-only')
   assert.equal(getBrowserShellRenderMode('sideBySide', 'results', 'split'), 'split')
+})
+
+test('narrow containers temporarily use one active surface without changing layout inputs', () => {
+  assert.equal(
+    getResponsiveBrowserShellRenderMode('sideBySide', 'results', 'split', 1099),
+    'results-only'
+  )
+  assert.equal(
+    getResponsiveBrowserShellRenderMode('sideBySide', 'details', 'split', 600),
+    'details-only'
+  )
+  assert.equal(
+    getResponsiveBrowserShellRenderMode('sideBySide', 'details', 'split', 1100),
+    'split'
+  )
+  assert.equal(
+    getResponsiveBrowserShellRenderMode('focused', 'details', 'full', 1600),
+    'details-only'
+  )
+  assert.equal(canFitTwoPanes(undefined), false)
+  assert.equal(canFitTwoPanes(1100), true)
+  assert.equal(shouldShowLayoutControls('sideBySide', 1099), false)
+  assert.equal(shouldShowLayoutControls('sideBySide', 1100), true)
+  assert.equal(shouldShowLayoutControls('focused', 1600), false)
+})
+
+test('results gutters scale with measured available width', () => {
+  assert.equal(getResponsivePagePadding(undefined), 12)
+  assert.equal(getResponsivePagePadding(320), 13)
+  assert.equal(getResponsivePagePadding(1100), 44)
+  assert.equal(getResponsivePagePadding(4000), 100)
 })
 
 test('Focused details provides a context-aware return label', () => {

@@ -1,5 +1,4 @@
 import styled from 'styled-components'
-import { isBrowser } from 'react-device-detect'
 
 import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
@@ -127,22 +126,15 @@ export default function HomePageComponent() {
           <p>
             The All by All results map known and novel associations between genotypes and phenotypes using data contributed by <em>All of Us</em> Research Program participants.
           </p>
-          {isBrowser ? (
-            <>
-              <Link to={browseResultsUrl} onClick={handleBrowseResults}>
-                <Button
-                  id='homepage-browse-link'
-                  style={{ marginBottom: 20, marginTop: 0, fontSize: 16 }}
-                >
-                  Browse Results
-                </Button>
-              </Link>
-              <NewSearchBar />
-            </>
-          ) : <p style={{ marginBottom: 0 }}>
-            <strong>This resource does not support data browsing on mobile</strong>.
-          </p>
-          }
+          <Link to={browseResultsUrl} onClick={handleBrowseResults}>
+            <Button
+              id='homepage-browse-link'
+              style={{ marginBottom: 20, marginTop: 0, fontSize: 16 }}
+            >
+              Browse Results
+            </Button>
+          </Link>
+          <NewSearchBar />
           <p style={{ marginTop: 25 }}>
             <a href="https://www.researchallofus.org/register/?utm_source=nih&utm_medium=referral&utm_campaign=All-by-All-Browser&utm_term=Intro-text&utm_content=Register">
               Register for or log in

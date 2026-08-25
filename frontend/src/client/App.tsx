@@ -5,8 +5,6 @@ import { useRecoilValue } from 'recoil'
 import { lightTheme, darkTheme } from './theme'
 import { themeModeAtom } from './sharedState'
 
-import { isBrowser } from 'react-device-detect'
-
 import About from './About'
 import Downloads from './Downloads'
 import GeneNotInAnalysis from './GeneNotInAnalysis'
@@ -215,14 +213,6 @@ const AppStyles = styled.div`
 
 `
 
-const MobileView = styled.div`
-  p {
-    margin-top: 20px;
-    font-size: 1.5em;
-    margin-bottom: 10px;
-  }
-`
-
 const App = ({ showLogout }: { showLogout: boolean }) => {
   useResetStateOnLocationChange()
   useMonitorWindowSize()
@@ -274,7 +264,7 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
           <Route exact path='/about' />
           <Route exact path='/faq' />
           <Route exact path='/privacy-policy' />
-          {isBrowser && <StatusBar />}
+          <StatusBar />
         </Switch>
 
         <main>
@@ -305,20 +295,7 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
             </Route>
             <Route path='/gene/not-in-analysis' component={GeneNotInAnalysis} />
             <Route path='/app'>
-              {isBrowser ? (
-                <SplitScreenViewer />
-              ) : (
-                <MobileView>
-                  <p>
-                    Sorry! The All by All browser does not yet support browsing on mobile. Please go to your
-                    computer to use it.
-                  </p>
-                  <p>
-                    You can check out screenshots in the <Link to='/walkthrough'>walkthrough</Link>{' '}
-                    to get a sense of what this resource looks like.
-                  </p>
-                </MobileView>
-              )}
+              <SplitScreenViewer />
             </Route>
             <Route component={PageNotFoundPage} />
           </Switch>

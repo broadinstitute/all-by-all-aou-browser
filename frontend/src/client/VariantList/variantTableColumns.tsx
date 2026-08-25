@@ -1,10 +1,6 @@
 import React from 'react'
 // @ts-expect-error 
 import Highlighter from 'react-highlight-words'
-// @ts-expect-error 
-import RightArrow from '@fortawesome/fontawesome-free/svgs/solid/arrow-alt-circle-right.svg'
-// @ts-expect-error 
-import UpArrow from '@fortawesome/fontawesome-free/svgs/solid/arrow-alt-circle-up.svg'
 import { TooltipAnchor, TooltipHint as TooltipHintBase, Link } from '@gnomad/ui'
 import { useRecoilState, useSetRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
@@ -12,7 +8,7 @@ import { renderBetaCell, renderCount, renderPvalueCell } from '../PhenotypeList/
 import { AncestryGroupCodes } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { VariantAssociationManhattan, VariantJoined } from '../types'
-import { ColorMarker } from '../UserInterface'
+import { ColorMarker, RightArrow } from '../UserInterface'
 import { VariantFieldGroup, variantLabelsAtom, variantShowLabelAtom } from '../variantState'
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from '../vepConsequences'
 import SampleSourceIcon from './SampleSourceIcon'
@@ -769,7 +765,7 @@ export const getVariantColumns = ({
         }
 
         return (
-          <RightArrow height={15} width={15} onClick={handleClick} style={{ cursor: 'pointer' }} />
+          <RightArrow onClick={handleClick} ariaLabel={`Open locus around ${variant.chrom}:${variant.pos}`} />
         )
       },
     },
@@ -782,7 +778,12 @@ export const getVariantColumns = ({
       minWidth: 50,
       grow: 0,
       render: (row: any) => {
-        return <UpArrow height={15} width={15} onClick={() => onClickVariantDetails(row)} />
+        return (
+          <RightArrow
+            onClick={() => onClickVariantDetails(row)}
+            ariaLabel={`Open details for variant ${row.variant_id || row.id || ''}`.trim()}
+          />
+        )
       },
     },
   ]

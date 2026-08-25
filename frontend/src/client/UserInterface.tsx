@@ -393,8 +393,48 @@ export const Spinner: React.FC<{}> = () => {
   )
 }
 
-export const RightArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <RightArrowIcon height={15} width={15} onClick={onClick} style={{ cursor: 'pointer', fill: 'var(--theme-text, #333)' }} />
+const IconNavigationButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--theme-primary, #262262);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--theme-surface-alt, #eee);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
+`
+
+export const RightArrow: React.FC<{
+  onClick: () => void
+  ariaLabel?: string
+  height?: number
+  width?: number
+  style?: React.CSSProperties
+}> = ({ onClick, ariaLabel = 'Open details', height = 15, width = 15, style }) => (
+  <IconNavigationButton
+    type="button"
+    onClick={onClick}
+    aria-label={ariaLabel}
+    title={ariaLabel}
+    style={style}
+  >
+    <RightArrowIcon
+      aria-hidden="true"
+      focusable="false"
+      height={height}
+      width={width}
+      style={{ fill: 'currentColor' }}
+    />
+  </IconNavigationButton>
 );
 
 export const NoVariants = styled.div<{ height?: number | string; width?: number | string }>`
@@ -456,7 +496,7 @@ interface TogglePaneButtonProps {
   tooltip?: string;
 }
 
-const ToggleButtonContainer = styled.div<{ paneIsClosed: boolean }>`
+const ToggleButtonContainer = styled.button<{ paneIsClosed: boolean }>`
   width: ${({ paneIsClosed }) => (paneIsClosed ? '25px' : '20px')};
   height: 25px;
   border: 1px solid grey;
@@ -466,7 +506,13 @@ const ToggleButtonContainer = styled.div<{ paneIsClosed: boolean }>`
       ? 'linear-gradient(90deg, #f1f1f1 45%, grey 50%, #e0e0e0 55%)'
       : '#f1f1f1'};
   position: relative;
+  padding: 0;
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
 `;
 
 const ToggleIcon = styled.div<{ paneIsClosed: boolean; direction: 'left' | 'right' }>`
@@ -493,9 +539,12 @@ export const TogglePaneButton: React.FC<TogglePaneButtonProps> = ({
   tooltip,
 }) => (
   <ToggleButtonContainer
+    type="button"
     paneIsClosed={paneIsClosed}
     onClick={onClick}
     title={tooltip}
+    aria-label={tooltip || (paneIsClosed ? 'Open pane' : 'Close pane')}
+    aria-expanded={!paneIsClosed}
   >
     <ToggleIcon paneIsClosed={paneIsClosed} direction={direction} />
   </ToggleButtonContainer>
@@ -568,7 +617,7 @@ export const ExperienceModeToggle: React.FC<{
       onClick={() => onChange('focused')}
     >
       <strong>Focused</strong>
-      <span>One page at a time</span>
+      <span className="mode-option-description">One page at a time</span>
     </ExperienceModeOption>
     <ExperienceModeOption
       type="button"
@@ -577,7 +626,7 @@ export const ExperienceModeToggle: React.FC<{
       onClick={() => onChange('sideBySide')}
     >
       <strong>Side by side</strong>
-      <span>Compare results and details</span>
+      <span className="mode-option-description">Compare results and details</span>
     </ExperienceModeOption>
   </ExperienceModeToggleContainer>
 )
@@ -609,6 +658,11 @@ const LayoutOption = styled.button<{ $active: boolean }>`
 
   &:hover {
     background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
   }
 
   svg {
@@ -656,9 +710,12 @@ export const LayoutToggle: React.FC<LayoutToggleProps> = ({
   leftLabel = 'Results',
   rightLabel = 'Gene/Locus',
 }) => (
-  <LayoutToggleContainer>
+  <LayoutToggleContainer role="group" aria-label="Side-by-side layout">
     <LayoutOption
+      type="button"
       $active={value === 'full'}
+      aria-pressed={value === 'full'}
+      aria-label={`Show ${leftLabel} only`}
       onClick={() => onChange('full')}
       title="Show results panel only"
     >
@@ -666,7 +723,10 @@ export const LayoutToggle: React.FC<LayoutToggleProps> = ({
       {leftLabel}
     </LayoutOption>
     <LayoutOption
+      type="button"
       $active={value === 'split'}
+      aria-pressed={value === 'split'}
+      aria-label={`Show ${leftLabel} and ${rightLabel}`}
       onClick={() => onChange('split')}
       title="Show both panels"
     >
@@ -674,7 +734,10 @@ export const LayoutToggle: React.FC<LayoutToggleProps> = ({
       Split
     </LayoutOption>
     <LayoutOption
+      type="button"
       $active={value === 'detail'}
+      aria-pressed={value === 'detail'}
+      aria-label={`Show ${rightLabel} only`}
       onClick={() => onChange('detail')}
       title="Show gene/locus panel only"
     >
@@ -711,6 +774,11 @@ const ThemeOption = styled.button<{ $active: boolean }>`
     background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
   }
 
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
+
   svg {
     width: 14px;
     height: 14px;
@@ -742,23 +810,32 @@ interface ThemeToggleProps {
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ value, onChange }) => (
-  <ThemeToggleContainer>
+  <ThemeToggleContainer role="group" aria-label="Color theme">
     <ThemeOption
+      type="button"
       $active={value === 'light'}
+      aria-pressed={value === 'light'}
+      aria-label="Use light theme"
       onClick={() => onChange('light')}
       title="Light mode"
     >
       <SunIcon />
     </ThemeOption>
     <ThemeOption
+      type="button"
       $active={value === 'system'}
+      aria-pressed={value === 'system'}
+      aria-label="Use system theme"
       onClick={() => onChange('system')}
       title="System default"
     >
       <SystemIcon />
     </ThemeOption>
     <ThemeOption
+      type="button"
       $active={value === 'dark'}
+      aria-pressed={value === 'dark'}
+      aria-label="Use dark theme"
       onClick={() => onChange('dark')}
       title="Dark mode"
     >

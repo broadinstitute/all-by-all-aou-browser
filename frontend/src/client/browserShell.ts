@@ -12,6 +12,16 @@ type ResultIndex =
   | 'locus-phewas'
   | 'pheno-info'
 
+export const TWO_PANE_MIN_WIDTH = 1100
+
+export const canFitTwoPanes = (width?: number | null): boolean =>
+  Number.isFinite(width) && (width as number) >= TWO_PANE_MIN_WIDTH
+
+export const shouldShowLayoutControls = (
+  experienceMode: ExperienceMode,
+  width?: number | null
+): boolean => experienceMode === 'sideBySide' && canFitTwoPanes(width)
+
 export const getBrowserShellRenderMode = (
   experienceMode: ExperienceMode,
   activeSurface: ActiveSurface,
@@ -22,6 +32,27 @@ export const getBrowserShellRenderMode = (
       ? 'results-only'
       : 'details-only'
     : getPaneRenderMode(resultLayout)
+
+/**
+ * Narrow containers temporarily use the active surface without changing the
+ * saved experience preference or Side-by-side layout.
+ */
+export const getResponsiveBrowserShellRenderMode = (
+  experienceMode: ExperienceMode,
+  activeSurface: ActiveSurface,
+  resultLayout: ResultLayout,
+  width?: number | null
+): PaneRenderMode =>
+  experienceMode === 'focused' || !canFitTwoPanes(width)
+    ? activeSurface === 'results'
+      ? 'results-only'
+      : 'details-only'
+    : getPaneRenderMode(resultLayout)
+
+export const getResponsivePagePadding = (width?: number | null): number => {
+  if (!Number.isFinite(width)) return 12
+  return Math.round(Math.min(100, Math.max(12, (width as number) * 0.04)))
+}
 
 export const getBackToResultsLabel = (resultIndex: ResultIndex): string => {
   if (resultIndex === 'gene-phewas') return 'Back to gene results'
@@ -71,6 +102,5 @@ export const canCompareSideBySide = ({
   regionId?: string | null
   variantId?: string | null
 }): boolean =>
-  Number.isFinite(width) &&
-  (width as number) >= 1100 &&
+  canFitTwoPanes(width) &&
   Boolean(analysisId && (geneId || regionId || variantId))

@@ -549,6 +549,13 @@ export const resizableWidthAtom = atom<number | null>({
   default: null,
 })
 
+// Measured by the browser surface container. This is deliberately ephemeral:
+// narrow rendering must not overwrite the persisted experience preference.
+export const browserContainerWidthAtom = atom<number | null>({
+  key: 'browserContainerWidth',
+  default: null,
+})
+
 export const windowSizeAtom = atom<{ height: number; width: number }>({
   key: 'windowHeight',
   default: { height: window.innerHeight, width: window.innerWidth },

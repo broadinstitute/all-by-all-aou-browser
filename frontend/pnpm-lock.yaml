@@ -104,9 +104,6 @@ dependencies:
   react-autocomplete:
     specifier: ^1.8.1
     version: 1.8.1(react-dom@18.3.1)(react@18.3.1)
-  react-device-detect:
-    specifier: ^2.2.2
-    version: 2.2.3(react-dom@18.3.1)(react@18.3.1)
   react-dom:
     specifier: ^18.3.1
     version: 18.3.1(react@18.3.1)
@@ -8145,17 +8142,6 @@ packages:
       react-dom: 18.3.1(react@18.3.1)
     dev: false
 
-  /react-device-detect@2.2.3(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-buYY3qrCnQVlIFHrC5UcUoAj7iANs/+srdkwsnNjI7anr3Tt7UY6MqNxtMLlr0tMBied0O49UZVK8XKs3ZIiPw==}
-    peerDependencies:
-      react: '>= 0.14.0'
-      react-dom: '>= 0.14.0'
-    dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      ua-parser-js: 1.0.41
-    dev: false
-
   /react-displace@2.3.0(react-dom@18.3.1)(react@18.3.1):
     resolution: {integrity: sha512-T8g/lyn3IX8kxLO4k4vJ/oIO9G72pRTc9GYslqKsfPcN4gY5+FYR5OHxeTH1skPjVylJrveGE3OC2qCt3BuHeA==}
     peerDependencies:
@@ -9594,11 +9580,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
     dev: true
-
-  /ua-parser-js@1.0.41:
-    resolution: {integrity: sha512-LbBDqdIC5s8iROCUjMbW1f5dJQTEFB1+KO9ogbvlb3nm9n4YHa5p4KTvFPWvh2Hs8gZMBuiB1/8+pdfe/tDPug==}
-    hasBin: true
-    dev: false
 
   /undefsafe@2.0.5:
     resolution: {integrity: sha512-WxONCrssBM8TSPRqN5EmsjVrsv4A8X12J4ArBiiayv3DyyG3ZlIg6yysuuSYdZsVz3TKcTg2fd//Ujd4CHV1iA==}

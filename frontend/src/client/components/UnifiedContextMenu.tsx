@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { NavMode } from '../hooks/useAppNavigation';
 
 const MenuStyle = styled.div<{ x: number; y: number }>`
   position: fixed;
-  left: ${({ x }) => Math.min(x, window.innerWidth - 300)}px;
-  top: ${({ y }) => Math.min(y, window.innerHeight - 200)}px;
+  left: ${({ x }) => Math.max(8, Math.min(x, window.innerWidth - 300))}px;
+  top: ${({ y }) => Math.max(8, Math.min(y, window.innerHeight - 200))}px;
   z-index: 10000;
   background: var(--theme-surface, #fff);
   color: var(--theme-text, #333);
@@ -13,7 +13,7 @@ const MenuStyle = styled.div<{ x: number; y: number }>`
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   padding: 8px 0;
-  min-width: 280px;
+  width: min(280px, calc(100vw - 16px));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
 `;
@@ -72,17 +72,28 @@ const ActionBtn = styled.button`
   }
 `;
 
-const UtilityAction = styled.div`
+const UtilityAction = styled.button`
+  width: 100%;
   padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   border-top: 1px solid var(--theme-border, #eee);
   margin-top: 4px;
+  font: inherit;
+  text-align: left;
 
   &:hover {
     background: var(--theme-surface-alt, #f5f5f5);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: -3px;
   }
 `;
 
@@ -97,16 +108,27 @@ const SectionHeader = styled.div`
   margin-top: 4px;
 `;
 
-const UtilityRow = styled.div`
+const UtilityRow = styled.button`
+  width: 100%;
   padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  font: inherit;
   font-size: 13px;
+  text-align: left;
 
   &:hover {
     background: var(--theme-surface-alt, #f5f5f5);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--theme-primary, #4f46e5);
+    outline-offset: -3px;
   }
 `;
 
@@ -140,10 +162,13 @@ export interface UnifiedContextMenuProps {
 export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
   x, y, title, targets, sections, onNavigate, onCopy, copyLabel = "Copy ID", onClose
 }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClick = () => onClose();
     const handleKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     const timeoutId = setTimeout(() => {
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
       document.addEventListener('click', handleClick);
       document.addEventListener('contextmenu', handleClick);
       document.addEventListener('keydown', handleKey);
@@ -160,7 +185,14 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
   const sectionsToRender: ContextMenuSection[] = sections || (targets ? [{ targets }] : []);
 
   return (
-    <MenuStyle x={x} y={y} onClick={(e) => e.stopPropagation()}>
+    <MenuStyle
+      ref={menuRef}
+      x={x}
+      y={y}
+      role="menu"
+      aria-label="Context actions"
+      onClick={(e) => e.stopPropagation()}
+    >
       <Header>{title}</Header>
       {sectionsToRender.map((section, sectionIdx) => {
         // Separate navigation targets from utility targets
@@ -174,11 +206,11 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
             {/* Navigation targets as flat menu */}
             {navTargets.map((t, idx) => (
               <React.Fragment key={`nav-${idx}`}>
-                <UtilityRow onClick={() => onNavigate('split', t.resultIndex)}>
+                <UtilityRow type="button" role="menuitem" onClick={() => onNavigate('split', t.resultIndex)}>
                   {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}
                   {t.label}
                 </UtilityRow>
-                <UtilityRow onClick={() => onNavigate('newTab', t.resultIndex)}>
+                <UtilityRow type="button" role="menuitem" onClick={() => onNavigate('newTab', t.resultIndex)}>
                   <span style={{ marginRight: 4, opacity: 0.6 }}>↗</span>
                   Open in new tab
                 </UtilityRow>
@@ -187,7 +219,7 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
 
             {/* Utility targets as simple clickable rows */}
             {utilityTargets.map((t, idx) => (
-              <UtilityRow key={`util-${idx}`} onClick={t.onClick}>
+              <UtilityRow type="button" role="menuitem" key={`util-${idx}`} onClick={t.onClick}>
                 {t.icon && <span>{t.icon}</span>}
                 {t.label}
               </UtilityRow>
@@ -198,7 +230,7 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
 
       {/* Keep backward compatibility with onCopy prop */}
       {onCopy && (
-        <UtilityAction onClick={onCopy}>
+        <UtilityAction type="button" role="menuitem" onClick={onCopy}>
           <span>📋</span> {copyLabel}
         </UtilityAction>
       )}

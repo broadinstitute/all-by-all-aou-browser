@@ -20,6 +20,8 @@ The All by All browser offers two ways to work. **Focused** shows one complete p
 
 Use the visible **Focused / Side by side** control in the Status Bar to switch workflows. When both pages fit, Focused Details also offers **Compare side by side**. Switching modes retains the selected phenotype, gene, locus, variant, analyses, and the prior Side-by-side layout as much as possible. The Status Bar also displays the current scientific context and includes a **Theme Toggle** for Light, Dark, and System (OS preference) display modes.
 
+On phones, tablets, narrow desktop windows, or at high zoom, the browser automatically shows one active page at a time. This temporary responsive view does not change a saved Side-by-side preference or pane layout: widening the browser restores it. Wide tables scroll within their content area, and Details includes the same keyboard-accessible Back action.
+
 <img src="/SVG/1-walkthrough-layout@4x.png" />
 
 To explore top results across the entire dataset, click "Results" in the top navigation bar. This section acts as a starting point, featuring an **Index of all genes and phenotypes**, as well as **Global top variant hits** and top gene burden associations across the entire All by All dataset.
