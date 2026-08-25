@@ -8,6 +8,7 @@ import RightArrowIcon from '@fortawesome/fontawesome-free/svgs/solid/arrow-alt-c
 import { Page, Link as BaseLink, Modal, TextButton, ExternalLink as BaseExternalLink, ExternalLink } from '@gnomad/ui'
 import { useEffect } from 'react'
 import { greenThresholdColor, yellowThresholdColor } from './PhenotypeList/Utils'
+import { ExperienceMode } from './experienceNavigation'
 
 export const ShowControlsButton = styled.button<{ $right?: boolean }>`
   position: absolute;
@@ -499,6 +500,87 @@ export const TogglePaneButton: React.FC<TogglePaneButtonProps> = ({
     <ToggleIcon paneIsClosed={paneIsClosed} direction={direction} />
   </ToggleButtonContainer>
 );
+
+const ExperienceModeToggleContainer = styled.fieldset`
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--theme-surface-alt, #e8e8e8);
+
+  legend {
+    align-self: center;
+    padding: 0 5px 0 0;
+    color: var(--theme-text-muted, #555);
+    font-size: 12px;
+    font-weight: 600;
+  }
+`
+
+const ExperienceModeOption = styled.button<{ $active: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 104px;
+  padding: 4px 8px;
+  border: 1px solid ${({ $active }) => ($active ? '#262262' : 'transparent')};
+  border-radius: 4px;
+  background: ${({ $active }) => ($active ? '#262262' : 'transparent')};
+  color: ${({ $active }) => ($active ? 'white' : 'var(--theme-text, #333)')};
+  cursor: pointer;
+  font-family: GothamBook, sans-serif;
+  line-height: 1.15;
+  text-align: left;
+
+  strong {
+    font-size: 12px;
+  }
+
+  span {
+    margin-top: 2px;
+    color: ${({ $active }) => ($active ? '#eee' : 'var(--theme-text-muted, #666)')};
+    font-size: 10px;
+  }
+
+  &:hover {
+    background: ${({ $active }) => ($active ? '#262262' : 'var(--theme-border, #d0d0d0)')};
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
+`
+
+export const ExperienceModeToggle: React.FC<{
+  value: ExperienceMode
+  onChange: (mode: ExperienceMode) => void
+}> = ({ value, onChange }) => (
+  <ExperienceModeToggleContainer aria-label="Browsing mode">
+    <legend>View</legend>
+    <ExperienceModeOption
+      type="button"
+      $active={value === 'focused'}
+      aria-pressed={value === 'focused'}
+      onClick={() => onChange('focused')}
+    >
+      <strong>Focused</strong>
+      <span>One page at a time</span>
+    </ExperienceModeOption>
+    <ExperienceModeOption
+      type="button"
+      $active={value === 'sideBySide'}
+      aria-pressed={value === 'sideBySide'}
+      onClick={() => onChange('sideBySide')}
+    >
+      <strong>Side by side</strong>
+      <span>Compare results and details</span>
+    </ExperienceModeOption>
+  </ExperienceModeToggleContainer>
+)
 
 // Layout Toggle - a nicer segmented control for switching between layout modes
 const LayoutToggleContainer = styled.div`

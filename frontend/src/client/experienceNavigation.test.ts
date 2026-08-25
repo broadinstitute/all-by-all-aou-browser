@@ -3,7 +3,9 @@ import test from 'node:test'
 
 import {
   buildDestinationState,
+  getFocusedSurfaceForLayout,
   getNavigationPresentation,
+  getSideBySideLayoutForSurface,
   parseExperienceMode,
 } from './experienceNavigation'
 
@@ -15,17 +17,30 @@ test('experience preference accepts only persisted focused and side-by-side mode
   assert.equal(parseExperienceMode(null), null)
 })
 
-test('focused navigation projects each destination to one visible surface', () => {
+test('focused navigation selects one surface without losing the prior Side-by-side layout', () => {
   assert.deepEqual(getNavigationPresentation('focused', 'split', 'results'), {
     experienceMode: 'focused',
     activeSurface: 'results',
-    resultLayout: 'full',
+    resultLayout: 'split',
   })
   assert.deepEqual(getNavigationPresentation('focused', 'full', 'details'), {
     experienceMode: 'focused',
     activeSurface: 'details',
-    resultLayout: 'detail',
+    resultLayout: 'full',
   })
+})
+
+test('switching to Focused starts on the surface visible in a single-pane Side-by-side layout', () => {
+  assert.equal(getFocusedSurfaceForLayout('details', 'full'), 'results')
+  assert.equal(getFocusedSurfaceForLayout('results', 'detail'), 'details')
+  assert.equal(getFocusedSurfaceForLayout('details', 'split'), 'details')
+})
+
+test('returning to Side by side preserves layout unless it would hide the active surface', () => {
+  assert.equal(getSideBySideLayoutForSurface('details', 'detail'), 'detail')
+  assert.equal(getSideBySideLayoutForSurface('results', 'full'), 'full')
+  assert.equal(getSideBySideLayoutForSurface('results', 'detail'), 'split')
+  assert.equal(getSideBySideLayoutForSurface('details', 'full'), 'split')
 })
 
 test('side-by-side navigation reveals a destination without hiding valid context', () => {
@@ -66,7 +81,7 @@ test('gene, variant, phenotype, and region destinations retain their entity stat
   }
 })
 
-test('destination state overrides stale pane state for canonical URLs', () => {
+test('destination state overrides stale active-surface state for canonical URLs', () => {
   const presentation = getNavigationPresentation(
     'focused',
     'split',
@@ -79,7 +94,7 @@ test('destination state overrides stale pane state for canonical URLs', () => {
     ),
     {
       geneId: 'ENSG1',
-      resultLayout: 'detail',
+      resultLayout: 'split',
       activeSurface: 'details',
       experienceMode: 'focused',
     }

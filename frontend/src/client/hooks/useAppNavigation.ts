@@ -20,7 +20,9 @@ import {
 } from '../navigationUrl';
 import {
   buildDestinationState,
+  getFocusedSurfaceForLayout,
   getNavigationPresentation,
+  getSideBySideLayoutForSurface,
   NavigationDestination,
 } from '../experienceNavigation';
 
@@ -322,6 +324,41 @@ export function useAppNavigation() {
     [experienceMode, resultLayout]
   );
 
+  const setExperienceMode = useRecoilTransaction_UNSTABLE(
+    ({ get, set }) =>
+      (mode: 'focused' | 'sideBySide') => {
+        if (mode === 'focused') {
+          set(
+            activeSurfaceAtom,
+            getFocusedSurfaceForLayout(
+              get(activeSurfaceAtom),
+              get(resultLayoutAtom)
+            )
+          );
+        } else {
+          set(
+            resultLayoutAtom,
+            getSideBySideLayoutForSurface(
+              get(activeSurfaceAtom),
+              get(resultLayoutAtom)
+            )
+          );
+        }
+        set(experienceModeAtom, mode);
+      },
+    []
+  );
+
+  const compareSideBySide = useRecoilTransaction_UNSTABLE(
+    ({ set }) =>
+      () => {
+        set(experienceModeAtom, 'sideBySide');
+        set(resultLayoutAtom, 'split');
+        set(activeSurfaceAtom, 'details');
+      },
+    []
+  );
+
   const setSideBySideLayout = useRecoilTransaction_UNSTABLE(
     ({ set }) =>
       (layout: 'detail' | 'split' | 'full') => {
@@ -354,6 +391,8 @@ export function useAppNavigation() {
     clearVariant,
     clearAll,
     openInNewTab,
+    setExperienceMode,
+    compareSideBySide,
     setSideBySideLayout,
     openDetailPane,
     openResultsPane,

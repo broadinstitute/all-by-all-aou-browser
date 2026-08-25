@@ -6,13 +6,19 @@ import { useQuery } from '@axaou/ui'
 import { useRecoilState, useRecoilValue, useResetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {
+  experienceModeAtom,
   resultLayoutAtom,
   resizableWidthAtom,
   themeModeAtom,
   useGetActiveItems
 } from './sharedState'
 import { AnalysisMetadata, GeneModels } from './types'
-import { LayoutToggle, LayoutMode, ThemeToggle } from './UserInterface'
+import {
+  ExperienceModeToggle,
+  LayoutToggle,
+  LayoutMode,
+  ThemeToggle,
+} from './UserInterface'
 import { getAnalysisDisplayTitle } from './utils'
 import { useAppNavigation } from './hooks/useAppNavigation'
 const Container = styled.div`
@@ -91,11 +97,13 @@ export const StatusBar: React.FC = () => {
 
   const { geneId, analysisId, regionId, variantId, selectedAnalyses } = useGetActiveItems()
 
+  const experienceMode = useRecoilValue(experienceModeAtom)
   const resultsLayout = useRecoilValue(resultLayoutAtom)
   const {
     goToGene,
     goToPhenotype,
     goToVariant,
+    setExperienceMode,
     setSideBySideLayout,
   } = useAppNavigation()
   const resetResizableWidth = useResetRecoilState(resizableWidthAtom)
@@ -193,14 +201,20 @@ export const StatusBar: React.FC = () => {
         </div>
       )}
       <div className="status-bar-item" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, marginRight: 20 }}>
-        <LayoutToggle
-          value={resultsLayout as LayoutMode}
-          onChange={(mode) => {
-            setSideBySideLayout(mode)
-            resetResizableWidth()
-          }}
-          rightLabel={rightLabel}
+        <ExperienceModeToggle
+          value={experienceMode}
+          onChange={setExperienceMode}
         />
+        {experienceMode === 'sideBySide' && (
+          <LayoutToggle
+            value={resultsLayout as LayoutMode}
+            onChange={(mode) => {
+              setSideBySideLayout(mode)
+              resetResizableWidth()
+            }}
+            rightLabel={rightLabel}
+          />
+        )}
         <ThemeToggleWrapper />
       </div>
     </Container>

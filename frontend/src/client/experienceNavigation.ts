@@ -22,9 +22,28 @@ export interface NavigationPresentation {
   resultLayout: ResultLayout
 }
 
+export const getFocusedSurfaceForLayout = (
+  activeSurface: ActiveSurface,
+  resultLayout: ResultLayout
+): ActiveSurface => {
+  if (resultLayout === 'full') return 'results'
+  if (resultLayout === 'detail') return 'details'
+  return activeSurface
+}
+
+export const getSideBySideLayoutForSurface = (
+  activeSurface: ActiveSurface,
+  resultLayout: ResultLayout
+): ResultLayout => {
+  if (activeSurface === 'results' && resultLayout === 'detail') return 'split'
+  if (activeSurface === 'details' && resultLayout === 'full') return 'split'
+  return resultLayout
+}
+
 /**
- * Resolve the visible surface and the legacy pane layout together. resultLayout
- * remains as a compatibility projection until Focused gets its own shell.
+ * Resolve the visible surface and the legacy Side-by-side pane layout together.
+ * Focused has its own shell, so navigation changes only its active surface and
+ * leaves the user's prior Side-by-side layout ready to restore.
  */
 export const getNavigationPresentation = (
   experienceMode: ExperienceMode,
@@ -36,7 +55,7 @@ export const getNavigationPresentation = (
     return {
       experienceMode,
       activeSurface: destination,
-      resultLayout: destination === 'results' ? 'full' : 'detail',
+      resultLayout: currentLayout,
     }
   }
 

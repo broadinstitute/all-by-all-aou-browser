@@ -6,6 +6,8 @@ import GenePhewas from './GenePage/GenePhewas'
 import GeneResultsPage from './GeneResults/GeneResultsPage'
 import VariantResultsPage from './VariantResults/VariantResultsPage'
 import {
+  activeSurfaceAtom,
+  experienceModeAtom,
   resultLayoutAtom,
   firstItemWidthSelector,
   resizableWidthAtom,
@@ -14,12 +16,143 @@ import {
 } from './sharedState'
 import VariantPhewas from './VariantPage/VariantPhewas'
 import PhenotypePageLayout from './PhenotypeList/PhenotypePageLayout'
-import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopResultsLayout from './TopResultsLayout'
 import { LocusPageRoot } from './GenePage/LocusPageRoot'
 import LocusPhewas from './GenePage/LocusPhewas'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
-import { getPaneRenderMode } from './paneLayout'
+import {
+  canCompareSideBySide,
+  getBackToResultsLabel,
+  getBrowserShellRenderMode,
+  getDetailsContextLabel,
+} from './browserShell'
+import { useAppNavigation } from './hooks/useAppNavigation'
+
+type SurfaceSize = { width: number; height: number }
+
+export const ResultsSurface = ({ size }: { size: SurfaceSize }) => {
+  const { resultIndex, variantId } = useGetActiveItems()
+  let ResultIndexComponent = GenePhewas
+
+  if (resultIndex === 'top-associations') ResultIndexComponent = TopResultsLayout
+  if (resultIndex === 'gene-manhattan') ResultIndexComponent = GeneResultsPage
+  if (resultIndex === 'variant-manhattan') ResultIndexComponent = VariantResultsPage
+  if (resultIndex === 'variant-phewas' && variantId) ResultIndexComponent = VariantPhewas
+  if (resultIndex === 'locus-phewas') ResultIndexComponent = LocusPhewas
+  if (resultIndex === 'pheno-info') ResultIndexComponent = PhenotypePageLayout
+  if (resultIndex === 'analyses') ResultIndexComponent = AvailableAnalyses
+
+  return (
+    <div data-browser-surface="results" style={{ height: '100%' }}>
+      <ResultIndexComponent size={size} />
+    </div>
+  )
+}
+
+const FocusedDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+`
+
+const FocusedDetailsHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--theme-border, #ddd);
+  background: var(--theme-surface-alt, #f5f5f5);
+
+  button {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .back-to-results {
+    border-color: #262262;
+    background: #262262;
+    color: white;
+  }
+
+  .details-context {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--theme-text-muted, #555);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .compare-surfaces {
+    margin-left: auto;
+  }
+`
+
+const FocusedDetailsBody = styled.div`
+  flex: 1 1 auto;
+  min-height: 0;
+`
+
+export const DetailsSurface = ({
+  focused = false,
+  width,
+}: {
+  focused?: boolean
+  width?: number
+}) => {
+  const { analysisId, geneId, regionId, variantId, resultIndex } = useGetActiveItems()
+  const { compareSideBySide, openResultsPane } = useAppNavigation()
+
+  if (!focused) {
+    return (
+      <div data-browser-surface="details" style={{ height: '100%', width: '100%' }}>
+        <LocusPageRoot />
+      </div>
+    )
+  }
+
+  const showCompare = canCompareSideBySide({
+    width,
+    analysisId,
+    geneId,
+    regionId,
+    variantId,
+  })
+
+  return (
+    <FocusedDetails data-browser-surface="details">
+      <FocusedDetailsHeader aria-label="Focused details navigation">
+        <button
+          type="button"
+          className="back-to-results"
+          onClick={openResultsPane}
+          title="Return to the results page you came from"
+        >
+          ← {getBackToResultsLabel(resultIndex)}
+        </button>
+        <div className="details-context" aria-live="polite">
+          {getDetailsContextLabel({ analysisId, geneId, regionId, variantId })}
+        </div>
+        {showCompare && (
+          <button
+            type="button"
+            className="compare-surfaces"
+            onClick={compareSideBySide}
+          >
+            Compare side by side
+          </button>
+        )}
+      </FocusedDetailsHeader>
+      <FocusedDetailsBody>
+        <LocusPageRoot />
+      </FocusedDetailsBody>
+    </FocusedDetails>
+  )
+}
 
 const ResizableItems = withSize({
   refreshMode: 'debounce',
@@ -34,7 +167,8 @@ const ResizableItems = withSize({
     item1MinSize: number
     item2MinSize: number
   }) => {
-    const { resultIndex, variantId } = useGetActiveItems()
+    const experienceMode = useRecoilValue(experienceModeAtom)
+    const activeSurface = useRecoilValue(activeSurfaceAtom)
     const resultsLayout = useRecoilValue(resultLayoutAtom)
 
     size = size || { width: undefined, height: undefined }
@@ -47,80 +181,58 @@ const ResizableItems = withSize({
     const windowSize = useRecoilValue(windowSizeAtom)
     const setResizableWidth = useSetRecoilState(resizableWidthAtom)
 
-    // Use size.height from withSize when available, fall back to windowSize.height
     const containerHeight = size.height || windowSize.height
     const leftPanelSize = { width: defaultWidth, height: containerHeight }
+    const shellRenderMode = getBrowserShellRenderMode(
+      experienceMode,
+      activeSurface,
+      resultsLayout
+    )
 
-    let borderStyles = {}
-
-    if (resultsLayout !== 'detail' && resultsLayout !== 'full') {
-      borderStyles = { borderRight: '1px dashed var(--theme-border, black)' }
-    }
-
-    const resizableStyles = {
-      ...borderStyles,
-      paddingRight: '15px',
-    }
-
-    let ResultIndexComponent = GenePhewas
-
-    const paneRenderMode = getPaneRenderMode(resultsLayout)
-
-    if (resultIndex === 'top-associations') {
-      ResultIndexComponent = TopResultsLayout
-    }
-
-    if (resultIndex === 'gene-manhattan') {
-      ResultIndexComponent = GeneResultsPage
-    }
-
-    if (resultIndex === 'variant-manhattan') {
-      ResultIndexComponent = VariantResultsPage
-    }
-
-    if (resultIndex === 'variant-phewas') {
-      if (variantId) ResultIndexComponent = VariantPhewas
-    }
-
-    if (resultIndex === 'locus-phewas') {
-      ResultIndexComponent = LocusPhewas
-    }
-
-    if (resultIndex === 'pheno-info') {
-      ResultIndexComponent = PhenotypePageLayout
-    }
-
-    if (resultIndex === 'analyses') {
-      ResultIndexComponent = AvailableAnalyses
-    }
-
-    if (paneRenderMode === 'results-only') {
+    if (experienceMode === 'focused') {
       return (
         <div
-          data-pane-render-mode="results-only"
-          style={{
-            height: '100%',
-            overflow: 'auto',
-            paddingRight: 100,
-            paddingLeft: 100,
-            paddingTop: 10,
-          }}
+          data-browser-experience="focused"
+          data-pane-render-mode={shellRenderMode}
+          style={{ height: '100%', width: '100%', overflow: 'auto' }}
         >
-          <ResultIndexComponent size={leftPanelSize} />
+          {shellRenderMode === 'results-only' ? (
+            <div style={{ height: '100%', padding: '10px 100px 0' }}>
+              <ResultsSurface size={{ width: size.width, height: containerHeight }} />
+            </div>
+          ) : (
+            <DetailsSurface focused width={size.width} />
+          )}
         </div>
       )
     }
 
-    if (paneRenderMode === 'details-only') {
+    if (shellRenderMode === 'results-only') {
       return (
-        <div data-pane-render-mode="details-only" style={{ height: '100%', width: '100%' }}>
-          <LocusPageRoot />
+        <div
+          data-browser-experience="side-by-side"
+          data-pane-render-mode="results-only"
+          style={{ height: '100%', overflow: 'auto', padding: '10px 100px 0' }}
+        >
+          <ResultsSurface size={leftPanelSize} />
+        </div>
+      )
+    }
+
+    if (shellRenderMode === 'details-only') {
+      return (
+        <div
+          data-browser-experience="side-by-side"
+          data-pane-render-mode="details-only"
+          style={{ height: '100%', width: '100%' }}
+        >
+          <DetailsSurface />
         </div>
       )
     }
 
     return (
-      <div className="resizable-items">
+      <div className="resizable-items" data-browser-experience="side-by-side">
         <Resizable
           defaultSize={{
             width: defaultWidth,
@@ -129,20 +241,23 @@ const ResizableItems = withSize({
           size={{ width: defaultWidth, height: containerHeight }}
           minWidth={item1MinSize}
           maxWidth={size.width - item2MinSize}
-          style={resizableStyles}
+          style={{
+            borderRight: '1px dashed var(--theme-border, black)',
+            paddingRight: '15px',
+          }}
           onResizeStop={(_, _2, _3, d) => {
             setResizableWidth(defaultWidth + d.width)
           }}
         >
           <div className="resizable-grid-item1">
             <div className="resizable-inner-container">
-              <ResultIndexComponent size={leftPanelSize} />
+              <ResultsSurface size={leftPanelSize} />
             </div>
           </div>
         </Resizable>
         <div className="resizable-grid-item2">
           <div className="resizable-inner-container">
-            <LocusPageRoot />
+            <DetailsSurface />
           </div>
         </div>
       </div>
@@ -195,4 +310,3 @@ export const SplitScreenViewer = () => {
     </Container>
   )
 }
-

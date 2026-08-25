@@ -14,11 +14,11 @@ Researchers can quickly navigate between genes, single variants, and phenotypes 
 
 ### **Overview**
 
-The All by All browser has a split-screen design intended for rapidly inspecting and comparing many association results. The left-hand side displays a resizable Results Pane, which shows all hits for a given phenotype, gene, or variant. The right-hand side displays detailed association data for genes and variants with selected phenotype(s).
+The All by All browser offers two ways to work. **Focused** shows one complete page at a time and is the clearest place to start. Select a gene, locus, variant, or association to open its Details page, then use the prominent **Back to results** action to return without losing your filters or scientific context.
 
-The Results Pane can shrink, expand, or be hidden entirely by clicking buttons. The central dotted line is also draggable left or right. This design is intended to help users to quickly inspect many associations without losing a sense of context. Either half can be easily hidden to create more screen room for an intended focus. Depending on the width of the Results Pane, certain controls and/or table columns may be automatically hidden.
+**Side by side** is an optional comparison workflow for wide screens. It preserves the familiar resizable Results pane on the left and association Details on the right. Use the layout buttons or drag the central dotted line to adjust the panes. Depending on the Results pane width, some controls or table columns may be automatically hidden.
 
-The Status Bar displays the currently selected gene, phenotype, region, variant, and burden annotation set. It also includes a **Theme Toggle** to switch between Light, Dark, and System (OS preference) display modes. Keep this in mind when cycling through the different Results Pane options as the data displayed will depend on the current state shown in the Status Bar.
+Use the visible **Focused / Side by side** control in the Status Bar to switch workflows. When both pages fit, Focused Details also offers **Compare side by side**. Switching modes retains the selected phenotype, gene, locus, variant, analyses, and the prior Side-by-side layout as much as possible. The Status Bar also displays the current scientific context and includes a **Theme Toggle** for Light, Dark, and System (OS preference) display modes.
 
 <img src="/SVG/1-walkthrough-layout@4x.png" />
 
@@ -89,7 +89,7 @@ The symbols use both shape and color and include explanatory hover text. Positiv
 
 <img src="/SVG/6-walkthrough-heatmap@4x.png" />
 
-You can interact with the plot points or click the arrow under "Details," to update the right-hand panel with more detailed information about the selected gene or variant for further exploration.
+You can interact with plot points or click the arrow under "Details" to open more information about the selected gene or variant. In Focused mode, Details replaces Results and includes a context-aware Back action. In Side by side mode, the same action updates the right-hand pane.
 
 ### Genome-wide single variant results
 
@@ -126,7 +126,7 @@ The PheWAS plot includes a **"Directional" checkbox**, which plots upward triang
 
 ### Gene burden table
 
-On the right-hand side, the gene burden table summarizes burden statistics and quality control metrics across all mutational classes and tests. The gene burden table is useful for comparing p-values across the tests and for determining whether the results should be treated with caution based on lambda GC or other gene quality control metrics.
+The association Details page summarizes gene burden statistics and quality control metrics across all mutational classes and tests. It appears as a full page in Focused mode and on the right in Side by side mode. The table is useful for comparing p-values across tests and deciding whether results should be treated with caution based on lambda GC or other gene quality control metrics.
 
 
 ### Gene plot and table
@@ -177,7 +177,7 @@ Clicking on a specific variant ID from any table will open the **Variant PheWAS*
 
 ### Variant details and gene context
 
-When exploring a variant's PheWAS, the right-hand panel displays detailed annotations for the selected variant. This includes its Ensembl Variant Effect Predictor (VEP) consequence, HGVS notations, allele frequencies, and case/control breakdowns. It also highlights the gene associated with the variant, allowing you to quickly pivot to the Gene Page to explore the broader regional context or burden statistics for that gene.
+When exploring a variant's PheWAS, selecting an association opens detailed annotations for the variant. These appear on a full Details page in Focused mode or in the right-hand pane in Side by side mode. The annotations include its Ensembl Variant Effect Predictor (VEP) consequence, HGVS notations, allele frequencies, and case/control breakdowns. The view also highlights the associated gene, allowing you to pivot to the Gene Page for broader regional context or burden statistics.
 
 <img src="/SVG/13-walkthrough-variant-phewas-gene@4x.png" />
 
