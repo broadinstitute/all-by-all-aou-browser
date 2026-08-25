@@ -3,6 +3,8 @@ const LEGACY_TOP_LEVEL_STATE_KEYS = [
   ...ENTITY_STATE_KEYS,
   'resultIndex',
   'resultLayout',
+  'experienceMode',
+  'activeSurface',
 ] as const
 
 export type NavigationState = Record<string, unknown>

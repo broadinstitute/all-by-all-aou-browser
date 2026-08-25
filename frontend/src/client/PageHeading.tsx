@@ -28,9 +28,9 @@ const SearchBarCompact = styled.div`
 import { useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
-import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, TopResultsTab, geneIdAtom, regionIdAtom, variantIdAtom, analysisIdAtom } from './sharedState'
-import { buildStateUrl } from './hooks/useAppNavigation'
+import { useRecoilValue } from 'recoil'
+import { experienceModeAtom, TopResultsTab } from './sharedState'
+import { buildStateUrl, useAppNavigation } from './hooks/useAppNavigation'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
 import { Link } from 'react-router-dom'
@@ -239,26 +239,21 @@ const resultsBaseState = {
   analysisId: null,
 }
 
-const resultsUrl = buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-phenotypes' })
-
 const PageHeading = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const setResultIndex = useSetRecoilState(resultIndexAtom)
-  const setResultLayout = useSetRecoilState(resultLayoutAtom)
-  const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
-  const setGeneId = useSetRecoilState(geneIdAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  const setVariantId = useSetRecoilState(variantIdAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const experienceMode = useRecoilValue(experienceModeAtom)
+  const { goToResults: navigateToResults } = useAppNavigation()
+
+  const resultsUrl = (tab: TopResultsTab = 'all-phenotypes') =>
+    buildStateUrl({
+      ...resultsBaseState,
+      topResultsTab: tab,
+      experienceMode,
+      activeSurface: 'results',
+    })
 
   const goToResults = (tab: TopResultsTab = 'all-phenotypes') => {
-    setTopResultsTab(tab)
-    setResultIndex('top-associations')
-    setResultLayout('full')
-    setGeneId(null)
-    setRegionId(null)
-    setVariantId(null)
-    setAnalysisId(null)
+    navigateToResults(tab)
     closeDropdown()
   }
 
@@ -301,14 +296,14 @@ const PageHeading = () => {
             FAQ
           </PageHeadingRouterLink>
           <ResultsDropdownWrapper>
-            <PageHeadingRouterLink to={resultsUrl} onClick={() => goToResults()}>
+            <PageHeadingRouterLink to={resultsUrl()} onClick={() => goToResults()}>
               Results
             </PageHeadingRouterLink>
             <ResultsSubmenu className="results-submenu">
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-phenotypes' })} onClick={() => goToResults('all-phenotypes')}>All Phenotypes</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'all-genes' })} onClick={() => goToResults('all-genes')}>All Genes</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'gene-burden' })} onClick={() => goToResults('gene-burden')}>Gene Burden</Link>
-              <Link to={buildStateUrl({ ...resultsBaseState, topResultsTab: 'single-variants' })} onClick={() => goToResults('single-variants')}>Single Variants</Link>
+              <Link to={resultsUrl('all-phenotypes')} onClick={() => goToResults('all-phenotypes')}>All Phenotypes</Link>
+              <Link to={resultsUrl('all-genes')} onClick={() => goToResults('all-genes')}>All Genes</Link>
+              <Link to={resultsUrl('gene-burden')} onClick={() => goToResults('gene-burden')}>Gene Burden</Link>
+              <Link to={resultsUrl('single-variants')} onClick={() => goToResults('single-variants')}>Single Variants</Link>
             </ResultsSubmenu>
           </ResultsDropdownWrapper>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
@@ -330,7 +325,7 @@ const PageHeading = () => {
             FAQ
           </PageHeadingRouterLink>
 
-          <PageHeadingRouterLink to={resultsUrl} onClick={() => goToResults()}>
+          <PageHeadingRouterLink to={resultsUrl()} onClick={() => goToResults()}>
             Results
           </PageHeadingRouterLink>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>

@@ -1,91 +1,86 @@
 import { useCallback } from 'react';
-import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilValue } from 'recoil';
 import {
+  analysisIdAtom,
   geneIdAtom,
   regionIdAtom,
-  analysisIdAtom,
-  variantIdAtom,
-  resultIndexAtom,
-  resultLayoutAtom,
   ResultIndex,
 } from '../sharedState';
-import { buildCanonicalNavigationUrl } from '../navigationUrl';
+import { useAppNavigation } from './useAppNavigation';
 
 export type EntityType = 'locus' | 'gene' | 'phenotype' | 'variant';
 export type NavMode = 'split' | 'full' | 'newTab';
 
 // Special sentinel value to indicate we want to focus the gene page (clear regionId)
-export const FOCUS_LOCUS = '__FOCUS_LOCUS__' as any;
+export const FOCUS_LOCUS = '__FOCUS_LOCUS__' as const;
 
 // Special sentinel value to indicate we want to focus the region browser pane (keep current state)
-export const FOCUS_REGION = '__FOCUS_REGION__' as any;
+export const FOCUS_REGION = '__FOCUS_REGION__' as const;
 
 /**
- * @deprecated Use useAppNavigation instead
+ * Compatibility adapter for existing context-menu descriptions. Presentation
+ * and URL rules are delegated to the same semantic navigation helper as row
+ * clicks and search.
  */
 export function useContextMenuNavigation() {
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
-  const setAnalysisId = useSetRecoilState(analysisIdAtom);
-  const setVariantId = useSetRecoilState(variantIdAtom);
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
   const currentAnalysisId = useRecoilValue(analysisIdAtom);
   const currentRegionId = useRecoilValue(regionIdAtom);
   const currentGeneId = useRecoilValue(geneIdAtom);
+  const { navigateToState, openInNewTab } = useAppNavigation();
 
-  return useCallback((entityType: EntityType, id: string, mode: NavMode, targetIndex: ResultIndex | typeof FOCUS_LOCUS | typeof FOCUS_REGION, preserveAnalysisId: boolean = false) => {
-    const focusLocusMode = targetIndex === FOCUS_LOCUS;
-    const focusRegionMode = targetIndex === FOCUS_REGION;
-    const isFocusMode = focusLocusMode || focusRegionMode;
+  return useCallback(
+    (
+      entityType: EntityType,
+      id: string,
+      mode: NavMode,
+      targetIndex: ResultIndex | typeof FOCUS_LOCUS | typeof FOCUS_REGION,
+      preserveAnalysisId = false
+    ) => {
+      const focusLocusMode = targetIndex === FOCUS_LOCUS;
+      const focusRegionMode = targetIndex === FOCUS_REGION;
+      const isDetailsDestination = focusLocusMode || focusRegionMode;
+      const stateUpdates: Record<string, any> = {};
 
-    const stateUpdates: any = {
-      resultLayout: isFocusMode
-        ? (mode === 'split' ? 'split' : 'detail')
-        : (mode === 'split' ? 'split' : 'full')
-    };
+      if (!isDetailsDestination) stateUpdates.resultIndex = targetIndex;
 
-    if (!isFocusMode) {
-      stateUpdates.resultIndex = targetIndex;
-    }
-
-    if (!focusRegionMode) {
-      if (entityType === 'gene') {
+      if (focusRegionMode) {
+        stateUpdates.geneId = currentGeneId ?? null;
+        stateUpdates.regionId = currentRegionId ?? null;
+      } else if (entityType === 'gene') {
         stateUpdates.geneId = id;
         stateUpdates.regionId = null;
-      }
-      if (entityType === 'locus') {
+        stateUpdates.variantId = null;
+      } else if (entityType === 'locus') {
         stateUpdates.regionId = id;
         stateUpdates.geneId = null;
-      }
-      if (entityType === 'phenotype') stateUpdates.analysisId = id;
-      if (entityType === 'variant') stateUpdates.variantId = id;
-    }
-
-    if (preserveAnalysisId && currentAnalysisId && (targetIndex === 'pheno-info' || targetIndex === 'variant-manhattan')) {
-      stateUpdates.analysisId = currentAnalysisId;
-    }
-
-    if (mode === 'newTab') {
-      if (focusRegionMode) {
-        if (currentGeneId) stateUpdates.geneId = currentGeneId;
-        if (currentRegionId) stateUpdates.regionId = currentRegionId;
+        stateUpdates.variantId = null;
+      } else if (entityType === 'phenotype') {
+        stateUpdates.analysisId = id;
+      } else if (entityType === 'variant') {
+        stateUpdates.variantId = id;
       }
 
-      window.open(
-        buildCanonicalNavigationUrl(window.location.href, stateUpdates, {
-          preserveKeys: preserveAnalysisId ? ['analysisId'] : [],
-        }),
-        '_blank'
-      );
-    } else {
-      if (stateUpdates.geneId) setGeneId(stateUpdates.geneId);
-      if ('regionId' in stateUpdates) setRegionId(stateUpdates.regionId);
-      if (stateUpdates.analysisId) setAnalysisId(stateUpdates.analysisId);
-      if (stateUpdates.variantId) setVariantId(stateUpdates.variantId);
+      if (preserveAnalysisId && currentAnalysisId) {
+        stateUpdates.analysisId = currentAnalysisId;
+      }
 
-      if (stateUpdates.resultIndex) setResultIndex(stateUpdates.resultIndex);
-      setResultLayout(stateUpdates.resultLayout);
-    }
-  }, [setGeneId, setRegionId, setAnalysisId, setVariantId, setResultIndex, setResultLayout, currentAnalysisId, currentRegionId, currentGeneId]);
+      const presentation = {
+        destination: isDetailsDestination ? ('details' as const) : ('results' as const),
+        resultsOnly: mode === 'full',
+      };
+
+      if (mode === 'newTab') {
+        openInNewTab(stateUpdates, presentation);
+      } else {
+        navigateToState(stateUpdates, presentation);
+      }
+    },
+    [
+      currentAnalysisId,
+      currentRegionId,
+      currentGeneId,
+      navigateToState,
+      openInNewTab,
+    ]
+  );
 }

@@ -199,7 +199,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
   const geneId = useRecoilValue(geneIdAtom)
-  const { switchAnalysis } = useAppNavigation()
+  const { goToAssociation } = useAppNavigation()
   const setMafSignificance = useSetRecoilState(mafSignificanceAtom)
   const setBurdenTestSignificance = useSetRecoilState(burdenTestSignificanceAtom)
 
@@ -358,7 +358,7 @@ const GenePhewasData: React.FC<Props> = ({ size }) => {
 
 
   const onPointClick = ({ analysis_id }: GenePhewasDataItem) => {
-    switchAnalysis(analysis_id)
+    goToAssociation(analysis_id, { geneId: geneId || null })
   }
 
   return (

@@ -1,14 +1,15 @@
 import React from 'react'
 import styled from 'styled-components'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { useRecoilState } from 'recoil'
 import { HalfPage } from './UserInterface'
-import { topResultsTabAtom, TopResultsTab, resultLayoutAtom } from './sharedState'
+import { topResultsTabAtom, TopResultsTab } from './sharedState'
 import { useRestoreFromUrl } from './initialUrlState'
 
 import TopHitPhewas from './PhenotypeList/TopHitPhewas'
 import TopVariantsPhewas from './VariantResults/TopVariantsPhewas'
 import AllPhenotypesTab from './PhenotypeList/AllPhenotypesTab'
 import AllGenesTab from './GeneResults/AllGenesTab'
+import { useAppNavigation } from './hooks/useAppNavigation'
 
 const PageContainer = styled(HalfPage)`
   display: flex;
@@ -59,15 +60,17 @@ const TABS: { key: TopResultsTab; label: string }[] = [
 const VALID_TABS = new Set<string>(['all-phenotypes', 'all-genes', 'gene-burden', 'single-variants'])
 
 export const TopResultsLayout = ({ size }: any) => {
-  const [activeTab, setActiveTab] = useRecoilState(topResultsTabAtom)
-  const setResultLayout = useSetRecoilState(resultLayoutAtom)
+  const [activeTab] = useRecoilState(topResultsTabAtom)
+  const { navigateToState } = useAppNavigation()
 
   useRestoreFromUrl(topResultsTabAtom, 'topResultsTab', VALID_TABS)
 
   const handleTabClick = (tab: TopResultsTab) => {
-    setActiveTab(tab)
-    const layout = (tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes') ? 'full' : undefined
-    if (layout) setResultLayout(layout)
+    const resultsOnly = tab === 'single-variants' || tab === 'all-phenotypes' || tab === 'all-genes'
+    navigateToState(
+      { topResultsTab: tab, resultIndex: 'top-associations' },
+      { destination: 'results', resultsOnly }
+    )
   }
 
   return (

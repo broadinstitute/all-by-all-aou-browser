@@ -3,10 +3,9 @@ import styled from 'styled-components'
 
 import { Link } from '@gnomad/ui'
 import { useQuery } from '@axaou/ui'
-import { useRecoilState, useSetRecoilState, useResetRecoilState } from 'recoil'
+import { useRecoilState, useRecoilValue, useResetRecoilState } from 'recoil'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query'
 import {
-  resultIndexAtom,
   resultLayoutAtom,
   resizableWidthAtom,
   themeModeAtom,
@@ -15,6 +14,7 @@ import {
 import { AnalysisMetadata, GeneModels } from './types'
 import { LayoutToggle, LayoutMode, ThemeToggle } from './UserInterface'
 import { getAnalysisDisplayTitle } from './utils'
+import { useAppNavigation } from './hooks/useAppNavigation'
 const Container = styled.div`
   display: flex;
   flex-direction: row;
@@ -91,8 +91,13 @@ export const StatusBar: React.FC = () => {
 
   const { geneId, analysisId, regionId, variantId, selectedAnalyses } = useGetActiveItems()
 
-  const setResultIndex = useSetRecoilState(resultIndexAtom)
-  const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
+  const resultsLayout = useRecoilValue(resultLayoutAtom)
+  const {
+    goToGene,
+    goToPhenotype,
+    goToVariant,
+    setSideBySideLayout,
+  } = useAppNavigation()
   const resetResizableWidth = useResetRecoilState(resizableWidthAtom)
 
   // Build queries conditionally to prevent 404s from null/undefined IDs
@@ -137,10 +142,12 @@ export const StatusBar: React.FC = () => {
         <div className='status-bar-item'>
           <strong>Phenotype:</strong>
           <Link onClick={() => {
-            setResultIndex('pheno-info')
-            setResultsLayout('split')
-          }
-          } style={{ cursor: 'pointer' }}>
+            goToPhenotype(analysisId, {
+              destination: 'overview',
+              keepContext: true,
+              resultIndex: 'pheno-info',
+            })
+          }} style={{ cursor: 'pointer' }}>
             {getAnalysisDisplayTitle(analysisMetadataData[0])}
           </Link>
           {selectedAnalyses.length > 1 ? ` + ${selectedAnalyses.length - 1} more selected` : ''}
@@ -152,8 +159,11 @@ export const StatusBar: React.FC = () => {
           <Link
             style={{ cursor: 'pointer' }}
             onClick={() => {
-              setResultIndex('gene-phewas')
-              setResultsLayout('split')
+              goToGene(geneId, {
+                destination: 'phewas',
+                fromPhenotype: true,
+                resultIndex: 'gene-phewas',
+              })
             }}
           >
             {`${geneModel.symbol} `} ({geneId})
@@ -172,8 +182,10 @@ export const StatusBar: React.FC = () => {
           <Link
             style={{ cursor: 'pointer' }}
             onClick={() => {
-              setResultIndex('variant-phewas')
-              setResultsLayout('split')
+              goToVariant(variantId, {
+                destination: 'phewas',
+                resultIndex: 'variant-phewas',
+              })
             }}
           >
             {variantId}
@@ -184,7 +196,7 @@ export const StatusBar: React.FC = () => {
         <LayoutToggle
           value={resultsLayout as LayoutMode}
           onChange={(mode) => {
-            setResultsLayout(mode)
+            setSideBySideLayout(mode)
             resetResizableWidth()
           }}
           rightLabel={rightLabel}

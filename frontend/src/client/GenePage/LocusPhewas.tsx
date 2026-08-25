@@ -61,7 +61,7 @@ const LocusPhewasData = ({ size }: any) => {
   const sequencingType = useRecoilValue(sequencingTypeAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
-  const { switchAnalysis } = useAppNavigation()
+  const { goToAssociation } = useAppNavigation()
 
   interface Data {
     variantAssociations: VariantAssociations[]
@@ -190,7 +190,7 @@ const LocusPhewasData = ({ size }: any) => {
     showSelectAnalysesOnly,
   })
   const onPointClick = (phewasItem: VariantAssociations & AnalysisMetadata) => {
-    switchAnalysis(phewasItem.analysis_id)
+    goToAssociation(phewasItem.analysis_id, { regionId: regionId || null })
   }
 
   const onHoverAnalysis = (analysisId: string) => {

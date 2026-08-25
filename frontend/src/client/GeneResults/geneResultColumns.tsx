@@ -33,7 +33,7 @@ const GeneLinkRenderer = ({ row }: any) => {
     <>
       <Link
         onClick={() => {
-          goToGene(row.gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
+          goToGene(row.gene_id, { fromPhenotype: true, destination: 'details' })
         }}
         onContextMenu={(e: any) => {
           e.preventDefault();

@@ -5,10 +5,7 @@ import axios from 'axios';
 import { filteredAnalysesQuery, geneSymbolsQuery } from './queryStates';
 import { axaouDevUrl } from './Query';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  resultLayoutAtom,
-  selectedAnalyses,
-} from './sharedState';
+import { selectedAnalyses } from './sharedState';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { AnalysisMetadata, GeneSymbol } from './types';
 import { ColorMarker } from './UserInterface';
@@ -172,7 +169,6 @@ export const NewSearchBar: React.FC = () => {
   const geneSymbols = useRecoilValue(geneSymbolsQuery);
   const analysisMetadata = useRecoilValue(filteredAnalysesQuery);
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
-  const setResultsLayout = useSetRecoilState(resultLayoutAtom);
   const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightedRef = useRef<HTMLDivElement>(null);
@@ -370,17 +366,26 @@ export const NewSearchBar: React.FC = () => {
 
   const onSelect = (searchChoice: SearchChoice) => {
     if (searchChoice.resultType === 'gene') {
-      goToGene(searchChoice.id, { resultIndex: 'gene-phewas' });
-      setResultsLayout("full");
+      goToGene(searchChoice.id, {
+        destination: 'phewas',
+        resultIndex: 'gene-phewas',
+        resultsOnly: true,
+      });
     } else if (searchChoice.resultType === 'analysis') {
-      goToPhenotype(searchChoice.id, { resultIndex: 'pheno-info' });
+      goToPhenotype(searchChoice.id, {
+        destination: 'overview',
+        resultIndex: 'pheno-info',
+        resultsOnly: true,
+      });
       setSelectedAnalyses([]);
-      setResultsLayout("full");
     } else if (searchChoice.resultType === 'variant') {
-      goToVariant(searchChoice.id, { geneId: searchChoice.gene_id || null, regionId: null, resultIndex: 'variant-phewas' });
-      if (!searchChoice.gene_id) {
-        setResultsLayout("full");
-      }
+      goToVariant(searchChoice.id, {
+        destination: 'phewas',
+        geneId: searchChoice.gene_id || null,
+        regionId: null,
+        resultIndex: 'variant-phewas',
+        resultsOnly: true,
+      });
     }
     setShowModal(false);
     setInputValue('');

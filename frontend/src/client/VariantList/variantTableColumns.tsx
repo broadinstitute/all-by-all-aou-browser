@@ -452,7 +452,7 @@ export const getVariantColumns = ({
                 row.variant_id.length > 17 ? `${row.variant_id.slice(0, 14)}...` : row.variant_id
               }
               onClick={() => {
-                goToVariant(row.variant_id, { resultIndex: 'variant-phewas' })
+                goToVariant(row.variant_id, { destination: 'details' })
               }}
             />
           </Link>
@@ -478,7 +478,7 @@ export const getVariantColumns = ({
               searchWords={highlightWords}
               textToHighlight={row.variant_id}
               onClick={() => {
-                goToVariant(row.variant_id, { resultIndex: 'variant-phewas' })
+                goToVariant(row.variant_id, { destination: 'details' })
               }}
             />
           </Link>

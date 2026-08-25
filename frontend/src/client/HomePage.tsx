@@ -4,9 +4,9 @@ import { isBrowser } from 'react-device-detect'
 import { NewSearchBar } from './Searchbox'
 import { DocumentTitle } from './UserInterface'
 import { Page, Button, ExternalLink } from '@gnomad/ui'
-import { useSetRecoilState } from 'recoil'
-import { resultIndexAtom, resultLayoutAtom, topResultsTabAtom, geneIdAtom, regionIdAtom, variantIdAtom, analysisIdAtom } from './sharedState'
-import { buildStateUrl } from './hooks/useAppNavigation'
+import { useRecoilValue } from 'recoil'
+import { experienceModeAtom } from './sharedState'
+import { buildStateUrl, useAppNavigation } from './hooks/useAppNavigation'
 import { datasetCounts } from './utils'
 import { Link } from 'react-router-dom'
 
@@ -105,30 +105,18 @@ const Version = styled.ul`
 
 export const browserVersion = process.env.VERSION
 
-const browseResultsUrl = buildStateUrl({
-  resultIndex: 'top-associations',
-  resultLayout: 'full',
-  topResultsTab: 'all-phenotypes',
-});
-
 export default function HomePageComponent() {
-  const setResultIndex = useSetRecoilState(resultIndexAtom)
-  const setResultLayout = useSetRecoilState(resultLayoutAtom)
-  const setTopResultsTab = useSetRecoilState(topResultsTabAtom)
-  const setGeneId = useSetRecoilState(geneIdAtom)
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  const setVariantId = useSetRecoilState(variantIdAtom)
-  const setAnalysisId = useSetRecoilState(analysisIdAtom)
+  const experienceMode = useRecoilValue(experienceModeAtom)
+  const { goToResults } = useAppNavigation()
+  const browseResultsUrl = buildStateUrl({
+    resultIndex: 'top-associations',
+    resultLayout: 'full',
+    topResultsTab: 'all-phenotypes',
+    experienceMode,
+    activeSurface: 'results',
+  })
 
-  const handleBrowseResults = () => {
-    setResultIndex('top-associations')
-    setResultLayout('full')
-    setTopResultsTab('all-phenotypes')
-    setGeneId(null)
-    setRegionId(null)
-    setVariantId(null)
-    setAnalysisId(null)
-  }
+  const handleBrowseResults = () => goToResults('all-phenotypes')
 
   return (
     <HomePage>

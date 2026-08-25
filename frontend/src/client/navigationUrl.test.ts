@@ -16,7 +16,7 @@ test('canonical new-tab URLs remove stale entity and legacy query state', () => 
     analysisId: 'old-analysis',
     resultIndex: 'gene-phewas',
   }))
-  const href = `https://example.org/other?state=${currentState}&geneId=legacy&resultLayout=detail#old`
+  const href = `https://example.org/other?state=${currentState}&geneId=legacy&resultLayout=detail&experienceMode=focused&activeSurface=details#old`
   const result = buildCanonicalNavigationUrl(href, {
     geneId: 'new-gene',
     resultIndex: 'gene-phewas',
@@ -28,6 +28,8 @@ test('canonical new-tab URLs remove stale entity and legacy query state', () => 
   assert.equal(url.hash, '')
   assert.equal(url.searchParams.has('geneId'), false)
   assert.equal(url.searchParams.has('resultLayout'), false)
+  assert.equal(url.searchParams.has('experienceMode'), false)
+  assert.equal(url.searchParams.has('activeSurface'), false)
   assert.deepEqual(stateFrom(result), {
     geneId: 'new-gene',
     resultIndex: 'gene-phewas',
@@ -50,6 +52,25 @@ test('gene, phenotype, variant, and locus-PheWAS destinations survive URL refres
     )
     assert.deepEqual(stateFrom(result), { ...destination, resultLayout: 'full' })
   }
+})
+
+test('canonical URLs preserve an explicit experience mode and active surface', () => {
+  const result = buildCanonicalNavigationUrl(
+    'https://example.org/app?state=%7B%22experienceMode%22%3A%22sideBySide%22%7D',
+    {
+      geneId: 'ENSG1',
+      experienceMode: 'focused',
+      activeSurface: 'details',
+      resultLayout: 'detail',
+    }
+  )
+
+  assert.deepEqual(stateFrom(result), {
+    geneId: 'ENSG1',
+    experienceMode: 'focused',
+    activeSurface: 'details',
+    resultLayout: 'detail',
+  })
 })
 
 test('detail links preserve analysis context only when explicitly requested', () => {

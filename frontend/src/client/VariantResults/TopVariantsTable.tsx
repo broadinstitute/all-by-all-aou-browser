@@ -7,7 +7,7 @@ import { ColorMarker, RightArrow, Link } from '../UserInterface'
 import { renderPvalueCell } from '../PhenotypeList/Utils'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
-import { buildCanonicalNavigationUrl } from '../navigationUrl'
+import { useAppNavigation } from '../hooks/useAppNavigation'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -16,29 +16,26 @@ const DescriptionContainer = styled.span`
   white-space: nowrap;
 `
 
-const openVariantInNewTab = (row: any) => {
-  window.open(
-    buildCanonicalNavigationUrl(window.location.href, {
-      variantId: row.variant_id,
-      analysisId: row.top_phenotype,
-      resultIndex: 'variant-phewas',
-      resultLayout: 'full',
-      ...(row.gene_id ? { geneId: row.gene_id } : {}),
-    }),
-    '_blank'
-  )
-}
-
 const VariantLinkRenderer = ({ row }: any) => {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const navigate = useContextMenuNavigation()
+  const { goToVariant } = useAppNavigation()
 
   return (
     <>
       <Link
         className="grid-cell-content"
         style={{ cursor: 'pointer' }}
-        onClick={() => openVariantInNewTab(row)}
+        onClick={() =>
+          goToVariant(row.variant_id, {
+            destination: 'phewas',
+            analysisId: row.top_phenotype,
+            geneId: row.gene_id || null,
+            regionId: null,
+            resultIndex: 'variant-phewas',
+            resultsOnly: true,
+          })
+        }
         onContextMenu={(e: any) => {
           e.preventDefault()
           setMenu({ x: e.clientX, y: e.clientY })

@@ -13,6 +13,7 @@ import {
   resultLayoutAtom,
   useGetActiveItems,
 } from './sharedState'
+import { useAppNavigation } from './hooks/useAppNavigation'
 
 const Container = styled.div`
   display: flex;
@@ -61,8 +62,8 @@ const Container = styled.div`
 `
 
 export const NavButtons: React.FC = () => {
-  const [resultLayout, setResultLayout] = useRecoilState(resultLayoutAtom)
-  const [resultIndex, setResultIndex] = useRecoilState(resultIndexAtom)
+  const resultLayout = useRecoilValue(resultLayoutAtom)
+  const resultIndex = useRecoilValue(resultIndexAtom)
   const [hideGeneOpts, setHideGeneOpts] = useRecoilState(hideGeneOptsAtom)
   const [showPhewasControls, setShowPhewasControls] = useRecoilState(phewasOptsAtom)
 
@@ -70,16 +71,14 @@ export const NavButtons: React.FC = () => {
 
   const resetResizableWidth = useResetRecoilState(resizableWidthAtom)
   const { variantId } = useGetActiveItems()
+  const { navigateToState, setSideBySideLayout } = useAppNavigation()
 
   const onClickButtonResultIndex = (mode: ResultIndex) => () => {
-    setResultIndex(mode)
-    if (resultLayout === 'detail') {
-      setResultLayout('split')
-      resetResizableWidth()
-    }
+    navigateToState({ resultIndex: mode }, { destination: 'results' })
+    if (resultLayout === 'detail') resetResizableWidth()
   }
   const onClickButtonResultLayout = (mode: ResultLayout) => () => {
-    setResultLayout(mode)
+    setSideBySideLayout(mode)
     resetResizableWidth()
   }
 

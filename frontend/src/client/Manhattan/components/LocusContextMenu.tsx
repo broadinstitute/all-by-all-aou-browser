@@ -60,6 +60,7 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
         window.location.href,
         {
           regionId,
+          activeSurface: 'details',
           resultLayout: 'detail',
         },
         { preserveKeys: ['analysisId'] }

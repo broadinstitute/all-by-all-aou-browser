@@ -280,7 +280,7 @@ const ConnectedVariantPhewas = ({ size }: any) => {
   const sequencingType = useRecoilValue(sequencingTypeAtom)
   const setHoveredVariant = useSetRecoilState(hoveredVariantAtom)
   const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
-  const { switchAnalysis, goToVariant } = useAppNavigation()
+  const { goToAssociation } = useAppNavigation()
 
   interface Data {
     variantAssociations: VariantAssociations[]
@@ -450,8 +450,11 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     showSelectAnalysesOnly,
   })
   const onPointClick = (phenotype: any) => {
-    switchAnalysis(phenotype.analysis_id)
-    goToVariant(variantId, { geneId: variantData.gene_id, regionId: null })
+    goToAssociation(phenotype.analysis_id, {
+      variantId,
+      geneId: variantData.gene_id,
+      regionId: null,
+    })
   }
 
   const onHoverAnalysis = (analysisId: string) => {

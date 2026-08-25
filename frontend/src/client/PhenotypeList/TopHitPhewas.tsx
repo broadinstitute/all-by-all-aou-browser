@@ -166,7 +166,7 @@ const TopHitPhewas: React.FC<Props> = () => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
   const burdenSet = useRecoilValue(burdenSetAtom)
 
-  const { goToGene, switchAnalysis } = useAppNavigation()
+  const { goToAssociation } = useAppNavigation()
 
 
   const { queryStates, anyLoading } = useQuery<Data>({
@@ -223,8 +223,7 @@ const TopHitPhewas: React.FC<Props> = () => {
     );
 
   const onPointClick = ({ gene_id, analysis_id }: GenePhewasAnnotated) => {
-    switchAnalysis(analysis_id)
-    goToGene(gene_id, { fromPhenotype: true, resultIndex: 'gene-phewas' })
+    goToAssociation(analysis_id, { geneId: gene_id, regionId: null, variantId: null })
   }
 
   const categoriesPrepared = categories.data.map(modifyCategoryColor)

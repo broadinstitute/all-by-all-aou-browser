@@ -13,6 +13,14 @@ import { urlSyncEffect } from 'recoil-sync'
 import randomColor from 'randomcolor'
 import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Utils'
 import { clampSplitPaneWidth } from './paneLayout'
+import {
+  ActiveSurface,
+  ExperienceMode,
+  EXPERIENCE_MODE_STORAGE_KEY,
+  parseExperienceMode,
+} from './experienceNavigation'
+
+export type { ActiveSurface, ExperienceMode } from './experienceNavigation'
 
 export const geneIdAtom = atom<string | null | undefined>({
   key: 'geneId',
@@ -430,6 +438,56 @@ export const showQQOverlayAtom = atom<boolean>({
         }
       })
     },
+  ],
+})
+
+const experienceModeChecker = stringLiterals<ExperienceMode>({
+  focused: 'focused',
+  sideBySide: 'sideBySide',
+})
+
+const activeSurfaceChecker = stringLiterals<ActiveSurface>({
+  results: 'results',
+  details: 'details',
+})
+
+export const experienceModeAtom = atom<ExperienceMode>({
+  key: 'experienceMode',
+  default: 'sideBySide',
+  effects: [
+    ({ setSelf, onSet }) => {
+      if (typeof window !== 'undefined') {
+        const savedMode = parseExperienceMode(
+          localStorage.getItem(EXPERIENCE_MODE_STORAGE_KEY)
+        )
+        if (savedMode) setSelf(savedMode)
+      }
+
+      onSet((newValue, _, isReset) => {
+        if (typeof window === 'undefined') return
+        isReset
+          ? localStorage.removeItem(EXPERIENCE_MODE_STORAGE_KEY)
+          : localStorage.setItem(
+              EXPERIENCE_MODE_STORAGE_KEY,
+              JSON.stringify(newValue)
+            )
+      })
+    },
+    urlSyncEffect({
+      refine: experienceModeChecker,
+      history: 'push',
+    }),
+  ],
+})
+
+export const activeSurfaceAtom = atom<ActiveSurface>({
+  key: 'activeSurface',
+  default: 'results',
+  effects: [
+    urlSyncEffect({
+      refine: activeSurfaceChecker,
+      history: 'push',
+    }),
   ],
 })
 

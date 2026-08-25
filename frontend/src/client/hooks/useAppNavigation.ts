@@ -1,133 +1,362 @@
 import { useCallback } from 'react';
-import { useSetRecoilState } from 'recoil';
+import { useRecoilTransaction_UNSTABLE, useRecoilValue } from 'recoil';
 import {
+  activeSurfaceAtom,
+  analysisIdAtom,
+  experienceModeAtom,
   geneIdAtom,
   regionIdAtom,
-  variantIdAtom,
-  analysisIdAtom,
   resultIndexAtom,
   resultLayoutAtom,
+  topResultsTabAtom,
+  variantIdAtom,
   ResultIndex,
+  TopResultsTab,
 } from '../sharedState';
-import { buildCanonicalNavigationUrl, buildStateUrl } from '../navigationUrl';
-import { revealDetailsPane, revealResultsPane } from '../paneLayout';
+import {
+  buildCanonicalNavigationUrl,
+  buildStateUrl,
+  NavigationState,
+} from '../navigationUrl';
+import {
+  buildDestinationState,
+  getNavigationPresentation,
+  NavigationDestination,
+} from '../experienceNavigation';
 
 export { buildStateUrl };
 
 export type NavMode = 'split' | 'full' | 'newTab';
 
+type NavigationUpdates = {
+  geneId?: string | null;
+  regionId?: string | null;
+  variantId?: string | null;
+  analysisId?: string | null;
+  resultIndex?: ResultIndex;
+  topResultsTab?: TopResultsTab;
+};
+
+type PresentationOptions = {
+  destination: NavigationDestination;
+  resultsOnly?: boolean;
+};
+
 export function useAppNavigation() {
-  const setGeneId = useSetRecoilState(geneIdAtom);
-  const setRegionId = useSetRecoilState(regionIdAtom);
-  const setVariantId = useSetRecoilState(variantIdAtom);
-  const setAnalysisId = useSetRecoilState(analysisIdAtom);
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
-  const setResultLayout = useSetRecoilState(resultLayoutAtom);
+  const experienceMode = useRecoilValue(experienceModeAtom);
+  const resultLayout = useRecoilValue(resultLayoutAtom);
 
-  const openDetailPane = useCallback(() => {
-    setResultLayout(revealDetailsPane);
-  }, [setResultLayout]);
+  // All state that defines one visible destination is committed together. This
+  // also lets recoil-sync produce a single coherent history state.
+  const navigate = useRecoilTransaction_UNSTABLE(
+    ({ get, set }) =>
+      (updates: NavigationUpdates, options: PresentationOptions) => {
+        const presentation = getNavigationPresentation(
+          get(experienceModeAtom),
+          get(resultLayoutAtom),
+          options.destination,
+          { resultsOnly: options.resultsOnly }
+        );
 
-  const openResultsPane = useCallback(() => {
-    setResultLayout(revealResultsPane);
-  }, [setResultLayout]);
+        if ('geneId' in updates) set(geneIdAtom, updates.geneId);
+        if ('regionId' in updates) set(regionIdAtom, updates.regionId);
+        if ('variantId' in updates) set(variantIdAtom, updates.variantId);
+        if ('analysisId' in updates) set(analysisIdAtom, updates.analysisId);
+        if (updates.resultIndex) set(resultIndexAtom, updates.resultIndex);
+        if (updates.topResultsTab) set(topResultsTabAtom, updates.topResultsTab);
+        set(activeSurfaceAtom, presentation.activeSurface);
+        set(resultLayoutAtom, presentation.resultLayout);
+      },
+    []
+  );
 
-  const goToGene = useCallback((geneId: string, options?: { fromPhenotype?: boolean; keepVariant?: boolean; resultIndex?: ResultIndex }) => {
-    setGeneId(geneId);
-    setRegionId(null);
-    if (!options?.keepVariant) setVariantId(null);
-    if (!options?.fromPhenotype) setAnalysisId(null);
-    if (options?.resultIndex) {
-      setResultIndex(options.resultIndex);
-      openResultsPane();
-    } else {
-      openDetailPane();
-    }
-  }, [setGeneId, setRegionId, setVariantId, setAnalysisId, setResultIndex, openDetailPane, openResultsPane]);
+  const goToGene = useCallback(
+    (
+      geneId: string,
+      options?: {
+        destination?: 'details' | 'phewas';
+        fromPhenotype?: boolean;
+        keepVariant?: boolean;
+        resultIndex?: ResultIndex;
+        resultsOnly?: boolean;
+      }
+    ) => {
+      const destination =
+        options?.destination ?? (options?.resultIndex ? 'phewas' : 'details');
+      navigate(
+        {
+          geneId,
+          regionId: null,
+          ...(!options?.keepVariant ? { variantId: null } : {}),
+          ...(!options?.fromPhenotype ? { analysisId: null } : {}),
+          ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
+        },
+        {
+          destination: destination === 'details' ? 'details' : 'results',
+          resultsOnly: options?.resultsOnly,
+        }
+      );
+    },
+    [navigate]
+  );
 
-  const goToRegion = useCallback((regionId: string, options?: { fromPhenotype?: boolean; resultIndex?: ResultIndex }) => {
-    setRegionId(regionId);
-    setGeneId(null);
-    setVariantId(null);
-    if (!options?.fromPhenotype) setAnalysisId(null);
-    if (options?.resultIndex) {
-      setResultIndex(options.resultIndex);
-      openResultsPane();
-    } else {
-      openDetailPane();
-    }
-  }, [setRegionId, setGeneId, setVariantId, setAnalysisId, setResultIndex, openDetailPane, openResultsPane]);
+  const goToRegion = useCallback(
+    (
+      regionId: string,
+      options?: {
+        destination?: 'details' | 'phewas';
+        fromPhenotype?: boolean;
+        resultIndex?: ResultIndex;
+        resultsOnly?: boolean;
+      }
+    ) => {
+      const destination =
+        options?.destination ?? (options?.resultIndex ? 'phewas' : 'details');
+      navigate(
+        {
+          regionId,
+          geneId: null,
+          variantId: null,
+          ...(!options?.fromPhenotype ? { analysisId: null } : {}),
+          ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
+        },
+        {
+          destination: destination === 'details' ? 'details' : 'results',
+          resultsOnly: options?.resultsOnly,
+        }
+      );
+    },
+    [navigate]
+  );
 
-  const goToVariant = useCallback((variantId: string, options?: { geneId?: string | null; regionId?: string | null; resultIndex?: ResultIndex }) => {
-    setVariantId(variantId);
-    if (options?.geneId !== undefined) setGeneId(options.geneId);
-    if (options?.regionId !== undefined) setRegionId(options.regionId);
-    if (options?.resultIndex) {
-      setResultIndex(options.resultIndex);
-      openResultsPane();
-    } else {
-      openDetailPane();
-    }
-  }, [setVariantId, setGeneId, setRegionId, setResultIndex, openDetailPane, openResultsPane]);
+  const goToVariant = useCallback(
+    (
+      variantId: string,
+      options?: {
+        destination?: 'details' | 'phewas';
+        geneId?: string | null;
+        regionId?: string | null;
+        analysisId?: string | null;
+        resultIndex?: ResultIndex;
+        resultsOnly?: boolean;
+      }
+    ) => {
+      const destination =
+        options?.destination ?? (options?.resultIndex ? 'phewas' : 'details');
+      navigate(
+        {
+          variantId,
+          ...(options?.geneId !== undefined ? { geneId: options.geneId } : {}),
+          ...(options?.regionId !== undefined
+            ? { regionId: options.regionId }
+            : {}),
+          ...(options?.analysisId !== undefined
+            ? { analysisId: options.analysisId }
+            : {}),
+          ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
+        },
+        {
+          destination: destination === 'details' ? 'details' : 'results',
+          resultsOnly: options?.resultsOnly,
+        }
+      );
+    },
+    [navigate]
+  );
 
-  const goToPhenotype = useCallback((analysisId: string, options?: { keepContext?: boolean; resultIndex?: ResultIndex }) => {
-    setAnalysisId(analysisId);
-    if (!options?.keepContext) {
-      setGeneId(null);
-      setRegionId(null);
-      setVariantId(null);
-    }
-    if (options?.resultIndex) {
-      setResultIndex(options.resultIndex);
-      openResultsPane();
-    }
-  }, [setAnalysisId, setGeneId, setRegionId, setVariantId, setResultIndex, openResultsPane]);
+  const goToPhenotype = useCallback(
+    (
+      analysisId: string,
+      options?: {
+        destination?: 'overview' | 'association';
+        keepContext?: boolean;
+        resultIndex?: ResultIndex;
+        resultsOnly?: boolean;
+      }
+    ) => {
+      const destination = options?.destination ?? 'overview';
+      navigate(
+        {
+          analysisId,
+          ...(!options?.keepContext
+            ? { geneId: null, regionId: null, variantId: null }
+            : {}),
+          ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
+        },
+        {
+          destination: destination === 'association' ? 'details' : 'results',
+          resultsOnly: options?.resultsOnly,
+        }
+      );
+    },
+    [navigate]
+  );
 
-  const goToLocus = useCallback((regionId: string, options?: { geneId?: string; fromPhenotype?: boolean; resultIndex?: ResultIndex }) => {
-    setRegionId(regionId);
-    setVariantId(null);
-    if (options?.geneId !== undefined) setGeneId(options.geneId);
-    if (!options?.fromPhenotype) setAnalysisId(null);
-    if (options?.resultIndex) {
-      setResultIndex(options.resultIndex);
-      openResultsPane();
-    } else {
-      openDetailPane();
-    }
-  }, [setRegionId, setVariantId, setGeneId, setAnalysisId, setResultIndex, openDetailPane, openResultsPane]);
+  const goToAssociation = useCallback(
+    (
+      analysisId: string,
+      context: {
+        geneId?: string | null;
+        regionId?: string | null;
+        variantId?: string | null;
+      } = {}
+    ) => {
+      navigate(
+        { analysisId, ...context },
+        { destination: 'details' }
+      );
+    },
+    [navigate]
+  );
 
-  const switchAnalysis = useCallback((analysisId: string | null) => {
-    setAnalysisId(analysisId);
-  }, [setAnalysisId]);
+  const goToLocus = useCallback(
+    (
+      regionId: string,
+      options?: {
+        destination?: 'details' | 'phewas';
+        geneId?: string;
+        fromPhenotype?: boolean;
+        resultIndex?: ResultIndex;
+        resultsOnly?: boolean;
+      }
+    ) => {
+      const destination =
+        options?.destination ?? (options?.resultIndex ? 'phewas' : 'details');
+      navigate(
+        {
+          regionId,
+          variantId: null,
+          ...(options?.geneId !== undefined ? { geneId: options.geneId } : {}),
+          ...(!options?.fromPhenotype ? { analysisId: null } : {}),
+          ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
+        },
+        {
+          destination: destination === 'details' ? 'details' : 'results',
+          resultsOnly: options?.resultsOnly,
+        }
+      );
+    },
+    [navigate]
+  );
 
-  const clearVariant = useCallback(() => {
-    setVariantId(null);
-  }, [setVariantId]);
+  const goToResults = useCallback(
+    (topResultsTab: TopResultsTab = 'all-phenotypes') => {
+      navigate(
+        {
+          topResultsTab,
+          resultIndex: 'top-associations',
+          geneId: null,
+          regionId: null,
+          variantId: null,
+          analysisId: null,
+        },
+        { destination: 'results', resultsOnly: true }
+      );
+    },
+    [navigate]
+  );
 
-  const clearAll = useCallback(() => {
-    setGeneId(null);
-    setRegionId(null);
-    setVariantId(null);
-  }, [setGeneId, setRegionId, setVariantId]);
+  const switchAnalysis = useRecoilTransaction_UNSTABLE(
+    ({ set }) =>
+      (analysisId: string | null) => {
+        set(analysisIdAtom, analysisId);
+      },
+    []
+  );
 
-  const openInNewTab = useCallback((stateUpdates: Record<string, string | null>) => {
-    window.open(
-      buildCanonicalNavigationUrl(window.location.href, stateUpdates),
-      '_blank'
-    );
-  }, []);
+  const clearVariant = useRecoilTransaction_UNSTABLE(
+    ({ set }) =>
+      () => set(variantIdAtom, null),
+    []
+  );
+
+  const clearAll = useRecoilTransaction_UNSTABLE(
+    ({ set }) =>
+      () => {
+        set(geneIdAtom, null);
+        set(regionIdAtom, null);
+        set(variantIdAtom, null);
+      },
+    []
+  );
+
+  const openInNewTab = useCallback(
+    (
+      stateUpdates: NavigationState,
+      options: {
+        destination?: NavigationDestination;
+        resultsOnly?: boolean;
+        preserveKeys?: readonly ('geneId' | 'regionId' | 'variantId' | 'analysisId')[];
+      } = {}
+    ) => {
+      const destination =
+        options.destination ??
+        (stateUpdates.activeSurface === 'details' ||
+        stateUpdates.resultLayout === 'detail'
+          ? 'details'
+          : 'results');
+      const requestedLayout =
+        stateUpdates.resultLayout === 'detail' ||
+        stateUpdates.resultLayout === 'split' ||
+        stateUpdates.resultLayout === 'full'
+          ? stateUpdates.resultLayout
+          : resultLayout;
+      const presentation = getNavigationPresentation(
+        experienceMode,
+        requestedLayout,
+        destination,
+        {
+          resultsOnly:
+            options.resultsOnly ?? stateUpdates.resultLayout === 'full',
+        }
+      );
+      window.open(
+        buildCanonicalNavigationUrl(
+          window.location.href,
+          buildDestinationState(stateUpdates, presentation),
+          { preserveKeys: options.preserveKeys }
+        ),
+        '_blank'
+      );
+    },
+    [experienceMode, resultLayout]
+  );
+
+  const setSideBySideLayout = useRecoilTransaction_UNSTABLE(
+    ({ set }) =>
+      (layout: 'detail' | 'split' | 'full') => {
+        set(resultLayoutAtom, layout);
+        if (layout === 'full') set(activeSurfaceAtom, 'results');
+        if (layout === 'detail') set(activeSurfaceAtom, 'details');
+      },
+    []
+  );
+
+  const openDetailPane = useCallback(
+    () => navigate({}, { destination: 'details' }),
+    [navigate]
+  );
+
+  const openResultsPane = useCallback(
+    () => navigate({}, { destination: 'results' }),
+    [navigate]
+  );
 
   return {
     goToGene,
     goToRegion,
     goToVariant,
     goToPhenotype,
+    goToAssociation,
     goToLocus,
+    goToResults,
     switchAnalysis,
     clearVariant,
     clearAll,
     openInNewTab,
+    setSideBySideLayout,
     openDetailPane,
     openResultsPane,
+    navigateToState: navigate,
   };
 }
