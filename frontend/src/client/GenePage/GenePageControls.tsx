@@ -64,10 +64,13 @@ const GenePageControlsGeneFocus = styled.div`
   min-width: 0;
   max-width: 230px;
   margin-left: 5px;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  align-self: stretch;
   padding-left: 0;
   padding-right: 0;
 
-  max-height: calc(100vh - 10em);
   overflow-y: auto;
   overflow-x: hidden;
 
@@ -225,8 +228,10 @@ const GenePageControlsGeneFocus = styled.div`
   @media (max-width: 600px) {
     flex: 0 0 auto;
     width: 100%;
+    height: auto;
     max-width: none;
     max-height: 38vh;
+    align-self: auto;
     margin-left: 0;
     padding: 0 12px 12px;
     overflow: auto;

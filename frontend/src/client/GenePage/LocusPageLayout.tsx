@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { RegionsTrack, RegionViewer, PositionAxisTrack } from '@axaou/ui'
-import { withSize } from 'react-sizeme'
 import { useRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import { Button } from '@gnomad/ui' // Ensure Table is imported
@@ -37,6 +36,7 @@ import { ZoomRegion } from './LocusPlotControls'
 import GeneBurdenTable from './GeneBurdenTable'
 import GenesTrackContainer from './GenesTrackContainer'
 import getColumns from '../GeneResults/geneResultColumns'
+import { geneDetailGridContract, normalizeRegionViewerWidth } from '../geneDetailLayout'
 
 import {
   GeneAssociations,
@@ -78,7 +78,7 @@ const GenePageGridStyles = styled.div`
     display: grid;
 
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: min-content min-content;
+    grid-auto-rows: ${geneDetailGridContract.intrinsicRowSizing};
     grid-template-areas:
       'sva-title sva-title'
       'plot-controls plot-controls'
@@ -118,8 +118,8 @@ const GenePageGridStyles = styled.div`
 
   .grid-area-region-viewer {
     grid-area: region-viewer;
+    width: 100%;
     min-width: 0;
-    overflow-x: auto;
   }
 
   .grid-area-variant-details {
@@ -193,7 +193,7 @@ const PageWithGeneBurdenDetails = styled(GenePageGridStyles)`
       'burden-table burden-table burden-table'
       'sva-title sva-title sva-title'
       'plot-controls plot-controls plot-controls'
-      'region-viewer region-viewer variant-details'
+      '${geneDetailGridContract.regionRowWithoutVariantDetails}'
       'variant-table variant-table variant-table';
   }
 
@@ -371,7 +371,6 @@ type LocusPageLayoutProps = {
   variantDatasets: VariantDataset[]
   variantId: string
   queryStates: any
-  size: { width: number; height: number }
   /** Optional locus plot data for PNG-based rendering */
   locusPlotData?: LocusPlotResponse | null
   /** Overlay data for server-rendered region view */
@@ -387,14 +386,11 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   ancestryGroup,
   analysisMetadata,
   variantDatasets,
-  size,
   queryStates,
   locusPlotData,
   regionOverlay,
   isLargeRegion,
 }) => {
-  const { width } = size
-
   const [membershipFilters, setMembershipFilters] = useRecoilState(membershipFiltersAtom)
   const variantDetails = useRecoilValue(multiAnalysisVariantDetailsAtom)
   const variantId = useRecoilValue(variantIdAtom)
@@ -408,8 +404,27 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const locusMaf = useRecoilValue(locusMafAtom)
   const geneId = useRecoilValue(geneIdAtom)
   const { goToGene, goToLocus } = useAppNavigation()
+  const regionViewerSlotRef = React.useRef<HTMLDivElement>(null)
+  const [regionViewerWidth, setRegionViewerWidth] = React.useState(0)
 
-  const regionViewerWidth = width
+  React.useEffect(() => {
+    const slot = regionViewerSlotRef.current
+    if (!slot) return undefined
+
+    const updateWidth = (measuredWidth: number) => {
+      setRegionViewerWidth(normalizeRegionViewerWidth(measuredWidth))
+    }
+
+    updateWidth(slot.clientWidth)
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      updateWidth(entry?.contentRect.width ?? slot.clientWidth)
+    })
+    observer.observe(slot)
+
+    return () => observer.disconnect()
+  }, [])
+
   const geneModel = !regionId ? geneModels[0] : undefined
   const exons = geneModel?.exons.filter((e) => e.feature_type === 'CDS')
 
@@ -460,8 +475,6 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     Container = PageWithVariantDetails
   }
 
-
-  const regionViewerWidthFactor = variantDetails ? 0.666 : 1
 
   const sortAndFilterVariants = (variants: VariantJoined[]) =>
     sortItems(filterVariants(variants, { ...filter, searchText }, membershipFilters), {
@@ -716,21 +729,23 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           </div>
         )}
 
-        <div className="grid-area grid-area-region-viewer">
-          <RegionViewer
-            leftPanelWidth={50}
-            width={regionViewerWidth * regionViewerWidthFactor}
-            padding={25}
-            regions={regions}
-            rightPanelWidth={40}
-          >
-            <>
-              <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} regionOverlay={regionOverlay} isLargeRegion={isLargeRegion} />
-              {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
-              <div style={{ height: 8 }} />
-              <PositionAxisTrack />
-            </>
-          </RegionViewer>
+        <div ref={regionViewerSlotRef} className="grid-area grid-area-region-viewer">
+          {regionViewerWidth > 0 && (
+            <RegionViewer
+              leftPanelWidth={50}
+              width={regionViewerWidth}
+              padding={25}
+              regions={regions}
+              rightPanelWidth={40}
+            >
+              <>
+                <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} regionOverlay={regionOverlay} isLargeRegion={isLargeRegion} />
+                {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
+                <div style={{ height: 8 }} />
+                <PositionAxisTrack />
+              </>
+            </RegionViewer>
+          )}
         </div>
 
         {variantDetails && (
@@ -837,4 +852,4 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   )
 }
 
-export const LocusPageLayout = withSize()(LocusPageLayoutComponent)
+export const LocusPageLayout = LocusPageLayoutComponent

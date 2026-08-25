@@ -31,8 +31,7 @@ const Container = styled.div`
   height: 100%;
   min-height: 100%;
   max-width: 100%;
-  overflow-y: hidden;
-  overflow-x: visible;
+  overflow: hidden;
   position: relative;
 
   & > :first-child {

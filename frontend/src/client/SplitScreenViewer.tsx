@@ -126,7 +126,7 @@ const FocusedDetailsBody = styled.div`
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 `
 
 export const DetailsSurface = ({
@@ -240,7 +240,11 @@ const ResizableItems = withSize({
           data-browser-experience={experienceMode === 'focused' ? 'focused' : 'side-by-side'}
           data-responsive-layout="single-surface"
           data-pane-render-mode={shellRenderMode}
-          style={{ height: '100%', width: '100%', overflow: 'auto' }}
+          style={{
+            height: '100%',
+            width: '100%',
+            overflow: shellRenderMode === 'results-only' ? 'auto' : 'hidden',
+          }}
         >
           {shellRenderMode === 'results-only' ? (
             <div
@@ -360,6 +364,11 @@ const Container = styled.div<{ item1Size: number; item2Size: number }>`
     padding: 0 0 20px 10px;
     overflow-y: auto;
     position: relative;
+  }
+
+  .resizable-grid-item2 .resizable-inner-container {
+    box-sizing: border-box;
+    overflow: hidden;
   }
 `
 
