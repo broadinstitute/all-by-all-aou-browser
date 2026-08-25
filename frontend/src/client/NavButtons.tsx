@@ -74,6 +74,7 @@ export const NavButtons: React.FC = () => {
   const onClickButtonResultIndex = (mode: ResultIndex) => () => {
     setResultIndex(mode)
     if (resultLayout === 'detail') {
+      setResultLayout('split')
       resetResizableWidth()
     }
   }

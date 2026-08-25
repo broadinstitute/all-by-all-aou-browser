@@ -1,6 +1,6 @@
 import { Resizable } from 're-resizable'
 import { withSize } from 'react-sizeme'
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
 import GenePhewas from './GenePage/GenePhewas'
 import GeneResultsPage from './GeneResults/GeneResultsPage'
@@ -19,6 +19,7 @@ import TopResultsLayout from './TopResultsLayout'
 import { LocusPageRoot } from './GenePage/LocusPageRoot'
 import LocusPhewas from './GenePage/LocusPhewas'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
+import { getPaneRenderMode } from './paneLayout'
 
 const ResizableItems = withSize({
   refreshMode: 'debounce',
@@ -34,7 +35,7 @@ const ResizableItems = withSize({
     item2MinSize: number
   }) => {
     const { resultIndex, variantId } = useGetActiveItems()
-    const [resultsLayout, setResultsLayout] = useRecoilState(resultLayoutAtom)
+    const resultsLayout = useRecoilValue(resultLayoutAtom)
 
     size = size || { width: undefined, height: undefined }
 
@@ -56,10 +57,6 @@ const ResizableItems = withSize({
       borderStyles = { borderRight: '1px dashed var(--theme-border, black)' }
     }
 
-    const closeRightPanel = () => {
-      setResultsLayout("detail")
-    }
-
     const resizableStyles = {
       ...borderStyles,
       paddingRight: '15px',
@@ -67,11 +64,7 @@ const ResizableItems = withSize({
 
     let ResultIndexComponent = GenePhewas
 
-    let hideRightPanel = false
-
-    if (resultsLayout === 'full') {
-      hideRightPanel = true
-    }
+    const paneRenderMode = getPaneRenderMode(resultsLayout)
 
     if (resultIndex === 'top-associations') {
       ResultIndexComponent = TopResultsLayout
@@ -101,9 +94,10 @@ const ResizableItems = withSize({
       ResultIndexComponent = AvailableAnalyses
     }
 
-    if (hideRightPanel) {
+    if (paneRenderMode === 'results-only') {
       return (
         <div
+          data-pane-render-mode="results-only"
           style={{
             height: '100%',
             overflow: 'auto',
@@ -117,6 +111,13 @@ const ResizableItems = withSize({
       )
     }
 
+    if (paneRenderMode === 'details-only') {
+      return (
+        <div data-pane-render-mode="details-only" style={{ height: '100%', width: '100%' }}>
+          <LocusPageRoot />
+        </div>
+      )
+    }
 
     return (
       <div className="resizable-items">
@@ -135,17 +136,15 @@ const ResizableItems = withSize({
         >
           <div className="resizable-grid-item1">
             <div className="resizable-inner-container">
-              {resultsLayout !== 'detail' ? <ResultIndexComponent size={leftPanelSize} /> : null}
+              <ResultIndexComponent size={leftPanelSize} />
             </div>
           </div>
         </Resizable>
-        {!hideRightPanel ? (
-          <div className="resizable-grid-item2">
-            <div className="resizable-inner-container">
-              <LocusPageRoot />
-            </div>
+        <div className="resizable-grid-item2">
+          <div className="resizable-inner-container">
+            <LocusPageRoot />
           </div>
-        ) : null}
+        </div>
       </div>
     )
   }

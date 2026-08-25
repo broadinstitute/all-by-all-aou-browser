@@ -7,6 +7,7 @@ import { ColorMarker, RightArrow, Link } from '../UserInterface'
 import { renderPvalueCell } from '../PhenotypeList/Utils'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
+import { buildCanonicalNavigationUrl } from '../navigationUrl'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -16,17 +17,16 @@ const DescriptionContainer = styled.span`
 `
 
 const openVariantInNewTab = (row: any) => {
-  const params = new URLSearchParams(window.location.search)
-  const stateStr = params.get('state')
-  const state = stateStr ? JSON.parse(stateStr) : {}
-  state.variantId = row.variant_id
-  state.analysisId = row.top_phenotype
-  state.resultIndex = 'variant-phewas'
-  state.resultLayout = 'full'
-  state.regionId = null
-  if (row.gene_id) state.geneId = row.gene_id
-  params.set('state', JSON.stringify(state))
-  window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+  window.open(
+    buildCanonicalNavigationUrl(window.location.href, {
+      variantId: row.variant_id,
+      analysisId: row.top_phenotype,
+      resultIndex: 'variant-phewas',
+      resultLayout: 'full',
+      ...(row.gene_id ? { geneId: row.gene_id } : {}),
+    }),
+    '_blank'
+  )
 }
 
 const VariantLinkRenderer = ({ row }: any) => {

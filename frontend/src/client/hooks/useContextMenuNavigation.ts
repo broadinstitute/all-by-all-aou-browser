@@ -9,6 +9,7 @@ import {
   resultLayoutAtom,
   ResultIndex,
 } from '../sharedState';
+import { buildCanonicalNavigationUrl } from '../navigationUrl';
 
 export type EntityType = 'locus' | 'gene' | 'phenotype' | 'variant';
 export type NavMode = 'split' | 'full' | 'newTab';
@@ -66,34 +67,17 @@ export function useContextMenuNavigation() {
     }
 
     if (mode === 'newTab') {
-      const url = new URL(window.location.href);
-      const stateStr = url.searchParams.get('state');
-      let stateObj: any = {};
-      try {
-        if (stateStr) stateObj = JSON.parse(decodeURIComponent(stateStr));
-      } catch (e) {}
-
       if (focusRegionMode) {
-        if (currentGeneId) stateObj.geneId = currentGeneId;
-        if (currentRegionId) stateObj.regionId = currentRegionId;
-      } else {
-        delete stateObj.geneId;
-        delete stateObj.regionId;
-        delete stateObj.variantId;
+        if (currentGeneId) stateUpdates.geneId = currentGeneId;
+        if (currentRegionId) stateUpdates.regionId = currentRegionId;
       }
 
-      if (!preserveAnalysisId) {
-        delete stateObj.analysisId;
-      }
-
-      Object.assign(stateObj, stateUpdates);
-      url.searchParams.set('state', JSON.stringify(stateObj));
-
-      url.searchParams.delete('regionId');
-      url.searchParams.delete('resultLayout');
-      url.searchParams.delete('geneId');
-
-      window.open(url.toString(), '_blank');
+      window.open(
+        buildCanonicalNavigationUrl(window.location.href, stateUpdates, {
+          preserveKeys: preserveAnalysisId ? ['analysisId'] : [],
+        }),
+        '_blank'
+      );
     } else {
       if (stateUpdates.geneId) setGeneId(stateUpdates.geneId);
       if ('regionId' in stateUpdates) setRegionId(stateUpdates.regionId);

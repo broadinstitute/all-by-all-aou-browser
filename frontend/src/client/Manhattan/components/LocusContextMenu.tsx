@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
+import { buildCanonicalNavigationUrl } from '../../navigationUrl';
 
 export interface LocusContextMenuProps {
   /** X position in viewport */
@@ -54,38 +55,17 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
     const end = position + 500000;
     const regionId = `${contig}-${start}-${end}`;
 
-    // Build URL from current location
-    const url = new URL(window.location.href);
-
-    // Parse the Recoil state param if it exists to cleanly override navigation
-    const stateStr = url.searchParams.get('state');
-    let stateObj: Record<string, unknown> = {};
-    if (stateStr) {
-      try {
-        stateObj = JSON.parse(decodeURIComponent(stateStr));
-      } catch (e) {
-        try {
-          stateObj = JSON.parse(stateStr);
-        } catch (e2) {
-          // Ignore parse errors, start fresh
-        }
-      }
-    }
-
-    // Set region, clear stale gene/variant state
-    stateObj.regionId = regionId;
-    stateObj.resultLayout = 'detail';
-    delete stateObj.geneId;
-    delete stateObj.variantId;
-
-    url.searchParams.set('state', JSON.stringify(stateObj));
-
-    // Clear top-level params just in case they are lingering
-    url.searchParams.delete('regionId');
-    url.searchParams.delete('resultLayout');
-    url.searchParams.delete('geneId');
-
-    window.open(url.toString(), '_blank');
+    window.open(
+      buildCanonicalNavigationUrl(
+        window.location.href,
+        {
+          regionId,
+          resultLayout: 'detail',
+        },
+        { preserveKeys: ['analysisId'] }
+      ),
+      '_blank'
+    );
     onClose();
   }, [contig, position, onClose]);
 

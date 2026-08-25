@@ -2,9 +2,26 @@ import styled from 'styled-components'
 
 import { LocusPageDataContainer } from './LocusPageData'
 import { GenePageControls } from './GenePageControls'
-import { useRecoilState } from 'recoil'
-import { hideGeneOptsAtom } from '../sharedState'
+import { useRecoilState, useRecoilValue } from 'recoil'
+import {
+  analysisIdAtom,
+  geneIdAtom,
+  hideGeneOptsAtom,
+  regionIdAtom,
+  variantIdAtom,
+} from '../sharedState'
 import { ShowControlsButton } from '../UserInterface'
+
+const EmptyState = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+  color: ${(props) => props.theme.text};
+  text-align: center;
+`
 
 const Container = styled.div`
   display: flex;
@@ -19,6 +36,19 @@ const Container = styled.div`
 
 export const LocusPageRoot: React.FC = () => {
   const [hideGeneOptions, setHideGeneOptions] = useRecoilState(hideGeneOptsAtom)
+  const analysisId = useRecoilValue(analysisIdAtom)
+  const geneId = useRecoilValue(geneIdAtom)
+  const regionId = useRecoilValue(regionIdAtom)
+  const variantId = useRecoilValue(variantIdAtom)
+
+  if (!analysisId) {
+    return <EmptyState>Choose a phenotype to see association details.</EmptyState>
+  }
+
+  if (!geneId && !regionId && !variantId) {
+    return <EmptyState>Choose a gene, locus, or variant to see details.</EmptyState>
+  }
+
   return (
     <Container>
       <LocusPageDataContainer />

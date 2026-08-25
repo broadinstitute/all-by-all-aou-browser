@@ -12,6 +12,7 @@ import { urlSyncEffect } from 'recoil-sync'
 
 import randomColor from 'randomcolor'
 import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Utils'
+import { clampSplitPaneWidth } from './paneLayout'
 
 export const geneIdAtom = atom<string | null | undefined>({
   key: 'geneId',
@@ -456,6 +457,7 @@ const resultIndexChecker = stringLiterals<ResultIndex>({
   'variant-manhattan': 'variant-manhattan',
   'gene-phewas': 'gene-phewas',
   'variant-phewas': 'variant-phewas',
+  'locus-phewas': 'locus-phewas',
   'pheno-info': 'pheno-info',
   'analyses': 'analyses',
 })
@@ -506,20 +508,11 @@ export const firstItemWidthSelector = selectorFamily<
         const resultLayout = get(resultLayoutAtom)
         const resizableWidth = get(resizableWidthAtom)
 
-        if (resultLayout === 'full') {
-          return containerWidth / 1.05
+        if (resultLayout !== 'split') {
+          return Number.isFinite(containerWidth) ? containerWidth : 0
         }
 
-        if (resultLayout === 'detail') {
-          return 5
-        }
-
-        if (resizableWidth) {
-          return resizableWidth
-        }
-
-        // split by default
-        return containerWidth / 2
+        return clampSplitPaneWidth(containerWidth, resizableWidth)
       },
 })
 

@@ -1,4 +1,3 @@
-import { useHistory } from 'react-router-dom';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import styled from 'styled-components';
@@ -7,7 +6,6 @@ import { filteredAnalysesQuery, geneSymbolsQuery } from './queryStates';
 import { axaouDevUrl } from './Query';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  resultIndexAtom,
   resultLayoutAtom,
   selectedAnalyses,
 } from './sharedState';
@@ -174,12 +172,10 @@ export const NewSearchBar: React.FC = () => {
   const geneSymbols = useRecoilValue(geneSymbolsQuery);
   const analysisMetadata = useRecoilValue(filteredAnalysesQuery);
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
-  const setResultIndex = useSetRecoilState(resultIndexAtom);
   const setResultsLayout = useSetRecoilState(resultLayoutAtom);
   const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightedRef = useRef<HTMLDivElement>(null);
-  const history = useHistory();
 
   const modalInputRef = useRef<HTMLInputElement>(null);
 
@@ -388,7 +384,6 @@ export const NewSearchBar: React.FC = () => {
     }
     setShowModal(false);
     setInputValue('');
-    history.push('/app');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
