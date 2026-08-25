@@ -38,7 +38,11 @@ const SurfaceViewport = styled.div`
   width: 100%;
   height: 100%;
   min-width: 0;
-  overflow: auto;
+  overflow: visible;
+
+  /* The browser shell or split pane owns vertical scrolling. Keeping this
+     surface non-scrolling puts the page scrollbar at the viewport edge rather
+     than inset inside the results content padding. */
 `
 
 export const ResultsSurface = ({ size }: { size: SurfaceSize }) => {
