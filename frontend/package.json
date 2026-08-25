@@ -8,6 +8,8 @@
   "scripts": {
     "start": "./start.sh",
     "start-local-api": "PYTHON_API_HOST=http://localhost:5000 PYTHON_API_PATH='/api' ELASTICSEARCH_URL=http://localhost:9200 ./start.sh",
+    "test": "pnpm test:focused-browser",
+    "test:focused-browser": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' node -r ts-node/register --test src/client/*.test.ts src/client/components/*.test.ts",
     "lint:css": "stylelint './**/*.js'",
     "lint:js": "eslint .",
     "generate-types": "ts-node ./src/typing/generateTypes.ts",
