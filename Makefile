@@ -1,14 +1,26 @@
 # Development Makefile for axaou-rust
 # Provides unified commands for running frontend + backend with hot reloading
 
-.PHONY: dev dev-backend dev-frontend install stop clean help deploy deploy-dev deploy-frontend deploy-prod
+.PHONY: dev dev-local dev-all tunnel-clickhouse dev-backend dev-frontend install stop clean help deploy deploy-dev deploy-frontend deploy-prod
+
+GCP_PROJECT ?= aou-neale-gwas-browser
+GCP_ZONE ?= us-central1-a
+CLICKHOUSE_INSTANCE ?= axaou-clickhouse-1
+CLICKHOUSE_LOCAL_PORT ?= 8123
+CLICKHOUSE_NATIVE_LOCAL_PORT ?= 9000
+CLICKHOUSE_URL ?= http://localhost:$(CLICKHOUSE_LOCAL_PORT)
+LOCAL_API_HOST ?= http://localhost:3001
+LOCAL_API_PATH ?= /api
 
 # Default target
 help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Development:"
-	@echo "  dev           - Start both frontend and backend with hot reloading"
+	@echo "  dev           - Start frontend + backend (uses the configured/default API proxy)"
+	@echo "  dev-local     - Start frontend + backend wired to the local Rust API and ClickHouse"
+	@echo "  tunnel-clickhouse - Forward axaou-clickhouse-1 to local ports 8123/9000"
+	@echo "  dev-all       - Start the ClickHouse tunnel plus both local servers"
 	@echo "  dev-backend   - Start only the Rust backend with hot reloading"
 	@echo "  dev-frontend  - Start only the frontend with HMR"
 	@echo "  stop          - Stop all running dev servers"
@@ -50,6 +62,37 @@ dev:
 	@echo ""
 	@echo "Press Ctrl+C to stop all servers"
 	@./scripts/dev.sh
+
+# Forward the current ClickHouse instance to the ports expected by the backend.
+tunnel-clickhouse:
+	@echo "Forwarding $(CLICKHOUSE_INSTANCE) to http://localhost:$(CLICKHOUSE_LOCAL_PORT)"
+	gcloud compute ssh $(CLICKHOUSE_INSTANCE) \
+		--project $(GCP_PROJECT) \
+		--zone $(GCP_ZONE) \
+		--tunnel-through-iap \
+		-- -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+		-L $(CLICKHOUSE_LOCAL_PORT):127.0.0.1:8123 \
+		-L $(CLICKHOUSE_NATIVE_LOCAL_PORT):127.0.0.1:9000
+
+# Start both servers against a ClickHouse tunnel already listening locally.
+dev-local:
+	@echo "Starting local servers against $(CLICKHOUSE_URL)"
+	@PYTHON_API_HOST=$(LOCAL_API_HOST) \
+		PYTHON_API_PATH=$(LOCAL_API_PATH) \
+		CLICKHOUSE_URL=$(CLICKHOUSE_URL) \
+		./scripts/dev.sh
+
+# Start and own the ClickHouse tunnel, then run both local servers.
+dev-all:
+	@GCP_PROJECT=$(GCP_PROJECT) \
+		GCP_ZONE=$(GCP_ZONE) \
+		CLICKHOUSE_INSTANCE=$(CLICKHOUSE_INSTANCE) \
+		CLICKHOUSE_LOCAL_PORT=$(CLICKHOUSE_LOCAL_PORT) \
+		CLICKHOUSE_NATIVE_LOCAL_PORT=$(CLICKHOUSE_NATIVE_LOCAL_PORT) \
+		CLICKHOUSE_URL=$(CLICKHOUSE_URL) \
+		LOCAL_API_HOST=$(LOCAL_API_HOST) \
+		LOCAL_API_PATH=$(LOCAL_API_PATH) \
+		./scripts/dev-all.sh
 
 # Start only backend with hot reloading
 dev-backend:

@@ -8,13 +8,22 @@ Rust backend for the AxAoU browser.
 # Install dependencies
 make install
 
-# Start frontend + backend with hot reloading
-make dev
+# Start the axaou-clickhouse-1 tunnel plus frontend and backend
+make dev-all
 ```
 
 This starts:
+- **ClickHouse tunnel:** http://localhost:8123
 - **Backend:** http://localhost:3001 (Rust server with cargo-watch)
-- **Frontend:** http://localhost:8000 (Vite dev server with HMR)
+- **Frontend:** http://localhost:8003 (webpack dev server with HMR)
+
+Other useful development targets:
+
+```bash
+make tunnel-clickhouse  # Tunnel only; keep this terminal open
+make dev-local          # Frontend + backend, reusing an existing tunnel
+make stop               # Stop the development servers
+```
 
 ## Infrastructure Setup
 
@@ -41,8 +50,15 @@ gcloud compute ssh clickhouse-vm --zone=<your-zone>
 Forward ClickHouse to localhost for local development:
 
 ```bash
-# Forward ClickHouse (port 8123)
-gcloud compute ssh clickhouse-vm --zone=<your-zone> --tunnel-through-iap -- -L 8123:localhost:8123 -N
+# Forward the current ClickHouse instance (axaou-clickhouse-1)
+make tunnel-clickhouse
+
+# Equivalent command
+gcloud compute ssh axaou-clickhouse-1 \
+    --project aou-neale-gwas-browser \
+    --zone us-central1-a \
+    --tunnel-through-iap \
+    -- -N -L 8123:127.0.0.1:8123 -L 9000:127.0.0.1:9000
 
 # Forward hail-decoder dashboard (port 3000)
 gcloud compute ssh heavy-coordinator --zone=<your-zone> --tunnel-through-iap -- -L 3000:localhost:3000 -N
@@ -96,10 +112,13 @@ cargo build --release
 - ClickHouse running on localhost:8123 (or SSH tunnel)
 
 ```bash
-# Development with hot reloading (recommended)
-make dev
+# Development with ClickHouse tunnel and hot reloading (recommended)
+make dev-all
 
-# Or run manually
+# If the tunnel is already running
+make dev-local
+
+# Or run the backend manually
 cd axaou-server
 cargo run -- serve --port 3001
 
