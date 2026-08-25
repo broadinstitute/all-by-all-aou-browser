@@ -1,5 +1,15 @@
-import { atom, selector, useRecoilState, useResetRecoilState } from 'recoil'
-import { getCountColumns } from './VariantList/variantTableColumns'
+import {
+  atom,
+  selector,
+  useRecoilState,
+  useRecoilTransaction_UNSTABLE,
+  useResetRecoilState,
+} from 'recoil'
+import {
+  selectedVariantFieldsForPreset,
+  VariantFieldGroup,
+  VariantFieldType,
+} from './geneColumnPresets'
 import { MultiAnalysisVariantSummary } from './GenePage/GenePageVariantTable'
 import { removeItemAtIndex } from './sharedState'
 import { VariantAssociations } from './types'
@@ -115,48 +125,12 @@ export const variantAssociationsByAnalysisState = atom<Record<string, VariantAss
   default: {},
 })
 
-export type VariantFieldGroup =
-  | 'counts'
-  | 'freq'
-  | 'pop'
-  | 'all'
-  | 'none'
-  | 'stat'
-  | 'categorical_default'
-  | 'continuous_default'
+export type { VariantFieldGroup, VariantFieldType } from './geneColumnPresets'
 
 export const variantFieldGroupState = atom<VariantFieldGroup>({
   key: 'variantColumnGroup',
   default: 'pop',
 })
-
-export type VariantFieldType =
-  | 'variant_id'
-  // | 'rsid'
-  | 'consequence'
-  // | 'ancestry_group'
-  | 'analysis'
-  | 'hgvsp'
-  | 'hgvsc'
-  | 'hgvs'
-  | 'pvalue'
-  | 'beta'
-  | 'ac_cases'
-  | 'an_cases'
-  | 'ac_controls'
-  | 'an_controls'
-  | 'af_cases'
-  | 'af_controls'
-  | 'association_ac'
-  | 'association_af'
-  | 'association_an'
-  | 'allele_count'
-  | 'allele_number'
-  | 'allele_frequency'
-  | 'homozygote_count'
-  | 'show_label'
-  | 'label'
-// | 'gwas_catalog'
 
 export const selectedVariantFieldsOptions: VariantFieldType[] = [
   // 'rsid',
@@ -200,33 +174,18 @@ export const selectedVariantFieldsAtom = atom<VariantFieldType[]>({
   ],
 })
 
-export const useSelectedVariantFieldsPreset = () => {
-  const [selectedVariantFields, setSelectedVariantFields] =
-    useRecoilState(selectedVariantFieldsAtom)
-
-  return (preset: VariantFieldGroup) => {
-    const allColumns = getCountColumns('all')
-    if (preset === 'none') {
-      setSelectedVariantFields([])
-    } else if (preset === 'all') {
-      setSelectedVariantFields([
-        // 'rsid',
-        'consequence',
-        'hgvsp',
-        'hgvsc',
-        'pvalue',
-        'beta',
-        ...(allColumns as VariantFieldType[]),
-      ])
-    } else if (preset === 'stat') {
-      setSelectedVariantFields(['consequence', 'hgvsp', 'pvalue', 'beta'])
-    } else {
-      const columns = getCountColumns(preset)
-      const nonPresetSelected = selectedVariantFields.filter((f) => !allColumns.includes(f))
-      setSelectedVariantFields([...nonPresetSelected, ...(columns as VariantFieldType[])])
-    }
-  }
-}
+export const useSelectedVariantFieldsPreset = () =>
+  useRecoilTransaction_UNSTABLE(
+    ({ get, set }) =>
+      (preset: VariantFieldGroup) => {
+        set(
+          selectedVariantFieldsAtom,
+          selectedVariantFieldsForPreset(get(selectedVariantFieldsAtom), preset)
+        )
+        set(variantFieldGroupState, preset)
+      },
+    []
+  )
 
 export const useToggleSelectedVariantField = () => {
   const [selectedVariantFields, setSelectedVariantFields] =

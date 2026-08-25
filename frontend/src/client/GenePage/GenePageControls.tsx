@@ -726,7 +726,7 @@ const TableFormatControls: React.FC = () => {
 }
 
 const FieldGroupControls: React.FC = () => {
-  const [variantColumnGroup, setVariantFieldGroup] = useRecoilState(variantFieldGroupState)
+  const variantColumnGroup = useRecoilValue(variantFieldGroupState)
   const setSelectedColumns = useSelectedVariantFieldsPreset()
   return (
     <div className='field-group-controls'>
@@ -741,10 +741,7 @@ const FieldGroupControls: React.FC = () => {
           { value: 'pop', label: 'Pop' },
         ]}
         value={variantColumnGroup}
-        onChange={(value: any) => {
-          setSelectedColumns(value)
-          setVariantFieldGroup(value)
-        }}
+        onChange={(value: any) => setSelectedColumns(value)}
       />
       <SegmentedControl
         id='field-group-controls2'
@@ -754,13 +751,10 @@ const FieldGroupControls: React.FC = () => {
         ]}
         //@ts-ignore FIXME
         value={variantColumnGroup}
-        onChange={(value: any) => {
-          setSelectedColumns(value)
-          setVariantFieldGroup(value)
-        }}
+        onChange={(value: any) => setSelectedColumns(value)}
       />
       <SegmentedControl
-        id='field-group-controls2'
+        id='field-group-controls3'
         options={[
           { value: 'stat', label: 'Stat' },
           { value: 'all', label: 'All' },
@@ -768,10 +762,7 @@ const FieldGroupControls: React.FC = () => {
         ]}
         //@ts-ignore FIXME
         value={variantColumnGroup}
-        onChange={(value: any) => {
-          setSelectedColumns(value)
-          setVariantFieldGroup(value)
-        }}
+        onChange={(value: any) => setSelectedColumns(value)}
       />
     </div>
   )

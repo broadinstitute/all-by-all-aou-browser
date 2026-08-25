@@ -9,7 +9,7 @@ import { AncestryGroupCodes } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { VariantAssociationManhattan, VariantJoined } from '../types'
 import { ColorMarker, RightArrow } from '../UserInterface'
-import { VariantFieldGroup, variantLabelsAtom, variantShowLabelAtom } from '../variantState'
+import { variantLabelsAtom, variantShowLabelAtom } from '../variantState'
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from '../vepConsequences'
 import SampleSourceIcon from './SampleSourceIcon'
 import VariantFlag from './VariantFlag'
@@ -793,76 +793,4 @@ export const getVariantColumns = ({
   return variantDataColumns.filter((col) => columns.includes((col as any).displayId))
 }
 
-export function getCountColumns(
-  variantColumnGroup: VariantFieldGroup,
-  trait_type: string = 'categorical'
-) {
-  const baseCountColumns = [
-    'association_ac',
-    'association_af',
-    'association_an',
-    'allele_count',
-    'allele_number',
-    'allele_frequency',
-    'homozygote_count',
-  ]
-
-  const nonContinuousTraitColumns =
-    trait_type !== 'continuous'
-      ? ['ac_cases', 'an_cases', 'ac_controls', 'an_controls', 'af_cases', 'af_controls']
-      : []
-
-  const countColumns = [...baseCountColumns, ...nonContinuousTraitColumns]
-
-  return countColumns.filter((col) => {
-    if (variantColumnGroup === 'pop') {
-      const cols = ['allele_count', 'allele_number', 'allele_frequency', 'homozygote_count']
-      return cols.includes(col)
-    }
-    if (variantColumnGroup === 'freq') {
-      const cols = ['af_cases', 'af_controls', 'association_af', 'allele_frequency']
-      return cols.includes(col)
-    }
-    if (variantColumnGroup === 'counts') {
-      const cols = [
-        'ac_cases',
-        'an_cases',
-        'ac_controls',
-        'an_controls',
-        'association_ac',
-        'association_an',
-      ]
-      return cols.includes(col)
-    }
-    if (variantColumnGroup === 'categorical_default') {
-      const cols = [
-        'pvalue',
-        'beta',
-        'homozygote_count',
-        'ac_cases',
-        'an_cases',
-        'ac_controls',
-        'an_controls',
-        'af_cases',
-        'af_controls',
-        'association_ac',
-        'association_an',
-      ]
-
-      return cols.includes(col)
-    }
-    if (variantColumnGroup === 'continuous_default') {
-      const cols = [
-        'pvalue',
-        'beta',
-        'association_ac',
-        'association_af',
-        'homozygote_count',
-        'association_an',
-      ]
-
-      return cols.includes(col)
-    }
-    return true
-  })
-}
+export { getCountColumns } from '../geneColumnPresets'

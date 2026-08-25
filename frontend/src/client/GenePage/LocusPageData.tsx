@@ -27,6 +27,11 @@ import { renderCountText } from '../PhenotypeList/Utils'
 
 import { addVariantIdsToList, annotateWorstConsequence, processGeneBurden } from '../utils'
 import { mergeGeneVariantResponses } from './geneVariantSemantics'
+import {
+  initialAutomaticGeneColumnPresetState,
+  resolveAutomaticGeneColumnPreset,
+} from '../geneColumnPresets'
+import { useSelectedVariantFieldsPreset } from '../variantState'
 
 import { useQuery } from '@axaou/ui'
 import {
@@ -84,6 +89,32 @@ const annotateVariantWithAnalysisMetadata = (
     analysisMetadata,
     trait_type,
   }
+}
+
+const PrimaryAnalysisColumnPresetBridge = ({
+  analysisId,
+  traitType,
+}: {
+  analysisId: string
+  traitType: string | null | undefined
+}) => {
+  const applyPreset = useSelectedVariantFieldsPreset()
+  const automaticPresetState = useRef(initialAutomaticGeneColumnPresetState)
+
+  useEffect(() => {
+    const decision = resolveAutomaticGeneColumnPreset(
+      automaticPresetState.current,
+      analysisId,
+      traitType
+    )
+    automaticPresetState.current = decision.state
+
+    if (decision.presetToApply) {
+      applyPreset(decision.presetToApply)
+    }
+  }, [analysisId, traitType, applyPreset])
+
+  return null
 }
 
 const processVariants = ({
@@ -571,17 +602,25 @@ export const LocusPageDataContainer = () => {
   }, [geneAssociationsForAncestry, geneIdOrName, analysisId, ancestryGroup, setMafSignificance, setBurdenTestSignificance, setLocusMaf])
 
   return (
-    <LocusPageLayout
-      geneModels={geneModels}
-      geneAssociations={geneAssociations}
-      analysisMetadata={singleAnalysisMetadata}
-      ancestryGroup={ancestryGroup}
-      variantDatasets={variantDatasets}
-      variantId={variantId || "my-variant"}
-      queryStates={queryStates}
-      locusPlotData={locusPlotData}
-      regionOverlay={regionOverlay}
-      isLargeRegion={isLargeRegion}
-    />
+    <>
+      {geneIdOrName && (
+        <PrimaryAnalysisColumnPresetBridge
+          analysisId={analysisId}
+          traitType={singleAnalysisMetadata?.trait_type}
+        />
+      )}
+      <LocusPageLayout
+        geneModels={geneModels}
+        geneAssociations={geneAssociations}
+        analysisMetadata={singleAnalysisMetadata}
+        ancestryGroup={ancestryGroup}
+        variantDatasets={variantDatasets}
+        variantId={variantId || "my-variant"}
+        queryStates={queryStates}
+        locusPlotData={locusPlotData}
+        regionOverlay={regionOverlay}
+        isLargeRegion={isLargeRegion}
+      />
+    </>
   )
 }
