@@ -23,6 +23,7 @@ import {
 } from '../sharedState'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import { ContextMenuTrigger } from '../components/ContextMenuTrigger'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { formatBurdenDirection } from '../geneAssociationSemantics'
@@ -123,10 +124,10 @@ const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
 
   return (
     <>
-      <Link
+      <ContextMenuTrigger
         className='grid-cell-content'
-        style={{ cursor: 'pointer' }}
-        onClick={() => {
+        menuOpen={menu !== null}
+        onPrimaryAction={() => {
           if (resultIndex === 'top-associations' && row.gene_id) {
             goToAssociation(row.analysis_id, {
               geneId: row.gene_id,
@@ -140,16 +141,14 @@ const PhenotypeLinkRenderer = ({ row, highlightWords, markerColor }: any) => {
             })
           }
         }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setMenu({ x: e.clientX, y: e.clientY });
-        }}
+        onOpenMenu={setMenu}
+        title="Open phenotype; press Shift+F10 for more actions"
       >
         <ColorMarker color={markerColor} />
         <DescriptionContainer>
           <Highlighter searchWords={highlightWords} textToHighlight={row.description || ''} />
         </DescriptionContainer>
-      </Link>
+      </ContextMenuTrigger>
       {menu && (
         <UnifiedContextMenu
           x={menu.x}
@@ -574,11 +573,7 @@ export const getPhenotypeColumns = ({
           goToAssociation(row.analysis_id)
         }
 
-        return (
-          <Link className='grid-cell-content' onClick={handleClick}>
-            <RightArrow onClick={handleClick} />
-          </Link>
-        )
+        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} details`} />
       },
     },
     {
@@ -600,11 +595,7 @@ export const getPhenotypeColumns = ({
           goToAssociation(row.analysis_id)
         }
 
-        return (
-          <Link className='grid-cell-content' onClick={handleClick}>
-            <RightArrow onClick={handleClick} />
-          </Link>
-        )
+        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} variant details`} />
       },
     }, {
       key: 'show',
@@ -617,15 +608,7 @@ export const getPhenotypeColumns = ({
       render: (row: VariantAssociations & AnalysisMetadata) => {
         const { goToAssociation } = useAppNavigation()
 
-        const handleClick = () => {
-          goToAssociation(row.analysis_id)
-        }
-
-        return (
-          <Link className='grid-cell-content' onClick={handleClick}>
-            <RightArrow onClick={handleClick} />
-          </Link>
-        )
+        return <RightArrow onClick={() => goToAssociation(row.analysis_id)} ariaLabel="Open locus association details" />
       },
     },
     {
@@ -647,11 +630,7 @@ export const getPhenotypeColumns = ({
           goToAssociation(row.analysis_id, { geneId: row.gene_id })
         }
 
-        return (
-          <Link className='grid-cell-content' onClick={handleClick}>
-            <RightArrow onClick={handleClick} />
-          </Link>
-        )
+        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} top hit details`} />
       },
     },
     { key: 'analysis_id', heading: 'analysis_id', displayId: 'analysis_id', isRowHeader: true },

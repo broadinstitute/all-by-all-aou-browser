@@ -52,11 +52,13 @@ import GeneResultsTable from '../GeneResults/GeneResultsTable'
 // Styled Components (unchanged)
 const GenePageGridStyles = styled.div`
   width: 100%;
+  min-width: 0;
   height: 100%;
   min-height: 100%;
 
   h3 {
     max-width: 100%;
+    overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     margin-right: 5px;
@@ -65,9 +67,11 @@ const GenePageGridStyles = styled.div`
   .associations-page-grid {
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
+    min-width: 0;
     min-height: 0;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     padding-right: 20px;
     padding-bottom: 50px;
 
@@ -96,7 +100,8 @@ const GenePageGridStyles = styled.div`
     justify-content: space-between;
     flex-direction: row;
     gap: 10px;
-    max-height: 27px;
+    flex-wrap: wrap;
+    min-width: 0;
     margin-top: 10px;
   }
 
@@ -113,12 +118,15 @@ const GenePageGridStyles = styled.div`
 
   .grid-area-region-viewer {
     grid-area: region-viewer;
+    min-width: 0;
+    overflow-x: auto;
   }
 
   .grid-area-variant-details {
     max-width: 600px;
     grid-area: variant-details;
     width: 90%;
+    min-width: 0;
     height: 100%;
   }
 
@@ -129,6 +137,28 @@ const GenePageGridStyles = styled.div`
     margin-top: 20px;
     margin-bottom: 20px;
     min-height: 500px;
+    overflow-x: auto;
+  }
+
+  @media (max-width: 600px) {
+    h3 {
+      white-space: normal;
+    }
+
+    .associations-page-grid {
+      grid-template-columns: minmax(0, 1fr);
+      padding-right: 0;
+    }
+
+    .grid-area-plot-controls {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .grid-area-variant-details {
+      width: 100%;
+      max-width: none;
+    }
   }
 `
 
@@ -136,10 +166,22 @@ const PageWithVariantDetails = styled(GenePageGridStyles)`
   .associations-page-grid {
     grid-template-columns: 1fr 1fr 1fr;
     grid-template-areas:
-      'title title title'
+      'sva-title sva-title sva-title'
       'plot-controls plot-controls plot-controls'
       'region-viewer region-viewer variant-details'
       'variant-table variant-table variant-table';
+  }
+
+  @media (max-width: 600px) {
+    .associations-page-grid {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'sva-title'
+        'plot-controls'
+        'region-viewer'
+        'variant-details'
+        'variant-table';
+    }
   }
 `
 
@@ -161,8 +203,10 @@ const PageWithGeneBurdenDetails = styled(GenePageGridStyles)`
 
   .grid-area-burden-table {
     grid-area: burden-table;
-    min-width: 100%;
+    width: 100%;
+    min-width: 0;
     margin-bottom: 20px;
+    overflow-x: auto;
 
     display: grid;
     grid: min-content fit-content / max-content max-content;
@@ -175,6 +219,20 @@ const PageWithGeneBurdenDetails = styled(GenePageGridStyles)`
   .threshold-legend {
     font-size: 10px;
     justify-self: end;
+  }
+
+  @media (max-width: 600px) {
+    .associations-page-grid {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'burden-title'
+        'burden-table'
+        'sva-title'
+        'plot-controls'
+        'region-viewer'
+        'variant-details'
+        'variant-table';
+    }
   }
 `
 

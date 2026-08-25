@@ -1,5 +1,6 @@
 const SearchBarWrapper = styled.div`
   width: 160px;
+  min-width: 0;
 
   input::placeholder {
     color: transparent;
@@ -12,8 +13,9 @@ const SearchBarWrapper = styled.div`
 
 const SearchBarCompact = styled.div`
   display: none;
-  flex: 1;
-  min-width: 400px;
+  flex: 1 1 auto;
+  width: clamp(180px, 40vw, 800px);
+  min-width: 0;
   max-width: 800px;
   margin-right: 10px;
 
@@ -21,7 +23,7 @@ const SearchBarCompact = styled.div`
     display: block;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 750px) {
     display: none;
   }
 `
@@ -55,11 +57,15 @@ const PageHeadingWrapper = styled.div<PageHeadingWrapperProps>`
   color: white;
   box-shadow: 0 4px 2px -2px gray;
   z-index: 11;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   padding: 10px 30px;
 
   .logos {
     display: flex;
     align-items: center;
+    min-width: 0;
 
     & > * {
       margin-right: 20px;
@@ -69,10 +75,12 @@ const PageHeadingWrapper = styled.div<PageHeadingWrapperProps>`
   .nav-items {
     display: flex;
     align-items: center;
+    min-width: 0;
     margin-left: 20px;
 
     /* Links Button for Mobile */
     .links-button {
+      flex: 0 0 auto;
       background: none;
       border: none;
       color: white;
@@ -173,6 +181,14 @@ const PageHeadingWrapper = styled.div<PageHeadingWrapperProps>`
       margin-left: 0;
     }
   }
+
+  @media (max-width: 500px) {
+    padding: 8px 10px;
+
+    .logos > * {
+      margin-right: 10px;
+    }
+  }
 `
 
 const LogoItem = styled.div`
@@ -200,7 +216,8 @@ const ResultsDropdownWrapper = styled.div`
   display: flex;
   align-items: center;
 
-  &:hover .results-submenu {
+  &:hover .results-submenu,
+  &:focus-within .results-submenu {
     display: block;
   }
 `
@@ -278,8 +295,15 @@ const PageHeading = () => {
         {/* Search bar visible at narrow widths, left of hamburger */}
         <SearchBarCompact><NewSearchBar /></SearchBarCompact>
         {/* Links Button for Mobile */}
-        <button className="links-button" onClick={toggleDropdown}>
-          ☰
+        <button
+          type="button"
+          className="links-button"
+          aria-label={dropdownOpen ? 'Close site navigation' : 'Open site navigation'}
+          aria-expanded={dropdownOpen}
+          aria-controls="site-navigation-menu"
+          onClick={toggleDropdown}
+        >
+          <span aria-hidden="true">☰</span>
         </button>
         {/* Inline Links for Desktop */}
         <div className="inline-links">
@@ -296,14 +320,18 @@ const PageHeading = () => {
             FAQ
           </PageHeadingRouterLink>
           <ResultsDropdownWrapper>
-            <PageHeadingRouterLink to={resultsUrl()} onClick={() => goToResults()}>
+            <PageHeadingRouterLink
+              to={resultsUrl()}
+              aria-haspopup="menu"
+              onClick={() => goToResults()}
+            >
               Results
             </PageHeadingRouterLink>
-            <ResultsSubmenu className="results-submenu">
-              <Link to={resultsUrl('all-phenotypes')} onClick={() => goToResults('all-phenotypes')}>All Phenotypes</Link>
-              <Link to={resultsUrl('all-genes')} onClick={() => goToResults('all-genes')}>All Genes</Link>
-              <Link to={resultsUrl('gene-burden')} onClick={() => goToResults('gene-burden')}>Gene Burden</Link>
-              <Link to={resultsUrl('single-variants')} onClick={() => goToResults('single-variants')}>Single Variants</Link>
+            <ResultsSubmenu className="results-submenu" role="menu">
+              <Link role="menuitem" to={resultsUrl('all-phenotypes')} onClick={() => goToResults('all-phenotypes')}>All Phenotypes</Link>
+              <Link role="menuitem" to={resultsUrl('all-genes')} onClick={() => goToResults('all-genes')}>All Genes</Link>
+              <Link role="menuitem" to={resultsUrl('gene-burden')} onClick={() => goToResults('gene-burden')}>Gene Burden</Link>
+              <Link role="menuitem" to={resultsUrl('single-variants')} onClick={() => goToResults('single-variants')}>Single Variants</Link>
             </ResultsSubmenu>
           </ResultsDropdownWrapper>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
@@ -311,7 +339,7 @@ const PageHeading = () => {
           </PageHeadingExternalLink>
         </div>
         {/* Dropdown Content for Mobile */}
-        <div className="dropdown-content">
+        <div className="dropdown-content" id="site-navigation-menu">
           <PageHeadingRouterLink to="/" onClick={closeDropdown}>
             Home
           </PageHeadingRouterLink>

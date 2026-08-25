@@ -144,10 +144,12 @@ const AppStyles = styled.div`
     'main'
     'footer';
   
+  width: 100%;
+  min-width: 0;
   height: 100vh;
 
   overflow-y: hidden;
-  overflow-x: hidden;
+  overflow-x: visible;
 
   header {
     grid-area: header;
@@ -158,6 +160,7 @@ const AppStyles = styled.div`
   }
 
   main {
+    min-width: 0;
     font-family: GothamBook;
     grid-area: main;
     padding-right: 0;

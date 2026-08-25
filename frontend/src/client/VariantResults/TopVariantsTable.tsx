@@ -3,9 +3,10 @@ import styled from 'styled-components'
 import { Grid } from '@gnomad/ui'
 import { getConsequenceColor } from '../VariantList/variantTableColumns'
 import { getLabelForConsequenceTerm } from '../vepConsequences'
-import { ColorMarker, RightArrow, Link } from '../UserInterface'
+import { ColorMarker, RightArrow } from '../UserInterface'
 import { renderPvalueCell } from '../PhenotypeList/Utils'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import { ContextMenuTrigger } from '../components/ContextMenuTrigger'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 
@@ -23,10 +24,10 @@ const VariantLinkRenderer = ({ row }: any) => {
 
   return (
     <>
-      <Link
+      <ContextMenuTrigger
         className="grid-cell-content"
-        style={{ cursor: 'pointer' }}
-        onClick={() =>
+        menuOpen={menu !== null}
+        onPrimaryAction={() =>
           goToVariant(row.variant_id, {
             destination: 'phewas',
             analysisId: row.top_phenotype,
@@ -36,13 +37,11 @@ const VariantLinkRenderer = ({ row }: any) => {
             resultsOnly: true,
           })
         }
-        onContextMenu={(e: any) => {
-          e.preventDefault()
-          setMenu({ x: e.clientX, y: e.clientY })
-        }}
+        onOpenMenu={setMenu}
+        title="Open variant; press Shift+F10 for more actions"
       >
         <DescriptionContainer>{row.variant_id}</DescriptionContainer>
-      </Link>
+      </ContextMenuTrigger>
       {menu && (
         <UnifiedContextMenu
           x={menu.x}
@@ -163,7 +162,7 @@ export const TopVariantsTable = ({ variants, onVariantClick, categoryColors }: a
       minWidth: 50,
       grow: 0,
       render: (row: any) => {
-        return <RightArrow onClick={() => onVariantClick(row)} />
+        return <RightArrow onClick={() => onVariantClick(row)} ariaLabel={`Open ${row.variant_id} details`} />
       },
     },
   ]

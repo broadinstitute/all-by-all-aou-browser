@@ -27,11 +27,34 @@ const Container = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
+  min-width: 0;
   height: 100%;
   min-height: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow-y: hidden;
+  overflow-x: visible;
   position: relative;
+
+  & > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    overflow-y: auto;
+
+    & > :first-child {
+      order: 2;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 320px;
+    }
+
+    & > :not(:first-child) {
+      order: 1;
+    }
+  }
 `
 
 export const LocusPageRoot: React.FC = () => {
@@ -54,7 +77,7 @@ export const LocusPageRoot: React.FC = () => {
       <LocusPageDataContainer />
       {!hideGeneOptions && <GenePageControls />}
       {hideGeneOptions && (
-        <ShowControlsButton $right onClick={() => setHideGeneOptions(false)}>
+        <ShowControlsButton type="button" $right onClick={() => setHideGeneOptions(false)} aria-label="Show controls">
           Controls
         </ShowControlsButton>
       )}

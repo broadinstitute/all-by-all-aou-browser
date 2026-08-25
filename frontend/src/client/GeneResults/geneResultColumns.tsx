@@ -19,6 +19,7 @@ import { ColorMarker, RightArrow } from '../UserInterface'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { consequenceCategoryColors } from '../GenePage/LocusPagePlots'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import { ContextMenuTrigger } from '../components/ContextMenuTrigger'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { formatBurdenDirection } from '../geneAssociationSemantics'
 import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
@@ -31,17 +32,16 @@ const GeneLinkRenderer = ({ row }: any) => {
 
   return (
     <>
-      <Link
-        onClick={() => {
+      <ContextMenuTrigger
+        menuOpen={menu !== null}
+        onPrimaryAction={() => {
           goToGene(row.gene_id, { fromPhenotype: true, destination: 'details' })
         }}
-        onContextMenu={(e: any) => {
-          e.preventDefault();
-          setMenu({ x: e.clientX, y: e.clientY });
-        }}
+        onOpenMenu={setMenu}
+        title="Open gene; press Shift+F10 for more actions"
       >
         {row.gene_symbol || row.gene_id}
-      </Link>
+      </ContextMenuTrigger>
       {menu && (
         <UnifiedContextMenu
           x={menu.x}

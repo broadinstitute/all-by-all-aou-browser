@@ -58,8 +58,11 @@ const ControlsHeaderWrapper = styled(ControlsHeader)`
 `
 
 const GenePageControlsGeneFocus = styled.div`
-  max-width: 210px;
-  min-width: 230px;
+  box-sizing: border-box;
+  flex: 0 0 230px;
+  width: 230px;
+  min-width: 0;
+  max-width: 230px;
   margin-left: 5px;
   padding-left: 0;
   padding-right: 0;
@@ -218,6 +221,17 @@ const GenePageControlsGeneFocus = styled.div`
   .unselect-variant {
     grid-area: unselect-variant;
   }
+
+  @media (max-width: 600px) {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+    max-height: 38vh;
+    margin-left: 0;
+    padding: 0 12px 12px;
+    overflow: auto;
+    grid-row-gap: 0.8em;
+  }
 `
 
 const GenePageControlStylesVariantFocus = styled(GenePageControlsGeneFocus)`
@@ -332,7 +346,9 @@ const MafSelector: React.FC = () => {
                 })}
               </MafSignificanceDots>
               <MafButton
+                type="button"
                 $active={locusMaf === opt.value}
+                aria-pressed={locusMaf === opt.value}
                 onClick={() => setLocusMaf(opt.value)}
               >
                 {opt.label}
@@ -824,7 +840,7 @@ export const GenePageControls = () => {
       <>
         <ControlsHeaderWrapper>
           <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
-          <ControlsCloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+          <ControlsCloseButton type="button" onClick={() => setHideGeneOpts(true)} title="Hide controls" aria-label="Hide controls">
             &times;
           </ControlsCloseButton>
         </ControlsHeaderWrapper>
@@ -852,7 +868,7 @@ export const GenePageControls = () => {
       <>
         <ControlsHeaderWrapper>
           <ControlsHeaderTitle>Controls</ControlsHeaderTitle>
-          <ControlsCloseButton onClick={() => setHideGeneOpts(true)} title="Hide controls">
+          <ControlsCloseButton type="button" onClick={() => setHideGeneOpts(true)} title="Hide controls" aria-label="Hide controls">
             &times;
           </ControlsCloseButton>
         </ControlsHeaderWrapper>

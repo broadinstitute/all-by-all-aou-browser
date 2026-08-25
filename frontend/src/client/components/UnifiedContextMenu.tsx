@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { NavMode } from '../hooks/useAppNavigation';
+import { getNextMenuItemIndex, MenuNavigationKey } from './contextMenuKeyboard';
 
 const MenuStyle = styled.div<{ x: number; y: number }>`
   position: fixed;
@@ -163,23 +164,53 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
   x, y, title, targets, sections, onNavigate, onCopy, copyLabel = "Copy ID", onClose
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    const handleClick = () => onClose();
-    const handleKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    const timeoutId = setTimeout(() => {
+    const returnFocusTo = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const handleClick = () => onCloseRef.current();
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current();
+      }
+    };
+    const timeoutId = window.setTimeout(() => {
       menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
       document.addEventListener('click', handleClick);
       document.addEventListener('contextmenu', handleClick);
       document.addEventListener('keydown', handleKey);
     }, 0);
     return () => {
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
       document.removeEventListener('click', handleClick);
       document.removeEventListener('contextmenu', handleClick);
       document.removeEventListener('keydown', handleKey);
+      if (returnFocusTo?.isConnected) {
+        returnFocusTo.focus();
+      }
     };
-  }, [onClose]);
+  }, []);
+
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') || []
+    );
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = getNextMenuItemIndex(
+      event.key as MenuNavigationKey,
+      currentIndex,
+      items.length
+    );
+    items[nextIndex]?.focus();
+  };
 
   // Convert flat targets to sections format for uniform rendering
   const sectionsToRender: ContextMenuSection[] = sections || (targets ? [{ targets }] : []);
@@ -192,6 +223,7 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
       role="menu"
       aria-label="Context actions"
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={handleMenuKeyDown}
     >
       <Header>{title}</Header>
       {sectionsToRender.map((section, sectionIdx) => {
