@@ -3,7 +3,7 @@ import { useRecoilTransaction_UNSTABLE, useRecoilValue } from 'recoil';
 import {
   activeSurfaceAtom,
   analysisIdAtom,
-  experienceModeAtom,
+  browserContainerWidthAtom,
   geneIdAtom,
   regionIdAtom,
   resultIndexAtom,
@@ -13,6 +13,12 @@ import {
   ResultIndex,
   TopResultsTab,
 } from '../sharedState';
+import {
+  experienceModeAtom,
+  experienceModePreferenceAtom,
+  experienceModeUrlOverrideAtom,
+  getExperienceModeFromAtoms,
+} from '../browserModeState';
 import {
   buildCanonicalNavigationUrl,
   buildStateUrl,
@@ -25,6 +31,7 @@ import {
   getSideBySideLayoutForSurface,
   NavigationDestination,
 } from '../experienceNavigation';
+import { canFitTwoPanes } from '../browserShell';
 
 export { buildStateUrl };
 
@@ -47,6 +54,8 @@ type PresentationOptions = {
 export function useAppNavigation() {
   const experienceMode = useRecoilValue(experienceModeAtom);
   const resultLayout = useRecoilValue(resultLayoutAtom);
+  const browserContainerWidth = useRecoilValue(browserContainerWidthAtom);
+  const singleSurface = !canFitTwoPanes(browserContainerWidth);
 
   // All state that defines one visible destination is committed together. This
   // also lets recoil-sync produce a single coherent history state.
@@ -54,10 +63,13 @@ export function useAppNavigation() {
     ({ get, set }) =>
       (updates: NavigationUpdates, options: PresentationOptions) => {
         const presentation = getNavigationPresentation(
-          get(experienceModeAtom),
+          getExperienceModeFromAtoms(get),
           get(resultLayoutAtom),
           options.destination,
-          { resultsOnly: options.resultsOnly }
+          {
+            resultsOnly: options.resultsOnly,
+            singleSurface: !canFitTwoPanes(get(browserContainerWidthAtom)),
+          }
         );
 
         if ('geneId' in updates) set(geneIdAtom, updates.geneId);
@@ -310,6 +322,7 @@ export function useAppNavigation() {
         {
           resultsOnly:
             options.resultsOnly ?? stateUpdates.resultLayout === 'full',
+          singleSurface,
         }
       );
       window.open(
@@ -321,7 +334,7 @@ export function useAppNavigation() {
         '_blank'
       );
     },
-    [experienceMode, resultLayout]
+    [experienceMode, resultLayout, singleSurface]
   );
 
   const setExperienceMode = useRecoilTransaction_UNSTABLE(
@@ -344,7 +357,8 @@ export function useAppNavigation() {
             )
           );
         }
-        set(experienceModeAtom, mode);
+        set(experienceModePreferenceAtom, mode);
+        set(experienceModeUrlOverrideAtom, mode);
       },
     []
   );
@@ -352,7 +366,8 @@ export function useAppNavigation() {
   const compareSideBySide = useRecoilTransaction_UNSTABLE(
     ({ set }) =>
       () => {
-        set(experienceModeAtom, 'sideBySide');
+        set(experienceModePreferenceAtom, 'sideBySide');
+        set(experienceModeUrlOverrideAtom, 'sideBySide');
         set(resultLayoutAtom, 'split');
         set(activeSurfaceAtom, 'details');
       },

@@ -1,3 +1,5 @@
+import { ActiveSurface, resolveInitialActiveSurface } from './experienceNavigation'
+
 const ENTITY_STATE_KEYS = ['geneId', 'regionId', 'variantId', 'analysisId'] as const
 const LEGACY_TOP_LEVEL_STATE_KEYS = [
   ...ENTITY_STATE_KEYS,
@@ -23,6 +25,11 @@ export const parseNavigationState = (url: URL): NavigationState => {
       return {}
     }
   }
+}
+
+export const getInitialActiveSurface = (url: URL): ActiveSurface => {
+  const state = parseNavigationState(url)
+  return resolveInitialActiveSurface(state.activeSurface, state.resultLayout)
 }
 
 /** Build a canonical /app URL without carrying unrelated entity context. */

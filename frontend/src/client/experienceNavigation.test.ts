@@ -10,6 +10,7 @@ import {
   parseExperienceMode,
   persistExperienceMode,
   resolveExperienceModeForVisit,
+  resolveInitialActiveSurface,
 } from './experienceNavigation'
 
 test('experience preference accepts only persisted focused and side-by-side modes', () => {
@@ -84,6 +85,38 @@ test('focused navigation selects one surface without losing the prior Side-by-si
     activeSurface: 'details',
     resultLayout: 'full',
   })
+})
+
+test('narrow navigation changes only the active surface and remembers the wide layout', () => {
+  assert.deepEqual(
+    getNavigationPresentation('sideBySide', 'full', 'details', {
+      singleSurface: true,
+    }),
+    {
+      experienceMode: 'sideBySide',
+      activeSurface: 'details',
+      resultLayout: 'full',
+    }
+  )
+  assert.deepEqual(
+    getNavigationPresentation('sideBySide', 'detail', 'results', {
+      resultsOnly: true,
+      singleSurface: true,
+    }),
+    {
+      experienceMode: 'sideBySide',
+      activeSurface: 'results',
+      resultLayout: 'detail',
+    }
+  )
+})
+
+test('legacy layouts initialize a surface while an explicit surface wins', () => {
+  assert.equal(resolveInitialActiveSurface(undefined, 'detail'), 'details')
+  assert.equal(resolveInitialActiveSurface(undefined, 'full'), 'results')
+  assert.equal(resolveInitialActiveSurface(undefined, 'split'), 'results')
+  assert.equal(resolveInitialActiveSurface('results', 'detail'), 'results')
+  assert.equal(resolveInitialActiveSurface('details', 'full'), 'details')
 })
 
 test('switching to Focused starts on the surface visible in a single-pane Side-by-side layout', () => {

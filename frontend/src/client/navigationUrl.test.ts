@@ -3,10 +3,26 @@ import test from 'node:test'
 
 import {
   buildCanonicalNavigationUrl,
+  getInitialActiveSurface,
   parseNavigationState,
 } from './navigationUrl'
 
 const stateFrom = (href: string) => parseNavigationState(new URL(href))
+
+test('legacy URL layout initializes active surface unless the URL specifies one', () => {
+  const urlFor = (state: Record<string, unknown>) =>
+    new URL(`https://example.org/app?state=${encodeURIComponent(JSON.stringify(state))}`)
+
+  assert.equal(getInitialActiveSurface(urlFor({ resultLayout: 'detail' })), 'details')
+  assert.equal(getInitialActiveSurface(urlFor({ resultLayout: 'full' })), 'results')
+  assert.equal(getInitialActiveSurface(urlFor({ resultLayout: 'split' })), 'results')
+  assert.equal(
+    getInitialActiveSurface(
+      urlFor({ resultLayout: 'detail', activeSurface: 'results' })
+    ),
+    'results'
+  )
+})
 
 test('canonical new-tab URLs remove stale entity and legacy query state', () => {
   const currentState = encodeURIComponent(JSON.stringify({

@@ -13,15 +13,15 @@ import { urlSyncEffect } from 'recoil-sync'
 import randomColor from 'randomcolor'
 import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Utils'
 import { clampSplitPaneWidth } from './paneLayout'
-import {
-  ActiveSurface,
-  ExperienceMode,
-  loadInitialExperienceMode,
-  persistExperienceMode,
-  resolveExperienceModeForVisit,
-} from './experienceNavigation'
+import { getInitialActiveSurface } from './navigationUrl'
+import { ActiveSurface } from './experienceNavigation'
 
 export type { ActiveSurface, ExperienceMode } from './experienceNavigation'
+export {
+  experienceModeAtom,
+  experienceModePreferenceAtom,
+  experienceModeUrlOverrideAtom,
+} from './browserModeState'
 
 export const geneIdAtom = atom<string | null | undefined>({
   key: 'geneId',
@@ -442,71 +442,17 @@ export const showQQOverlayAtom = atom<boolean>({
   ],
 })
 
-const experienceModeChecker = stringLiterals<ExperienceMode>({
-  focused: 'focused',
-  sideBySide: 'sideBySide',
-})
-
 const activeSurfaceChecker = stringLiterals<ActiveSurface>({
   results: 'results',
   details: 'details',
 })
 
-const experienceModePreferenceAtom = atom<ExperienceMode>({
-  key: 'experienceModePreference',
-  default: 'sideBySide',
-  effects: [
-    ({ setSelf, onSet }) => {
-      if (typeof window !== 'undefined') {
-        setSelf(loadInitialExperienceMode(localStorage))
-      }
-
-      onSet((newValue) => {
-        if (typeof window !== 'undefined') {
-          persistExperienceMode(localStorage, newValue)
-        }
-      })
-    },
-  ],
-})
-
-// URL mode is a visit-level override. Keeping it separate prevents a shared
-// link or Back/Forward navigation from silently replacing the saved choice.
-const experienceModeUrlOverrideAtom = atom<ExperienceMode | null | undefined>({
-  key: 'experienceModeUrlOverride',
-  default: null,
-  effects: [
-    urlSyncEffect({
-      itemKey: 'experienceMode',
-      refine: nullable(experienceModeChecker),
-      history: 'push',
-    }),
-  ],
-})
-
-export const experienceModeAtom = selector<ExperienceMode>({
-  key: 'experienceMode',
-  get: ({ get }) =>
-    resolveExperienceModeForVisit(
-      get(experienceModePreferenceAtom),
-      get(experienceModeUrlOverrideAtom)
-    ),
-  set: ({ set, reset }, newValue) => {
-    if (newValue === 'focused' || newValue === 'sideBySide') {
-      // Writes only happen for deliberate UI actions. Update both the durable
-      // preference and this visit's URL state.
-      set(experienceModePreferenceAtom, newValue)
-      set(experienceModeUrlOverrideAtom, newValue)
-    } else {
-      reset(experienceModePreferenceAtom)
-      reset(experienceModeUrlOverrideAtom)
-    }
-  },
-})
-
 export const activeSurfaceAtom = atom<ActiveSurface>({
   key: 'activeSurface',
-  default: 'results',
+  default:
+    typeof window === 'undefined'
+      ? 'results'
+      : getInitialActiveSurface(new URL(window.location.href)),
   effects: [
     urlSyncEffect({
       refine: activeSurfaceChecker,

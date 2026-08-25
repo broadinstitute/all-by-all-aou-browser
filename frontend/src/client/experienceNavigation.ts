@@ -52,6 +52,16 @@ export const resolveExperienceModeForVisit = (
   urlOverride: ExperienceMode | null | undefined
 ): ExperienceMode => urlOverride ?? preference
 
+export const resolveInitialActiveSurface = (
+  activeSurface: unknown,
+  resultLayout: unknown
+): ActiveSurface => {
+  if (activeSurface === 'results' || activeSurface === 'details') {
+    return activeSurface
+  }
+  return resultLayout === 'detail' ? 'details' : 'results'
+}
+
 export const persistExperienceMode = (
   storage: ExperienceModeStorage,
   mode: ExperienceMode
@@ -96,9 +106,9 @@ export const getNavigationPresentation = (
   experienceMode: ExperienceMode,
   currentLayout: ResultLayout,
   destination: NavigationDestination,
-  options: { resultsOnly?: boolean } = {}
+  options: { resultsOnly?: boolean; singleSurface?: boolean } = {}
 ): NavigationPresentation => {
-  if (experienceMode === 'focused') {
+  if (experienceMode === 'focused' || options.singleSurface) {
     return {
       experienceMode,
       activeSurface: destination,
