@@ -12,6 +12,14 @@ import { getCategoryFromConsequence } from '../vepConsequences'
 import { useRecoilValue, useRecoilState } from 'recoil'
 import { variantShowLabelAtom } from '../variantState'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
+import {
+  associationNegLog10P,
+  associationPointY,
+  associationPvalueSortValue,
+  hasAssociationPvalue,
+  MISSING_ASSOCIATION_RESULT_DESCRIPTION,
+  MISSING_ASSOCIATION_RESULT_LABEL,
+} from './geneVariantSemantics'
 
 const PlotWrapper = styled.div`
   display: flex;
@@ -391,12 +399,12 @@ export const LocusPvaluePlot = ({
     variants
       .filter((d) => !isPositionDefined || (d.locus && isPositionDefined(d.locus.position)))
       .map((d) => {
-        const pvalue = -Math.log10(d.pvalue) || 0
+        const pvalueY = logLogScale(associationNegLog10P(d.pvalue))
 
         return {
           data: d,
           x: (scalePosition(d.locus && d.locus.position) as number) || 0,
-          y: logLogScale(pvalue),
+          y: associationPointY(d.pvalue, pvalueY, height - 50),
         }
       })
   ).sort((a, b) => {
@@ -431,7 +439,8 @@ export const LocusPvaluePlot = ({
           return explicitlySet || !!hasCustomLabel;
         }
 
-        const isSignificant = p.data.pvalue && p.data.pvalue < lollipopPvalueThreshold;
+        const isSignificant =
+          hasAssociationPvalue(p.data.pvalue) && p.data.pvalue < lollipopPvalueThreshold;
         return !!hasCustomLabel || (isSignificant && hasHgvs);
       })
       .map(p => {
@@ -471,9 +480,9 @@ export const LocusPvaluePlot = ({
     const otherLabels = allLabels.filter(l => l.tier === 'other');
 
     const maxPerTier = 15;
-    const pLoFToShow = pLoFLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, maxPerTier);
-    const missenseToShow = missenseLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, maxPerTier);
-    const otherToShow = otherLabels.sort((a, b) => (a.variant.pvalue || 1) - (b.variant.pvalue || 1)).slice(0, Math.min(10, maxPerTier));
+    const pLoFToShow = pLoFLabels.sort((a, b) => associationPvalueSortValue(a.variant.pvalue) - associationPvalueSortValue(b.variant.pvalue)).slice(0, maxPerTier);
+    const missenseToShow = missenseLabels.sort((a, b) => associationPvalueSortValue(a.variant.pvalue) - associationPvalueSortValue(b.variant.pvalue)).slice(0, maxPerTier);
+    const otherToShow = otherLabels.sort((a, b) => associationPvalueSortValue(a.variant.pvalue) - associationPvalueSortValue(b.variant.pvalue)).slice(0, Math.min(10, maxPerTier));
 
     runClusteredLayout(pLoFToShow, w);
     runClusteredLayout(missenseToShow, w);
@@ -810,7 +819,13 @@ export const LocusPvaluePlot = ({
           </div>
           <div>
             <span style={{ color: 'var(--theme-text-muted)' }}>P-value: </span>
-            <span style={{ fontFamily: 'monospace' }}>{(hoveredHit.pvalue || 1).toExponential(2)}</span>
+            <span style={{ fontFamily: 'monospace' }}>
+              {!hasAssociationPvalue(hoveredHit.pvalue)
+                ? 'N/A'
+                : hoveredHit.pvalue === 0
+                  ? '< 1e-300'
+                  : hoveredHit.pvalue.toExponential(2)}
+            </span>
           </div>
         </TooltipContainer>
       )}
@@ -930,9 +945,15 @@ export const LeftPanel: React.FC<LeftPanelProps & { tierY?: Record<string, numbe
     </g>
   )
 
-  const NoPValLabel = (
-    <text x={0} y={totalHeight - 10} fill={theme.text}>
-      {'No P-val'}
+  const NoAssociationResultLabel = (
+    <text
+      x={0}
+      y={totalHeight - 10}
+      fill={theme.text}
+      aria-label={MISSING_ASSOCIATION_RESULT_DESCRIPTION}
+    >
+      <title>{MISSING_ASSOCIATION_RESULT_DESCRIPTION}</title>
+      {MISSING_ASSOCIATION_RESULT_LABEL}
     </text>
   )
 
@@ -951,7 +972,7 @@ export const LeftPanel: React.FC<LeftPanelProps & { tierY?: Record<string, numbe
       {yAxisLabel}
       {yAxisTicks}
       {yAxis}
-      {NoPValLabel}
+      {NoAssociationResultLabel}
     </svg>
   )
 }

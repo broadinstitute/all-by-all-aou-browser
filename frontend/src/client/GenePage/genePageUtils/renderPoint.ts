@@ -66,14 +66,10 @@ export const renderPoint = ({
   const hasAnySelection = !!selectedVariantId;
   const isHovered = activeVariant && point.data.variant_id === activeVariant;
 
-  const h = height - margin.top - margin.bottom
   const rawRadius = Math.abs(alleleFrequencyScale(getAfField(point.data)))
   let radius = Number.isFinite(rawRadius) ? rawRadius : 5
 
-  let yValue = h + margin.top + margin.bottom - 50
-  if (point.data.pvalue) {
-    yValue = point.y
-  }
+  const yValue = Number.isFinite(point.y) ? point.y : height - margin.bottom - 10
 
   // Determine base styles
   let fillColor = pointColor(point.data, betaScale) || 'black';

@@ -39,6 +39,7 @@ import { useAppNavigation } from '../hooks/useAppNavigation'
 import { interpolateRdBu, interpolateGreens } from 'd3-scale-chromatic'
 import { variantGreenThreshold } from '../PhenotypeList/Utils'
 import { createLogLogScaleY } from './logLogScale'
+import { associationNegLog10P, hasAssociationPvalue } from './geneVariantSemantics'
 import { axaouDevUrl } from '../Query'
 
 export const consequenceCategoryColors = {
@@ -141,8 +142,7 @@ const variantColor =
         const analysis = analysesColors.find((a) => a.analysisId === variant.analysis_id)
         return (analysis && analysis.color) || 'black'
       } else if (colorBy === 'pvalue') {
-        const pvalue = -Math.log10(variant.pvalue) || 0
-        const scaledVal = logLogPvalScale(pvalue || 0)
+        const scaledVal = logLogPvalScale(associationNegLog10P(variant.pvalue))
         return pvalueColorScale(scaledVal)
       } else if (colorBy === 'beta') {
         return betaScale(variant.beta || 0)
@@ -370,7 +370,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
     }
 
     const autoLabeledVariants = variantsAll.filter(v => {
-      const isSignificant = v.pvalue && v.pvalue < 1e-4;
+      const isSignificant = hasAssociationPvalue(v.pvalue) && v.pvalue < 1e-4;
       const hasHgvs = v.hgvsp || v.hgvsc;
 
       return isSignificant && hasHgvs;
@@ -405,7 +405,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
       return explicitlySet || !!hasCustomLabel;
     }
 
-    const isSignificant = p.pvalue && p.pvalue < 1e-4;
+    const isSignificant = hasAssociationPvalue(p.pvalue) && p.pvalue < 1e-4;
     return !!hasCustomLabel || (isSignificant && hasHgvs);
   });
 
@@ -442,7 +442,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
 
   // Convert variants to SignificantHit format for PNG overlay
   const significantVariants: SignificantHit[] = variantsAll
-    .filter((v) => v.pvalue && v.pvalue < 1e-2) // Only significant variants
+    .filter((v) => hasAssociationPvalue(v.pvalue) && v.pvalue < 1e-2) // Only significant variants
     .map((v) => ({
       id: v.variant_id,
       position: v.locus?.position || 0,

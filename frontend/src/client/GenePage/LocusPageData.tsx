@@ -25,7 +25,8 @@ import { StatusMessage } from '../UserInterface'
 
 import { renderCountText } from '../PhenotypeList/Utils'
 
-import { addVariantIdsToList, annotateWorstConsequence, genericMerge, processGeneBurden } from '../utils'
+import { addVariantIdsToList, annotateWorstConsequence, processGeneBurden } from '../utils'
+import { mergeGeneVariantResponses } from './geneVariantSemantics'
 
 import { useQuery } from '@axaou/ui'
 import {
@@ -86,14 +87,12 @@ const annotateVariantWithAnalysisMetadata = (
 }
 
 const processVariants = ({
-  isGenePage,
   analyses,
   analysesMetadata,
   queryStates,
   variantId,
 }: {
   analysisId: string;
-  isGenePage: boolean;
   analyses: string[];
   analysesMetadata?: AnalysisMetadata[];
   queryStates: any;
@@ -117,12 +116,13 @@ const processVariants = ({
 
         const associationsWithId = addVariantIdsToList(associations);
 
-        // A region can retain geneId for navigation context, so only the active
-        // gene-page mode should require a matching gene-filtered annotation.
-        let variantsMerged = genericMerge(variantAnnotationsWithId, associationsWithId, {
-          keys: ['variant_id'],
-          joinType: isGenePage ? 'inner' : 'outer',
-        }) as VariantJoined[];
+        // Keep annotation-only rows for the No P-val track and association-only
+        // rows that fall outside the annotation endpoint's exon-only response.
+        // Both gene endpoints already enforce the requested gene identity.
+        const variantsMerged = mergeGeneVariantResponses(
+          variantAnnotationsWithId,
+          associationsWithId
+        ) as VariantJoined[];
 
 
         const data = variantsMerged
@@ -159,7 +159,7 @@ const processVariants = ({
         };
       })
     )
-  );
+  ) as VariantDataset[];
 }
 export const LocusPageDataContainer = () => {
   interface Data {
@@ -366,7 +366,6 @@ export const LocusPageDataContainer = () => {
     let datasets: VariantDataset[] = []
     datasets = processVariants({
       analysisId,
-      isGenePage: !regionId && Boolean(geneId),
       analyses,
       analysesMetadata,
       queryStates,
