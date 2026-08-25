@@ -16,18 +16,18 @@ import {
   renderBetaCell,
 } from './Utils'
 import { AnalysisMetadata, GenePhewasAnnotated, VariantAssociations } from '../types'
-import {
-  resultIndexAtom,
-  selectedAnalyses as selectedAnalysesAtom,
-  showSelectAnalysesOnlyAtom,
-} from '../sharedState'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { resultIndexAtom } from '../sharedState'
+import { useRecoilValue } from 'recoil'
 import { UnifiedContextMenu } from '../components/UnifiedContextMenu'
 import { ContextMenuTrigger } from '../components/ContextMenuTrigger'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { formatBurdenDirection } from '../geneAssociationSemantics'
 import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
+import {
+  getAssociationDetailsAriaLabel,
+  getAssociationDetailsNavigation,
+} from './phewasDisplay'
 
 const DescriptionContainer = styled.span`
   overflow: hidden;
@@ -539,17 +539,17 @@ export const getPhenotypeColumns = ({
     {
       key: 'select',
       displayId: 'select',
-      heading: 'Select',
-      minWidth: 30,
+      heading: 'Compare',
+      minWidth: 60,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const isSelected = selectedAnalyses.includes(row.analysis_id)
         return (
           <input
             type='checkbox'
-            disabled={isSelected && selectedAnalyses.length === 1}
             checked={isSelected}
-            onClick={() => toggleSelectedAnalysis(row.analysis_id)}
+            aria-label={`Compare ${row.description || row.analysis_id}`}
+            onChange={() => toggleSelectedAnalysis(row.analysis_id)}
           />
         )
       },
@@ -557,80 +557,96 @@ export const getPhenotypeColumns = ({
     {
       key: 'show',
       displayId: 'show',
-      heading: '',
+      heading: 'Details',
       isRowHeader: true,
-      isSortable: true,
+      isSortable: false,
       minWidth: 50,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const { goToAssociation } = useAppNavigation()
-        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
-        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
-          setSelectedAnalyses([row.analysis_id])
-          setShowSelectOnly(false)
-          goToAssociation(row.analysis_id)
+          const target = getAssociationDetailsNavigation(row)
+          goToAssociation(target.analysisId, target.context)
         }
 
-        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} details`} />
+        return (
+          <RightArrow
+            onClick={handleClick}
+            ariaLabel={getAssociationDetailsAriaLabel(row)}
+          />
+        )
       },
     },
     {
       key: 'show',
       displayId: 'show_phewas_variant_exome',
-      heading: '',
+      heading: 'Details',
       isRowHeader: true,
-      isSortable: true,
+      isSortable: false,
       minWidth: 80,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const { goToAssociation } = useAppNavigation()
-        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
-        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
-          setSelectedAnalyses([row.analysis_id])
-          setShowSelectOnly(false)
-          goToAssociation(row.analysis_id)
+          const target = getAssociationDetailsNavigation(row, 'variant')
+          goToAssociation(target.analysisId, target.context)
         }
 
-        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} variant details`} />
+        return (
+          <RightArrow
+            onClick={handleClick}
+            ariaLabel={getAssociationDetailsAriaLabel(row, 'variant')}
+          />
+        )
       },
     }, {
       key: 'show',
       displayId: 'show_phewas_locus',
-      heading: '',
+      heading: 'Association details',
       isRowHeader: true,
-      isSortable: true,
-      minWidth: 80,
+      isSortable: false,
+      minWidth: 110,
       grow: 0,
       render: (row: VariantAssociations & AnalysisMetadata) => {
         const { goToAssociation } = useAppNavigation()
 
-        return <RightArrow onClick={() => goToAssociation(row.analysis_id)} ariaLabel="Open locus association details" />
+        const handleClick = () => {
+          const target = getAssociationDetailsNavigation(row, 'locus')
+          goToAssociation(target.analysisId, target.context)
+        }
+
+        return (
+          <RightArrow
+            onClick={handleClick}
+            ariaLabel={getAssociationDetailsAriaLabel(row, 'locus')}
+          />
+        )
       },
     },
     {
       key: 'show',
       displayId: 'show_top_hits',
-      heading: '',
+      heading: 'Association details',
       isRowHeader: true,
-      isSortable: true,
-      minWidth: 50,
+      isSortable: false,
+      minWidth: 110,
       grow: 0,
       render: (row: GenePhewasAnnotated) => {
         const { goToAssociation } = useAppNavigation()
-        const setSelectedAnalyses = useSetRecoilState(selectedAnalysesAtom)
-        const setShowSelectOnly = useSetRecoilState(showSelectAnalysesOnlyAtom)
 
         const handleClick = () => {
-          setSelectedAnalyses([row.analysis_id])
-          setShowSelectOnly(false)
-          goToAssociation(row.analysis_id, { geneId: row.gene_id })
+          const target = getAssociationDetailsNavigation(row, 'topHit')
+          goToAssociation(target.analysisId, target.context)
         }
 
-        return <RightArrow onClick={handleClick} ariaLabel={`Open ${row.description || 'phenotype'} top hit details`} />
+        return (
+          <RightArrow
+            onClick={handleClick}
+            ariaLabel={getAssociationDetailsAriaLabel(row, 'topHit')}
+          />
+        )
       },
     },
     { key: 'analysis_id', heading: 'analysis_id', displayId: 'analysis_id', isRowHeader: true },

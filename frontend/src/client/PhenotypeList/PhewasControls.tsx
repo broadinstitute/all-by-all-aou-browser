@@ -399,13 +399,13 @@ interface PhewasControlsProps {
   useDirectionalShapes: boolean
   onToggleDirectionalShapes: () => void
 
-  // Multi-phenotype selection
+  // Persistent phenotype comparison
   analysesCount: number
   topAnalyses: string[]
   onSelectTop: () => void
   onClearSelected: () => void
-  showSelectAnalysesOnly: boolean
-  onToggleShowSelectOnly: () => void
+  showComparedOnly: boolean
+  onToggleShowComparedOnly: () => void
   phewasType: string
 
   // Categories
@@ -437,8 +437,8 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   topAnalyses,
   onSelectTop,
   onClearSelected,
-  showSelectAnalysesOnly,
-  onToggleShowSelectOnly,
+  showComparedOnly,
+  onToggleShowComparedOnly,
   phewasType,
   categories,
   selectedCategories,
@@ -535,22 +535,22 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
         </PlotOptionCheckboxes>
       </ControlsSection>
 
-      {/* Multi-phenotype Selection */}
+      {/* Persistent phenotype comparison */}
       {phewasType !== 'topHit' && (
         <ControlsSection>
-          <ControlsSectionTitle>Multi-phenotype selection</ControlsSectionTitle>
+          <ControlsSectionTitle>Compared phenotypes</ControlsSectionTitle>
           <SelectionButtons>
-            <Button onClick={onSelectTop}>Select top</Button>
-            <Button disabled={analysesCount <= 1} onClick={onClearSelected}>
-              Clear {analysesCount > 1 && `(${analysesCount})`}
+            <Button onClick={onSelectTop}>Add top hits</Button>
+            <Button disabled={analysesCount === 0} onClick={onClearSelected}>
+              Clear comparison
             </Button>
           </SelectionButtons>
           <Checkbox
-            label='Filter to selected'
-            checked={showSelectAnalysesOnly}
-            id='multi-analysis-filter-traits-to-selected'
-            disabled={false}
-            onChange={onToggleShowSelectOnly}
+            label='Show compared only'
+            checked={showComparedOnly}
+            id='show-compared-phenotypes-only'
+            disabled={analysesCount === 0}
+            onChange={onToggleShowComparedOnly}
           />
         </ControlsSection>
       )}

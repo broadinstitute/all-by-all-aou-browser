@@ -47,6 +47,11 @@ import {
 import { GeneAssociations } from '../types'
 import filterPhenotypes from './filterPhenotypes'
 import { ShowControlsButton } from '../UserInterface'
+import {
+  filterToComparedPhenotypes,
+  shouldShowComparedOnly,
+  updateTopHitDetailLabel,
+} from './phewasDisplay'
 
 const RootContainerGene = styled.div`
   display: flex;
@@ -269,15 +274,14 @@ const Phewas = ({
     setLabeledPhenoIds((prev) => {
       const next = new Set(prev)
       if (phewasType === 'topHit') {
-        if (geneIdOrName && analysisId) {
-          // Remove previous selection before adding new one
-          if (prevTopHitSelectionRef.current) {
-            next.delete(prevTopHitSelectionRef.current)
-          }
-          const newId = `${geneIdOrName}:${analysisId}`
-          next.add(newId)
-          prevTopHitSelectionRef.current = newId
-        }
+        const update = updateTopHitDetailLabel(
+          next,
+          prevTopHitSelectionRef.current,
+          geneIdOrName,
+          analysisId
+        )
+        prevTopHitSelectionRef.current = update.activeTopHitId
+        return update.labeledIds
       } else {
         uniquePhenotypes.forEach((p: any) => {
           if (p.analysis_id === analysisId) {
@@ -521,10 +525,6 @@ const Phewas = ({
     visible: true,
   }))
 
-  const selectPhenotypes = tablePhenotypes.filter((analysis: any) => {
-    return analyses.includes(analysis.analysis_id)
-  })
-
   const onSort = (newSortKey: any) => {
     if (newSortKey === sortKey) {
       updateSortAscending(sortDirection === 'ascending' ? 'descending' : 'ascending')
@@ -590,12 +590,33 @@ const Phewas = ({
     setSelectedCategories(new Set())
   }
 
-  const displayPlotPhenotypes = showSelectAnalysesOnly ? selectPhenotypes : plotPhenotypes
-  const displayTablePhenotypes = showSelectAnalysesOnly ? selectPhenotypes : tablePhenotypes
-  let pointRadius = showSelectAnalysesOnly ? 6 : 4
+  const comparisonFilterActive = shouldShowComparedOnly(
+    showSelectAnalysesOnly,
+    phewasType,
+    analyses
+  )
+  const displayPlotPhenotypes = filterToComparedPhenotypes(
+    plotPhenotypes,
+    analyses,
+    comparisonFilterActive
+  )
+  const displayTablePhenotypes = filterToComparedPhenotypes(
+    tablePhenotypes,
+    analyses,
+    comparisonFilterActive
+  )
+  let pointRadius = comparisonFilterActive ? 6 : 4
+
+  // Do not let an empty comparison keep a hidden filter armed. Top-hit mode ignores
+  // the shared state without consuming it because it has no comparison controls.
+  React.useEffect(() => {
+    if (phewasType !== 'topHit' && analyses.length === 0 && showSelectAnalysesOnly) {
+      setShowSelectAnalysesOnly(false)
+    }
+  }, [analyses.length, phewasType, setShowSelectAnalysesOnly, showSelectAnalysesOnly])
 
   const analysisPointColor = (analysis: any) => {
-    if (showSelectAnalysesOnly) {
+    if (comparisonFilterActive) {
       const analysisColor: { analysisId: string; color: string } | undefined = analysesColors.find(
         (a) => a.analysisId === analysis.analysis_id
       )
@@ -604,7 +625,7 @@ const Phewas = ({
     return (analysis && analysis.color) || 'white'
   }
 
-  const activeAnalyses = showSelectAnalysesOnly ? undefined : selected
+  const activeAnalyses = comparisonFilterActive ? undefined : selected
 
   let numRowsRendered = 20
 
@@ -656,10 +677,12 @@ const Phewas = ({
             onToggleDirectionalShapes={() => setUseDirectionalShapes(!useDirectionalShapes)}
             analysesCount={analyses.length}
             topAnalyses={topAnalyses}
-            onSelectTop={() => setSelectedAnalyses(topAnalyses)}
-            onClearSelected={() => setSelectedAnalyses(analysisId ? [analysisId] : [])}
-            showSelectAnalysesOnly={showSelectAnalysesOnly}
-            onToggleShowSelectOnly={() => setShowSelectAnalysesOnly(!showSelectAnalysesOnly)}
+            onSelectTop={() =>
+              setSelectedAnalyses([...new Set([...analyses, ...topAnalyses])])
+            }
+            onClearSelected={() => setSelectedAnalyses([])}
+            showComparedOnly={comparisonFilterActive}
+            onToggleShowComparedOnly={() => setShowSelectAnalysesOnly(!comparisonFilterActive)}
             phewasType={phewasType}
             categories={categories}
             selectedCategories={selectedCategories}
@@ -733,8 +756,8 @@ const Phewas = ({
             )}
             {plotType === 'P-value' && (
               <PhewasPvaluePlot
-                analyses={plotPhenotypes}
-                activeAnalyses={selected}
+                analyses={displayPlotPhenotypes}
+                activeAnalyses={activeAnalyses}
                 activeGene={geneIdOrName}
                 primaryAnalysisId={analysisId}
                 onClickPoint={onPointClick}
@@ -753,8 +776,8 @@ const Phewas = ({
             )}
             {showEffectEstimate && plotType === 'Beta' && (
               <PhewasBetaPlot
-                analyses={plotPhenotypes}
-                activeAnalyses={selected}
+                analyses={displayPlotPhenotypes}
+                activeAnalyses={activeAnalyses}
                 activeGene={geneIdOrName}
                 primaryAnalysisId={analysisId}
                 onClickPoint={onPointClick}

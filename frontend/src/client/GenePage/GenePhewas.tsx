@@ -13,7 +13,6 @@ import { DocumentTitle, HalfPage, ScrollButton, ScrollButtonContainer, Spinner, 
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import styled from 'styled-components'
 import {
-  analysisIdAtom,
   ancestryGroupAtom,
   AncestryGroupCodes,
   burdenSetAtom,
@@ -106,7 +105,6 @@ const GenePhewasLayout = ({
 }: GenePhewasLayoutProps) => {
   const burdenSet = useRecoilValue(burdenSetAtom)
   const pValueType = useRecoilValue(pValueTypeAtom)
-  const analysisId = useRecoilValue(analysisIdAtom)
   const geneId = useRecoilValue(geneIdAtom)
   const selectedAnalysesList = useRecoilValue(selectedAnalyses)
   const toggleSelectedAnalysis = useToggleSelectedAnalysis()
@@ -141,7 +139,7 @@ const GenePhewasLayout = ({
 
   const columns = [...baseColumns, ...mediumColumns, ...wideColumns]
 
-  const analyses = selectedAnalysesList.length === 0 ? [analysisId] : selectedAnalysesList
+  const analyses = selectedAnalysesList
 
   const phenotypesInGeneColumns = getPhenotypeColumns({
     columns,

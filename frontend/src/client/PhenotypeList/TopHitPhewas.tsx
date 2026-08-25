@@ -19,7 +19,6 @@ import {
   useToggleSelectedAnalysis,
   hoveredAnalysisAtom,
   selectedAnalysesColorsSelector,
-  showSelectAnalysesOnlyAtom,
   pValueTypeAtom,
   ancestryGroupAtom,
   burdenSetAtom,
@@ -87,8 +86,6 @@ const TopHitPhewasLayout = withSize()(
     const toggleSelectedAnalysis = useToggleSelectedAnalysis()
     const setHoveredAnalysis = useSetRecoilState(hoveredAnalysisAtom)
     const analysesColors = useRecoilValue(selectedAnalysesColorsSelector)
-    const showSelectAnalysesOnly = useRecoilValue(showSelectAnalysesOnlyAtom)
-
     const resultLayout = useRecoilValue(resultLayoutAtom)
     const showPhewasControls = useRecoilValue(phewasOptsAtom)
 
@@ -123,7 +120,7 @@ const TopHitPhewasLayout = withSize()(
       toggleSelectedAnalysis,
       analysesColors,
       pValueType,
-      showSelectAnalysesOnly,
+      showSelectAnalysesOnly: false,
     })
 
     const onHoverAnalysis = (analysisId: string) => {
