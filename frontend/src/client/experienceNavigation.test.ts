@@ -6,7 +6,10 @@ import {
   getFocusedSurfaceForLayout,
   getNavigationPresentation,
   getSideBySideLayoutForSurface,
+  loadInitialExperienceMode,
   parseExperienceMode,
+  persistExperienceMode,
+  resolveExperienceModeForVisit,
 } from './experienceNavigation'
 
 test('experience preference accepts only persisted focused and side-by-side modes', () => {
@@ -15,6 +18,59 @@ test('experience preference accepts only persisted focused and side-by-side mode
   assert.equal(parseExperienceMode('focused'), 'focused')
   assert.equal(parseExperienceMode(JSON.stringify('invalid')), null)
   assert.equal(parseExperienceMode(null), null)
+})
+
+test('one-time mode migration distinguishes explicit, existing, fresh, and corrupt profiles', () => {
+  const makeStorage = (entries: Record<string, string> = {}) => {
+    const values = new Map(Object.entries(entries))
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      value: (key: string) => values.get(key) ?? null,
+    }
+  }
+
+  const explicit = makeStorage({
+    experienceMode: JSON.stringify('focused'),
+    axaou_data_version: 'old-profile',
+  })
+  assert.equal(loadInitialExperienceMode(explicit), 'focused')
+
+  const existing = makeStorage({ axaou_data_version: 'old-profile' })
+  assert.equal(loadInitialExperienceMode(existing), 'sideBySide')
+  assert.equal(existing.value('experienceMode'), JSON.stringify('sideBySide'))
+
+  const fresh = makeStorage()
+  assert.equal(loadInitialExperienceMode(fresh), 'focused')
+  assert.equal(fresh.value('experienceMode'), JSON.stringify('focused'))
+
+  const corrupt = makeStorage({ experienceMode: '{not valid json' })
+  assert.equal(loadInitialExperienceMode(corrupt), 'sideBySide')
+  assert.equal(corrupt.value('experienceMode'), JSON.stringify('sideBySide'))
+})
+
+test('a URL visit override is transient and leaves the saved preference unchanged', () => {
+  const savedPreference = 'sideBySide' as const
+  assert.equal(resolveExperienceModeForVisit(savedPreference, 'focused'), 'focused')
+  assert.equal(savedPreference, 'sideBySide')
+  assert.equal(resolveExperienceModeForVisit(savedPreference, null), 'sideBySide')
+})
+
+test('storage failures fall back safely and deliberate choices remain writable', () => {
+  const deniedStorage = {
+    getItem: (_key: string): string | null => {
+      throw new Error('storage denied')
+    },
+    setItem: (_key: string, _value: string) => {
+      throw new Error('storage denied')
+    },
+    removeItem: (_key: string) => {
+      throw new Error('storage denied')
+    },
+  }
+  assert.equal(loadInitialExperienceMode(deniedStorage), 'sideBySide')
+  assert.doesNotThrow(() => persistExperienceMode(deniedStorage, 'focused'))
 })
 
 test('focused navigation selects one surface without losing the prior Side-by-side layout', () => {

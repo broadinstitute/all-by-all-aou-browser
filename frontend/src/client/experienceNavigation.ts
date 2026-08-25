@@ -4,6 +4,7 @@ export type NavigationDestination = ActiveSurface
 export type ResultLayout = 'detail' | 'split' | 'full'
 
 export const EXPERIENCE_MODE_STORAGE_KEY = 'experienceMode'
+export const EXISTING_PROFILE_STORAGE_KEY = 'axaou_data_version'
 
 export const parseExperienceMode = (value: string | null): ExperienceMode | null => {
   if (value == null) return null
@@ -13,6 +14,52 @@ export const parseExperienceMode = (value: string | null): ExperienceMode | null
     return parsed === 'focused' || parsed === 'sideBySide' ? parsed : null
   } catch (_error) {
     return value === 'focused' || value === 'sideBySide' ? value : null
+  }
+}
+
+type ExperienceModeStorage = Pick<Storage, 'getItem' | 'setItem'>
+
+/**
+ * Resolve and persist the one-time browser-mode migration.
+ *
+ * A valid explicit preference always wins. Profiles with evidence of having
+ * used the pre-Focused browser retain Side by side, while genuinely fresh
+ * profiles start Focused. A malformed value or unavailable storage falls back
+ * to the old Side-by-side experience rather than surprising an existing user.
+ */
+export const loadInitialExperienceMode = (
+  storage: ExperienceModeStorage
+): ExperienceMode => {
+  try {
+    const savedValue = storage.getItem(EXPERIENCE_MODE_STORAGE_KEY)
+    const savedMode = parseExperienceMode(savedValue)
+    if (savedMode) return savedMode
+
+    const mode: ExperienceMode =
+      savedValue !== null || storage.getItem(EXISTING_PROFILE_STORAGE_KEY) !== null
+        ? 'sideBySide'
+        : 'focused'
+
+    storage.setItem(EXPERIENCE_MODE_STORAGE_KEY, JSON.stringify(mode))
+    return mode
+  } catch (_error) {
+    return 'sideBySide'
+  }
+}
+
+export const resolveExperienceModeForVisit = (
+  preference: ExperienceMode,
+  urlOverride: ExperienceMode | null | undefined
+): ExperienceMode => urlOverride ?? preference
+
+export const persistExperienceMode = (
+  storage: ExperienceModeStorage,
+  mode: ExperienceMode
+): void => {
+  try {
+    storage.setItem(EXPERIENCE_MODE_STORAGE_KEY, JSON.stringify(mode))
+  } catch (_error) {
+    // The in-memory choice still works when storage is unavailable.
   }
 }
 

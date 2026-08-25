@@ -28,7 +28,7 @@ import {
 
 export { buildStateUrl };
 
-export type NavMode = 'split' | 'full' | 'newTab';
+export type NavMode = 'split' | 'newTab';
 
 type NavigationUpdates = {
   geneId?: string | null;

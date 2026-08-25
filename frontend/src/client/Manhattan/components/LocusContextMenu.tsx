@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { buildCanonicalNavigationUrl } from '../../navigationUrl';
+import { useAppNavigation } from '../../hooks/useAppNavigation';
 
 export interface LocusContextMenuProps {
   /** X position in viewport */
@@ -25,6 +25,8 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
   position,
   onClose,
 }) => {
+  const { openInNewTab } = useAppNavigation();
+
   // Close on click outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -49,26 +51,19 @@ export const LocusContextMenu: React.FC<LocusContextMenuProps> = ({
     };
   }, [onClose]);
 
-  // Build locus URL with region ID (±500kb window) and hidden result layout
   const handleOpenInNewTab = useCallback(() => {
     const start = Math.max(0, position - 500000);
     const end = position + 500000;
-    const regionId = `${contig}-${start}-${end}`;
 
-    window.open(
-      buildCanonicalNavigationUrl(
-        window.location.href,
-        {
-          regionId,
-          activeSurface: 'details',
-          resultLayout: 'detail',
-        },
-        { preserveKeys: ['analysisId'] }
-      ),
-      '_blank'
+    openInNewTab(
+      {
+        regionId: `${contig}-${start}-${end}`,
+        resultLayout: 'detail',
+      },
+      { destination: 'details', preserveKeys: ['analysisId'] }
     );
     onClose();
-  }, [contig, position, onClose]);
+  }, [contig, position, onClose, openInNewTab]);
 
   // Copy coordinates to clipboard
   const handleCopyCoordinates = useCallback(() => {

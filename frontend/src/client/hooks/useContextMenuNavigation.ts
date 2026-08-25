@@ -6,10 +6,9 @@ import {
   regionIdAtom,
   ResultIndex,
 } from '../sharedState';
-import { useAppNavigation } from './useAppNavigation';
+import { NavMode, useAppNavigation } from './useAppNavigation';
 
 export type EntityType = 'locus' | 'gene' | 'phenotype' | 'variant';
-export type NavMode = 'split' | 'full' | 'newTab';
 
 // Special sentinel value to indicate we want to focus the gene page (clear regionId)
 export const FOCUS_LOCUS = '__FOCUS_LOCUS__' as const;
@@ -66,7 +65,6 @@ export function useContextMenuNavigation() {
 
       const presentation = {
         destination: isDetailsDestination ? ('details' as const) : ('results' as const),
-        resultsOnly: mode === 'full',
       };
 
       if (mode === 'newTab') {
