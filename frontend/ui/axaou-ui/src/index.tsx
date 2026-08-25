@@ -1,5 +1,6 @@
 export { useQuery } from './useQuery';
 export type { QueryState } from './useQuery';
+export { getQueryCacheDatabase, destroyQueryCacheDatabase } from './queryCache';
 
 export {
   LocusPlotTrack,

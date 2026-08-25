@@ -1,4 +1,4 @@
-import PouchDB from 'pouchdb';
+import { getQueryCacheDatabase } from '@axaou/ui';
 import { analysisIdAtom, ancestryGroupAtom, geneIdAtom, regionIdAtom, sequencingTypeAtom } from './sharedState';
 
 import axios from 'axios';
@@ -6,7 +6,7 @@ import {
   selector,
   selectorFamily
 } from 'recoil';
-import { axaouDevUrl, pouchDbName } from './Query';
+import { axaouDevUrl, cacheEnabled, pouchDbName } from './Query';
 import { AnalysisMetadata, AxouConfig, GeneSymbol, LoadedAnalysis, VariantAssociations } from './types';
 import { filterValidAnalyses, getAvailableAnalysisIds } from './utils';
 
@@ -28,29 +28,34 @@ async function fetchFromUrlWithCache<T>(base_url: string, params: Record<string,
   error?: string;
   isLoading: boolean;
 }> {
-  const db = new PouchDB(pouchDbName);
+  const db = cacheEnabled ? getQueryCacheDatabase(pouchDbName) : null;
   const queryString = Object.entries(params)
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
   const url = queryString ? `${base_url}?${queryString}` : base_url;
   let isLoading = true;
 
-  try {
-    const cached = await db.get<{ data: T }>(url);
-    return { data: cached.data, isLoading: false };
-  } catch {
+  if (db) {
     try {
-      const { data } = await axios.get<T>(url);
-      if (data) {
-        try {
-          await db.put({ _id: url, data });
-        } catch {
-        }
-      }
-      return { data, isLoading: false };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'An unknown error occurred', isLoading: false };
+      const cached = await db.get<{ data: T }>(url);
+      return { data: cached.data, isLoading: false };
+    } catch {
+      // Cache miss; continue to the API.
     }
+  }
+
+  try {
+    const { data } = await axios.get<T>(url);
+    if (data && db) {
+      try {
+        await db.put({ _id: url, data });
+      } catch {
+        // A cache write failure does not invalidate the network result.
+      }
+    }
+    return { data, isLoading: false };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'An unknown error occurred', isLoading: false };
   } finally {
     isLoading = false;
   }

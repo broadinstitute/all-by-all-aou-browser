@@ -2,6 +2,7 @@ import React from 'react'
 import { Route, Switch } from 'react-router-dom'
 import styled, { ThemeProvider, createGlobalStyle } from 'styled-components'
 import { useRecoilValue } from 'recoil'
+import { destroyQueryCacheDatabase } from '@axaou/ui'
 import { lightTheme, darkTheme } from './theme'
 import { themeModeAtom } from './sharedState'
 
@@ -25,7 +26,6 @@ import PipelineDashboard from './Admin/PipelineDashboard'
 import './App.css'
 import LogoutButton from './Logout'
 import { configQuery } from './queryStates'
-import PouchDB from 'pouchdb'
 import { pouchDbName } from './Query'
 
 const GlobalStyle = createGlobalStyle`
@@ -236,21 +236,33 @@ const App = ({ showLogout }: { showLogout: boolean }) => {
   const theme = effectiveThemeMode === 'light' ? lightTheme : darkTheme
   const configState = useRecoilValue(configQuery)
 
-  // Monitor data version and wipe PouchDB cache when it changes
+  // The stable cache name survives frontend rebuilds; backend data_version owns
+  // freshness. Destroy first, record the new version second, then reload so no
+  // live hook continues using a destroyed shared handle.
   React.useEffect(() => {
-    const data_version = configState.data?.data_version
-    if (data_version) {
-      const storedVersion = localStorage.getItem('axaou_data_version')
-      if (storedVersion && storedVersion !== data_version) {
-        // Version changed! Wipe the old cache to free up space.
-        const db = new PouchDB(pouchDbName)
-        db.destroy().then(() => {
-          localStorage.setItem('axaou_data_version', data_version)
-          window.location.reload() // Force a clean reload
-        })
-      } else if (!storedVersion) {
-        localStorage.setItem('axaou_data_version', data_version)
-      }
+    const dataVersion = configState.data?.data_version
+    if (!dataVersion) return
+
+    const storedVersion = localStorage.getItem('axaou_data_version')
+    if (!storedVersion) {
+      localStorage.setItem('axaou_data_version', dataVersion)
+      return
+    }
+    if (storedVersion === dataVersion) return
+
+    let cancelled = false
+    void destroyQueryCacheDatabase(pouchDbName)
+      .then(() => {
+        if (cancelled) return
+        localStorage.setItem('axaou_data_version', dataVersion)
+        window.location.reload()
+      })
+      .catch((error) => {
+        console.error('Failed to invalidate the local query cache', error)
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [configState.data?.data_version])
 

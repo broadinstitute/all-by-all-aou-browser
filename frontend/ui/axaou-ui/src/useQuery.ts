@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useState, useEffect } from 'react';
-import PouchDB from 'pouchdb';
+import { getQueryCacheDatabase } from './queryCache';
 
 interface Warning {
   item: string;
@@ -64,194 +64,40 @@ export function useQuery<T>({
       return acc;
     }, {} as { [K in keyof T]: QueryState<T[K]> })
   );
-  const db = new PouchDB(dbName);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setStates((prevStates) =>
-        queries.reduce(
-          (newStates, query) => ({
-            ...newStates,
-            [query.name]: {
-              ...prevStates[query.name as keyof T],
-              isLoading: true,
-              partiallyLoaded: query.queryMode === QueryMode.two_step,
-            },
-          }),
-          { ...prevStates }
-        )
-      );
-
-      const handleQuery = async (query: Query) => {
-        if (query.queryMode === QueryMode.two_step) {
-          await handleTwoStepQuery(query);
-        } else {
-          await handleSingleQuery(query);
-        }
-      };
-
-      try {
-        await Promise.all(
-          queries.map(async (query) => {
-            await handleQuery(query).catch(handleError(query.name));
-          })
-        );
-      } catch (err) {
-        // Handle unexpected errors if necessary
-      }
-    };
-
-    const handleSingleQuery = async (query: Query) => {
-      const separator = query.url.includes('?') ? '&' : '?';
-      const url = query.queryMode
-        ? `${query.url}${separator}query_mode=${query.queryMode}`
-        : `${query.url}`;
-
-      let data;
-
-      if (cacheEnabled) {
-        try {
-          const cachedEntry = await db.get(url);
-          // @ts-ignore
-          data = cachedEntry.data;
-          console.debug(`Cache hit for data: ${query.name}`);
-          updateState(query.name, data);
-          return;
-        } catch (cacheError) {
-          console.debug(`Did not get data from cache: ${query.name}`, cacheError);
-        }
-      }
-
-      try {
-        const response = await axios.get(url);
-        // Auto-unwrap LookupResult wrapper if present
-        data = response.data?.data !== undefined ? response.data.data : response.data;
-        updateState(query.name, data);
-        if (cacheEnabled) {
-          try {
-            await db.put({ _id: url, data });
-          } catch (cacheError) {
-            console.debug(`Failed to store data in cache: ${query.name}`, cacheError);
-          }
-        }
-      } catch (err) {
-        console.debug(`Error fetching data for query: ${query.name}`, err);
-        handleError(query.name)(err);
-      }
-    };
-
-    const handleTwoStepQuery = async (query: Query) => {
-      const separator = query.url.includes('?') ? '&' : '?';
-      const fastUrl = `${query.url}${separator}query_mode=fast`;
-      const slowUrl = `${query.url}${separator}query_mode=slow`;
-
-      let fastData: any = null;
-      let slowData: any = null;
-
-      // Attempt to retrieve cached fast data
-      if (cacheEnabled) {
-        try {
-          const cachedData = await db.get(fastUrl);
-          // @ts-ignore
-          fastData = cachedData.data;
-          updatePartialState(query.name, fastData, true);
-        } catch (error) {
-          console.debug(`Cache miss for fast data: ${query.name}`, error);
-          // Cache miss for fast data, will fetch from API
-        }
-      }
-
-      // If no cached fast data, fetch from API
-      if (fastData === null) {
-        try {
-          const response = await axios.get(fastUrl);
-          // Auto-unwrap LookupResult wrapper if present
-          fastData = response.data?.data !== undefined ? response.data.data : response.data;
-          console.debug(`Fetched fast data from API: ${query.name}`);
-          updatePartialState(query.name, fastData, true);
-          if (cacheEnabled) {
-            try {
-              await db.put({ _id: fastUrl, data: fastData });
-              console.debug(`Stored fast data in cache: ${query.name}`);
-            } catch (cacheError) {
-              console.error(`Failed to store fast data in cache: ${query.name}`, cacheError);
-              // Handle cache write error
-            }
-          }
-        } catch (err) {
-          handleError(query.name)(err);
-          return;
-        }
-      }
-
-      // Check if fastData is an array and empty
-      if (Array.isArray(fastData) && fastData.length <= (query.queryModeMinItems || 0)) {
-        // Attempt to retrieve cached slow data
-        if (cacheEnabled) {
-          try {
-            // @ts-ignore
-            const { data: slowData } = await db.get(slowUrl);
-            updateState(query.name, slowData);
-            return;
-          } catch (error) {
-            console.debug(`Cache miss for slow data: ${query.name}`, error);
-            // Cache miss for slow data, will fetch from API
-          }
-        }
-
-        // Fetch slow data from API
-        try {
-          const response = await axios.get(slowUrl);
-          // Auto-unwrap LookupResult wrapper if present
-          slowData = response.data?.data !== undefined ? response.data.data : response.data;
-          updateState(query.name, slowData);
-          if (cacheEnabled) {
-            try {
-              await db.put({ _id: slowUrl, data: slowData });
-            } catch {
-              // Handle cache write error
-            }
-          }
-        } catch (err) {
-          handleError(query.name)(err);
-        }
-      } else {
-        // Fast data is sufficient, no need to fetch slow data
-        setStates((prevState: any) => ({
-          ...prevState,
-          [query.name]: {
-            ...prevState[query.name],
-            isLoading: false,
-            partiallyLoaded: false,
-          },
-        }));
-      }
-    };
+    let cancelled = false;
+    const abortController = new AbortController();
+    const db = cacheEnabled ? getQueryCacheDatabase(dbName) : null;
 
     const updateState = (name: string, data: any) => {
+      if (cancelled) return;
       setStates((prevState: any) => ({
         ...prevState,
         [name]: {
           ...prevState[name],
           isLoading: false,
           partiallyLoaded: false,
-          data: data,
+          data,
         },
       }));
     };
 
     const updatePartialState = (name: string, data: any, partiallyLoaded: boolean) => {
+      if (cancelled) return;
       setStates((prevState: any) => ({
         ...prevState,
         [name]: {
           ...prevState[name],
-          data: data,
+          data,
           partiallyLoaded,
         },
       }));
     };
 
     const handleError = (name: string) => (err: any) => {
+      if (cancelled || axios.isCancel(err)) return;
+
       let error: string | null = null;
       let status: number | undefined;
       let response: any = null;
@@ -275,7 +121,164 @@ export function useQuery<T>({
       }));
     };
 
+    const handleSingleQuery = async (query: Query) => {
+      const separator = query.url.includes('?') ? '&' : '?';
+      const url = query.queryMode
+        ? `${query.url}${separator}query_mode=${query.queryMode}`
+        : query.url;
+
+      let data;
+
+      if (db) {
+        try {
+          const cachedEntry = await db.get(url);
+          if (cancelled) return;
+          // @ts-ignore
+          data = cachedEntry.data;
+          console.debug(`Cache hit for data: ${query.name}`);
+          updateState(query.name, data);
+          return;
+        } catch (cacheError) {
+          console.debug(`Did not get data from cache: ${query.name}`, cacheError);
+        }
+      }
+
+      if (cancelled) return;
+      try {
+        const response = await axios.get(url, { signal: abortController.signal });
+        if (cancelled) return;
+        // Auto-unwrap LookupResult wrapper if present
+        data = response.data?.data !== undefined ? response.data.data : response.data;
+        updateState(query.name, data);
+        if (db) {
+          try {
+            await db.put({ _id: url, data });
+          } catch (cacheError) {
+            console.debug(`Failed to store data in cache: ${query.name}`, cacheError);
+          }
+        }
+      } catch (err) {
+        console.debug(`Error fetching data for query: ${query.name}`, err);
+        handleError(query.name)(err);
+      }
+    };
+
+    const handleTwoStepQuery = async (query: Query) => {
+      const separator = query.url.includes('?') ? '&' : '?';
+      const fastUrl = `${query.url}${separator}query_mode=fast`;
+      const slowUrl = `${query.url}${separator}query_mode=slow`;
+
+      let fastData: any = null;
+      let slowData: any = null;
+
+      if (db) {
+        try {
+          const cachedData = await db.get(fastUrl);
+          if (cancelled) return;
+          // @ts-ignore
+          fastData = cachedData.data;
+          updatePartialState(query.name, fastData, true);
+        } catch (error) {
+          console.debug(`Cache miss for fast data: ${query.name}`, error);
+        }
+      }
+
+      if (fastData === null) {
+        if (cancelled) return;
+        try {
+          const response = await axios.get(fastUrl, { signal: abortController.signal });
+          if (cancelled) return;
+          fastData = response.data?.data !== undefined ? response.data.data : response.data;
+          console.debug(`Fetched fast data from API: ${query.name}`);
+          updatePartialState(query.name, fastData, true);
+          if (db) {
+            try {
+              await db.put({ _id: fastUrl, data: fastData });
+              console.debug(`Stored fast data in cache: ${query.name}`);
+            } catch (cacheError) {
+              console.error(`Failed to store fast data in cache: ${query.name}`, cacheError);
+            }
+          }
+        } catch (err) {
+          handleError(query.name)(err);
+          return;
+        }
+      }
+
+      if (cancelled) return;
+      if (Array.isArray(fastData) && fastData.length <= (query.queryModeMinItems || 0)) {
+        if (db) {
+          try {
+            const cachedSlowData = await db.get(slowUrl);
+            if (cancelled) return;
+            // @ts-ignore
+            slowData = cachedSlowData.data;
+            updateState(query.name, slowData);
+            return;
+          } catch (error) {
+            console.debug(`Cache miss for slow data: ${query.name}`, error);
+          }
+        }
+
+        if (cancelled) return;
+        try {
+          const response = await axios.get(slowUrl, { signal: abortController.signal });
+          if (cancelled) return;
+          slowData = response.data?.data !== undefined ? response.data.data : response.data;
+          updateState(query.name, slowData);
+          if (db) {
+            try {
+              await db.put({ _id: slowUrl, data: slowData });
+            } catch {
+              // A cache write failure does not invalidate the network result.
+            }
+          }
+        } catch (err) {
+          handleError(query.name)(err);
+        }
+      } else if (!cancelled) {
+        setStates((prevState: any) => ({
+          ...prevState,
+          [query.name]: {
+            ...prevState[query.name],
+            isLoading: false,
+            partiallyLoaded: false,
+          },
+        }));
+      }
+    };
+
+    const fetchData = async () => {
+      setStates((prevStates) =>
+        queries.reduce(
+          (newStates, query) => ({
+            ...newStates,
+            [query.name]: {
+              ...prevStates[query.name as keyof T],
+              isLoading: true,
+              partiallyLoaded: query.queryMode === QueryMode.two_step,
+            },
+          }),
+          { ...prevStates }
+        )
+      );
+
+      await Promise.all(
+        queries.map(async (query) => {
+          const queryPromise = query.queryMode === QueryMode.two_step
+            ? handleTwoStepQuery(query)
+            : handleSingleQuery(query);
+          await queryPromise.catch(handleError(query.name));
+        })
+      );
+    };
+
     void fetchData();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
@@ -293,4 +296,3 @@ export function useQuery<T>({
 
   return { queryStates: states, allLoading, anyLoading };
 }
-

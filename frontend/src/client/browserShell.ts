@@ -54,6 +54,30 @@ export const getResponsivePagePadding = (width?: number | null): number => {
   return Math.round(Math.min(100, Math.max(12, (width as number) * 0.04)))
 }
 
+export type BrowserSurface = 'results' | 'details'
+export type RetainedSurfaceMounts = Record<BrowserSurface, boolean>
+
+/**
+ * Retain Results after it has been shown, while mounting Details only when it
+ * is active. Thus a direct Details URL does not start hidden Results queries,
+ * Results -> Details -> Back keeps the original Results tree, and a hidden
+ * Details page cannot continue fetching as Results context changes.
+ */
+export const getRetainedSurfaceMounts = (
+  previous: RetainedSurfaceMounts,
+  activeSurface: BrowserSurface
+): RetainedSurfaceMounts => ({
+  results: previous.results || activeSurface === 'results',
+  details: activeSurface === 'details',
+})
+
+/** Native `hidden` is the accessibility fallback; `inert` also prevents focus. */
+export const getRetainedSurfaceVisibility = (active: boolean) => ({
+  hidden: !active,
+  ariaHidden: active ? undefined : true,
+  inert: !active,
+})
+
 export const getBackToResultsLabel = (resultIndex: ResultIndex): string => {
   if (resultIndex === 'gene-phewas') return 'Back to gene results'
   if (resultIndex === 'variant-phewas') return 'Back to variant results'

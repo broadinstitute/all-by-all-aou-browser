@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { Resizable } from 're-resizable'
 import { withSize } from 'react-sizeme'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
@@ -29,6 +29,8 @@ import {
   getDetailsContextLabel,
   getResponsiveBrowserShellRenderMode,
   getResponsivePagePadding,
+  getRetainedSurfaceMounts,
+  getRetainedSurfaceVisibility,
 } from './browserShell'
 import { useAppNavigation } from './hooks/useAppNavigation'
 
@@ -44,6 +46,43 @@ const SurfaceViewport = styled.div`
      surface non-scrolling puts the page scrollbar at the viewport edge rather
      than inset inside the results content padding. */
 `
+
+const RetainedSurface = styled.div`
+  width: 100%;
+  height: 100%;
+
+  &[hidden] {
+    display: none !important;
+  }
+`
+
+const KeepAliveSurface = ({
+  active,
+  mounted,
+  surface,
+  children,
+}: {
+  active: boolean
+  mounted: boolean
+  surface: 'results' | 'details'
+  children: ReactNode
+}) => {
+  if (!mounted) return null
+
+  const visibility = getRetainedSurfaceVisibility(active)
+  return (
+    <RetainedSurface
+      data-retained-browser-surface={surface}
+      hidden={visibility.hidden}
+      aria-hidden={visibility.ariaHidden}
+      ref={(node) => {
+        node?.toggleAttribute('inert', visibility.inert)
+      }}
+    >
+      {children}
+    </RetainedSurface>
+  )
+}
 
 export const ResultsSurface = ({ size }: { size: SurfaceSize }) => {
   const { resultIndex, variantId } = useGetActiveItems()
@@ -233,8 +272,15 @@ const ResizableItems = withSize({
       width: Math.max(0, (measuredWidth ?? 0) - pagePadding * 2),
       height: containerHeight,
     }
+    const retainedSurfaceMounts = useRef({ results: false, details: false })
 
     if (renderSingleSurface) {
+      const activeSingleSurface = shellRenderMode === 'results-only' ? 'results' : 'details'
+      retainedSurfaceMounts.current = getRetainedSurfaceMounts(
+        retainedSurfaceMounts.current,
+        activeSingleSurface
+      )
+
       return (
         <div
           data-browser-experience={experienceMode === 'focused' ? 'focused' : 'side-by-side'}
@@ -246,7 +292,11 @@ const ResizableItems = withSize({
             overflow: shellRenderMode === 'results-only' ? 'auto' : 'hidden',
           }}
         >
-          {shellRenderMode === 'results-only' ? (
+          <KeepAliveSurface
+            active={activeSingleSurface === 'results'}
+            mounted={retainedSurfaceMounts.current.results}
+            surface="results"
+          >
             <div
               style={{
                 boxSizing: 'border-box',
@@ -256,9 +306,14 @@ const ResizableItems = withSize({
             >
               <ResultsSurface size={resultsSurfaceSize} />
             </div>
-          ) : (
+          </KeepAliveSurface>
+          <KeepAliveSurface
+            active={activeSingleSurface === 'details'}
+            mounted={retainedSurfaceMounts.current.details}
+            surface="details"
+          >
             <DetailsSurface focused width={measuredWidth} />
-          )}
+          </KeepAliveSurface>
         </div>
       )
     }

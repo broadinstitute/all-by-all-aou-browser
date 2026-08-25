@@ -12,6 +12,8 @@ cd $PROJECT_DIR
 export PATH=$PATH:$PROJECT_DIR/node_modules/.bin
 
 export NODE_ENV=development
+# Match production's local query-cache behavior unless explicitly disabled.
+export CACHE_ENABLED=${CACHE_ENABLED:-true}
 
 DEFAULT_PYTHON_API_HOST=https://allbyall.researchallofus.org
 export PYTHON_API_HOST=${PYTHON_API_HOST:-$DEFAULT_PYTHON_API_HOST}

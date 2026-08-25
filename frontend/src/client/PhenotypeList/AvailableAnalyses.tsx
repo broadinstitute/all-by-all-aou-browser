@@ -30,7 +30,7 @@ const AvailableAnalyses: React.FC = () => {
       },
     ],
     deps: [],
-    cacheEnabled: true,
+    cacheEnabled,
   });
 
   const availableAnalysesState = queryStates.availableAnalyses;

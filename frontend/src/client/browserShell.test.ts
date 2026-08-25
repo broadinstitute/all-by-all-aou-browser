@@ -9,10 +9,12 @@ import {
   getDetailsContextLabel,
   getResponsiveBrowserShellRenderMode,
   getResponsivePagePadding,
+  getRetainedSurfaceMounts,
+  getRetainedSurfaceVisibility,
   shouldShowLayoutControls,
 } from './browserShell'
 
-test('Focused mounts exactly its active surface while Side by side honors its layout', () => {
+test('Focused selects its active surface while Side by side honors its layout', () => {
   assert.equal(getBrowserShellRenderMode('focused', 'results', 'split'), 'results-only')
   assert.equal(getBrowserShellRenderMode('focused', 'details', 'full'), 'details-only')
   assert.equal(getBrowserShellRenderMode('sideBySide', 'details', 'full'), 'results-only')
@@ -42,6 +44,40 @@ test('narrow containers temporarily use one active surface without changing layo
   assert.equal(shouldShowLayoutControls('sideBySide', 1099), false)
   assert.equal(shouldShowLayoutControls('sideBySide', 1100), true)
   assert.equal(shouldShowLayoutControls('focused', 1600), false)
+})
+
+test('single-surface Results stays mounted across Details and Back', () => {
+  let mounted = getRetainedSurfaceMounts(
+    { results: false, details: false },
+    'results'
+  )
+  assert.deepEqual(mounted, { results: true, details: false })
+
+  mounted = getRetainedSurfaceMounts(mounted, 'details')
+  assert.deepEqual(mounted, { results: true, details: true })
+
+  mounted = getRetainedSurfaceMounts(mounted, 'results')
+  assert.deepEqual(mounted, { results: true, details: false })
+})
+
+test('a direct Details visit does not eagerly mount hidden Results', () => {
+  assert.deepEqual(
+    getRetainedSurfaceMounts({ results: false, details: false }, 'details'),
+    { results: false, details: true }
+  )
+})
+
+test('inactive retained surfaces are hidden from layout, focus, and assistive tech', () => {
+  assert.deepEqual(getRetainedSurfaceVisibility(false), {
+    hidden: true,
+    ariaHidden: true,
+    inert: true,
+  })
+  assert.deepEqual(getRetainedSurfaceVisibility(true), {
+    hidden: false,
+    ariaHidden: undefined,
+    inert: false,
+  })
 })
 
 test('results gutters scale with measured available width', () => {
