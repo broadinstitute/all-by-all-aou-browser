@@ -8,6 +8,7 @@ ClickHouse database VMs for the axaou data store.
 |----------|---------|-----------|
 | `clickhouse-vm` | n2-highmem-8 (8 vCPUs, 64GB RAM) | 500GB SSD |
 | `axaou-clickhouse-1` | n2-highmem-8 (8 vCPUs, 64GB RAM) | 750GB SSD |
+| `axaou-clickhouse-2` | n2-highmem-8 (8 vCPUs, 64GB RAM) | 750GB SSD |
 
 ## Deploy
 
@@ -19,24 +20,25 @@ terraform apply
 
 ## Connect
 
-SSH tunnel for local access:
+SSH tunnel for current local development:
 ```bash
-# Original instance
-gcloud compute ssh --tunnel-through-iap clickhouse-vm -- -N -L 8123:127.0.0.1:8123 -L 9000:127.0.0.1:9000
+gcloud compute ssh --tunnel-through-iap axaou-clickhouse-2 -- -N -L 8123:127.0.0.1:8123 -L 9000:127.0.0.1:9000
 
-# Second instance (use different local ports)
+# Or, from the repository root:
+make tunnel-clickhouse
+```
+
+Use different local ports if connecting to another instance simultaneously:
+```bash
 gcloud compute ssh --tunnel-through-iap axaou-clickhouse-1 -- -N -L 8124:127.0.0.1:8123 -L 9001:127.0.0.1:9000
+gcloud compute ssh --tunnel-through-iap clickhouse-vm -- -N -L 8125:127.0.0.1:8123 -L 9002:127.0.0.1:9000
 ```
 
 Then connect:
 ```bash
-# HTTP interface
-curl http://localhost:8123/   # clickhouse-vm
-curl http://localhost:8124/   # axaou-clickhouse-1
+curl http://localhost:8123/   # axaou-clickhouse-2
 
-# CLI (on VM)
-gcloud compute ssh --tunnel-through-iap clickhouse-vm
-gcloud compute ssh --tunnel-through-iap axaou-clickhouse-1
+gcloud compute ssh --tunnel-through-iap axaou-clickhouse-2
 ch  # alias for clickhouse-client
 ```
 
@@ -50,6 +52,7 @@ Both instances share the same configuration:
 Data disk sizes:
 - `clickhouse-vm`: 500GB SSD
 - `axaou-clickhouse-1`: 750GB SSD
+- `axaou-clickhouse-2`: 750GB SSD
 
 ## Load Data
 

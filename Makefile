@@ -5,7 +5,7 @@
 
 GCP_PROJECT ?= aou-neale-gwas-browser
 GCP_ZONE ?= us-central1-a
-CLICKHOUSE_INSTANCE ?= axaou-clickhouse-1
+CLICKHOUSE_INSTANCE ?= axaou-clickhouse-2
 CLICKHOUSE_LOCAL_PORT ?= 8123
 CLICKHOUSE_NATIVE_LOCAL_PORT ?= 9000
 CLICKHOUSE_URL ?= http://localhost:$(CLICKHOUSE_LOCAL_PORT)
@@ -19,7 +19,7 @@ help:
 	@echo "Development:"
 	@echo "  dev           - Start frontend + backend (uses the configured/default API proxy)"
 	@echo "  dev-local     - Start frontend + backend wired to the local Rust API and ClickHouse"
-	@echo "  tunnel-clickhouse - Forward axaou-clickhouse-1 to local ports 8123/9000"
+	@echo "  tunnel-clickhouse - Forward axaou-clickhouse-2 to local ports 8123/9000"
 	@echo "  dev-all       - Start the ClickHouse tunnel plus both local servers"
 	@echo "  dev-backend   - Start only the Rust backend with hot reloading"
 	@echo "  dev-frontend  - Start only the frontend with HMR"

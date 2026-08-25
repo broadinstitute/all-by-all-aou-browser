@@ -8,7 +8,7 @@ Rust backend for the AxAoU browser.
 # Install dependencies
 make install
 
-# Start the axaou-clickhouse-1 tunnel plus frontend and backend
+# Start the axaou-clickhouse-2 tunnel plus frontend and backend
 make dev-all
 ```
 
@@ -50,11 +50,11 @@ gcloud compute ssh clickhouse-vm --zone=<your-zone>
 Forward ClickHouse to localhost for local development:
 
 ```bash
-# Forward the current ClickHouse instance (axaou-clickhouse-1)
+# Forward the current ClickHouse instance (axaou-clickhouse-2)
 make tunnel-clickhouse
 
 # Equivalent command
-gcloud compute ssh axaou-clickhouse-1 \
+gcloud compute ssh axaou-clickhouse-2 \
     --project aou-neale-gwas-browser \
     --zone us-central1-a \
     --tunnel-through-iap \
