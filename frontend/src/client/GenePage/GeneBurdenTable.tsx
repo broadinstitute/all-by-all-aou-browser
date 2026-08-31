@@ -12,10 +12,13 @@ import {
   greenThresholdColor,
   RoundedNumber,
   formatMacCount,
+  MAC_CASES_TOOLTIP,
+  MAC_CONTROLS_TOOLTIP,
+  MAC_TOTAL_TOOLTIP,
 } from '../PhenotypeList/Utils'
 import { GeneAssociations, AnalysisMetadata } from '../types'
 import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
-import { shouldShowMacCaseControlColumns } from '../geneAssociationSemantics'
+import { geneMacColumnMode } from '../geneAssociationSemantics'
 
 const Table = styled(BaseTable)`
   min-width: 325px;
@@ -124,7 +127,7 @@ export const GeneBurdenTable = ({
   setMembershipFilters,
 }: Props) => {
   const selectedMaf = useRecoilValue(locusMafAtom)
-  const showMacColumns = shouldShowMacCaseControlColumns(analysisMetadata?.trait_type)
+  const macColumnMode = geneMacColumnMode(analysisMetadata?.trait_type)
 
   // Prepare all rows sorted by annotation then MAF, keeping only one row per annotation
   // (deduplicate by annotation, keeping the first/most significant one)
@@ -166,11 +169,14 @@ export const GeneBurdenTable = ({
             <th scope='col'>P-value SKATO</th>
             <th scope='col'>P-value burden</th>
             <th scope='col'>P-value SKAT</th>
-            {showMacColumns && (
+            {macColumnMode === 'case-control' && (
               <>
-                <th scope='col'>MAC cases</th>
-                <th scope='col'>MAC controls</th>
+                <th scope='col' title={MAC_CASES_TOOLTIP}>MAC cases</th>
+                <th scope='col' title={MAC_CONTROLS_TOOLTIP}>MAC controls</th>
               </>
+            )}
+            {macColumnMode === 'total' && (
+              <th scope='col' title={MAC_TOTAL_TOOLTIP}>MAC total</th>
             )}
             {membershipFilters && <th scope='col'>Filter</th>}
           </tr>
@@ -189,12 +195,13 @@ export const GeneBurdenTable = ({
               <td>{renderPvalueCell(row.pvalue)}</td>
               <td>{renderPvalueCell(row.pvalue_burden)}</td>
               <td>{renderPvalueCell(row.pvalue_skat)}</td>
-              {showMacColumns && (
+              {macColumnMode === 'case-control' && (
                 <>
                   <td>{formatMacCount(row.mac_case)}</td>
                   <td>{formatMacCount(row.mac_control)}</td>
                 </>
               )}
+              {macColumnMode === 'total' && <td>{formatMacCount(row.mac)}</td>}
               {membershipFilters && (
                 <td>
                   <Checkbox
@@ -212,7 +219,7 @@ export const GeneBurdenTable = ({
           ))}
           {allRows.length === 0 && (
             <tr>
-              <td colSpan={4 + (showMacColumns ? 2 : 0) + (membershipFilters ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
+              <td colSpan={4 + (macColumnMode === 'case-control' ? 2 : macColumnMode === 'total' ? 1 : 0) + (membershipFilters ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--theme-text-muted, #666)' }}>
                 No burden test results available
               </td>
             </tr>

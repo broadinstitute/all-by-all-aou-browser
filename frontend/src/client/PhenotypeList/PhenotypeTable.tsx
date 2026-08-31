@@ -12,7 +12,10 @@ import {
   renderPvalueCell,
   renderExponentialNumberCell,
   renderCount,
-  formatMacCount,
+  formatMixedPhenotypeMacCount,
+  mixedPhenotypeMacCountForCsv,
+  MAC_CASES_TOOLTIP,
+  MAC_CONTROLS_TOOLTIP,
   renderBetaCell,
 } from './Utils'
 import { AnalysisMetadata, GenePhewasAnnotated, VariantAssociations } from '../types'
@@ -227,7 +230,16 @@ export const getPhenotypeColumns = ({
       },
     },
     {
-      key: 'sex',
+      key: 'trait_type',
+      displayId: 'trait_type',
+      heading: 'Trait type',
+      isRowHeader: true,
+      isSortable: true,
+      minWidth: 90,
+      grow: 0,
+    },
+    {
+      key: 'pheno_sex',
       displayId: 'sex',
       heading: 'Sex',
       isRowHeader: true,
@@ -238,6 +250,7 @@ export const getPhenotypeColumns = ({
         const text = row.pheno_sex === 'both_sexes' ? 'Both' : row.pheno_sex
         return text
       },
+      renderForCSV: (row: any) => row.pheno_sex,
     },
     {
       key: 'path',
@@ -252,6 +265,7 @@ export const getPhenotypeColumns = ({
           <Highlighter searchWords={highlightWords} textToHighlight={row.category || ''} />
         </DescriptionContainer>
       ),
+      renderForCSV: (row: any) => row.category,
     },
     {
       displayId: 'description_more',
@@ -350,21 +364,23 @@ export const getPhenotypeColumns = ({
       key: 'mac_case',
       displayId: 'mac_case',
       heading: 'MAC cases',
+      tooltip: MAC_CASES_TOOLTIP,
       grow: 0,
       isSortable: true,
       minWidth: 90,
-      render: (row: any) => formatMacCount(row.mac_case),
-      renderForCSV: (row: any) => formatMacCount(row.mac_case),
+      render: (row: any) => formatMixedPhenotypeMacCount(row.mac_case, row.trait_type),
+      renderForCSV: (row: any) => mixedPhenotypeMacCountForCsv(row.mac_case, row.trait_type),
     },
     {
       key: 'mac_control',
       displayId: 'mac_control',
       heading: 'MAC controls',
+      tooltip: MAC_CONTROLS_TOOLTIP,
       grow: 0,
       isSortable: true,
       minWidth: 100,
-      render: (row: any) => formatMacCount(row.mac_control),
-      renderForCSV: (row: any) => formatMacCount(row.mac_control),
+      render: (row: any) => formatMixedPhenotypeMacCount(row.mac_control, row.trait_type),
+      renderForCSV: (row: any) => mixedPhenotypeMacCountForCsv(row.mac_control, row.trait_type),
     },
     {
       key: 'n_cases',

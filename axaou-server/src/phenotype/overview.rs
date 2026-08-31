@@ -5,7 +5,9 @@
 
 use crate::api::AppState;
 use crate::error::AppError;
-use crate::phenotype::manhattan::{compute_neg_log10_p, fetch_peak_annotations, BurdenResult, GeneInLocus, Peak};
+use crate::phenotype::manhattan::{
+    compute_neg_log10_p, fetch_peak_annotations, BurdenResult, GeneInLocus, Peak,
+};
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -102,9 +104,13 @@ struct SignificantBurdenRow {
     pub contig: String,
     pub gene_start_position: i32,
     pub annotation: String,
+    pub max_maf: f64,
     pub pvalue: Option<f64>,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
+    pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
 }
 
 /// Convert Peak to UnifiedLocus with genome evidence
@@ -167,22 +173,22 @@ fn peak_to_unified_locus(peak: &Peak, source: &str) -> UnifiedLocus {
 }
 
 /// Merge gene from another source into existing gene list
-fn merge_gene(
-    existing_genes: &mut Vec<UnifiedGene>,
-    new_gene: &GeneInLocus,
-    source: &str,
-) {
-    let coding_hits = if new_gene.lof_count.unwrap_or(0) > 0 || new_gene.missense_count.unwrap_or(0) > 0 {
-        Some(UnifiedCodingHits {
-            lof: new_gene.lof_count.unwrap_or(0),
-            missense: new_gene.missense_count.unwrap_or(0),
-        })
-    } else {
-        None
-    };
+fn merge_gene(existing_genes: &mut Vec<UnifiedGene>, new_gene: &GeneInLocus, source: &str) {
+    let coding_hits =
+        if new_gene.lof_count.unwrap_or(0) > 0 || new_gene.missense_count.unwrap_or(0) > 0 {
+            Some(UnifiedCodingHits {
+                lof: new_gene.lof_count.unwrap_or(0),
+                missense: new_gene.missense_count.unwrap_or(0),
+            })
+        } else {
+            None
+        };
 
     // Try to find existing gene
-    if let Some(existing) = existing_genes.iter_mut().find(|g| g.gene_id == new_gene.gene_id) {
+    if let Some(existing) = existing_genes
+        .iter_mut()
+        .find(|g| g.gene_id == new_gene.gene_id)
+    {
         // Merge coding hits based on source
         if source == "genome" && coding_hits.is_some() {
             existing.genome_coding_hits = coding_hits;
@@ -202,7 +208,11 @@ fn merge_gene(
 
         // Merge burden results
         for br in &new_gene.burden_results {
-            if !existing.burden_results.iter().any(|b| b.annotation == br.annotation) {
+            if !existing
+                .burden_results
+                .iter()
+                .any(|b| b.annotation == br.annotation && b.max_maf == br.max_maf)
+            {
                 existing.burden_results.push(br.clone());
             }
         }
@@ -212,7 +222,11 @@ fn merge_gene(
             gene_symbol: new_gene.gene_symbol.clone(),
             gene_id: new_gene.gene_id.clone(),
             distance_kb: new_gene.distance_kb,
-            genome_coding_hits: if source == "genome" { coding_hits.clone() } else { None },
+            genome_coding_hits: if source == "genome" {
+                coding_hits.clone()
+            } else {
+                None
+            },
             exome_coding_hits: if source == "exome" { coding_hits } else { None },
             best_coding_csq: new_gene.best_coding_csq.clone(),
             best_coding_hgvsp: new_gene.best_coding_hgvsp.clone(),
@@ -241,13 +255,18 @@ pub async fn get_phenotype_overview(
     let data_version = params.v.as_deref().unwrap_or("");
 
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-{}-overview-v2", analysis_id, ancestry, data_version);
+    let cache_key = format!("{}-{}-{}-overview-v3", analysis_id, ancestry, data_version);
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for overview: {}", cache_key);
-        let response: UnifiedOverviewResponse = serde_json::from_slice(&cached_bytes)
-            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overview: {}", e)))?;
+        let response: UnifiedOverviewResponse =
+            serde_json::from_slice(&cached_bytes).map_err(|e| {
+                AppError::DataTransformError(format!(
+                    "Failed to deserialize cached overview: {}",
+                    e
+                ))
+            })?;
         return Ok(Json(response));
     }
 
@@ -258,13 +277,24 @@ pub async fn get_phenotype_overview(
     let burden_query = r#"
         SELECT
             gene_id, gene_symbol, contig, gene_start_position, annotation,
-            pvalue, pvalue_burden, pvalue_skat
+            max_maf, pvalue, pvalue_burden, pvalue_skat, mac, mac_case, mac_control
         FROM gene_associations
         WHERE phenotype = ?
           AND ancestry = ?
           AND annotation IN ('pLoF', 'missenseLC', 'synonymous')
           AND (pvalue < ? OR pvalue_burden < ? OR pvalue_skat < ?)
-        ORDER BY pvalue ASC
+        ORDER BY
+            gene_id,
+            annotation,
+            least(ifNull(pvalue, 2.0), ifNull(pvalue_burden, 2.0), ifNull(pvalue_skat, 2.0)) ASC,
+            max_maf ASC,
+            ifNull(pvalue, 2.0) ASC,
+            ifNull(pvalue_burden, 2.0) ASC,
+            ifNull(pvalue_skat, 2.0) ASC,
+            ifNull(mac, -1) ASC,
+            ifNull(mac_case, -1) ASC,
+            ifNull(mac_control, -1) ASC
+        LIMIT 1 BY gene_id, annotation
     "#;
 
     let (genome_peaks, exome_peaks, burden_rows) = tokio::join!(
@@ -325,7 +355,10 @@ pub async fn get_phenotype_overview(
         if let Some(existing) = loci_map.get_mut(&key) {
             // Update exome p-value if lower (or if genome didn't have one)
             if existing.pvalue_exome.is_none()
-                || existing.pvalue_exome.map(|p| p > peak.pvalue).unwrap_or(true)
+                || existing
+                    .pvalue_exome
+                    .map(|p| p > peak.pvalue)
+                    .unwrap_or(true)
             {
                 existing.pvalue_exome = Some(peak.pvalue);
             }
@@ -346,7 +379,10 @@ pub async fn get_phenotype_overview(
     // Group by gene first to get all annotations for each gene
     let mut gene_burden_map: HashMap<String, Vec<&SignificantBurdenRow>> = HashMap::new();
     for row in &burden_rows {
-        gene_burden_map.entry(row.gene_id.clone()).or_default().push(row);
+        gene_burden_map
+            .entry(row.gene_id.clone())
+            .or_default()
+            .push(row);
     }
 
     for (gene_id, rows) in gene_burden_map {
@@ -357,6 +393,10 @@ pub async fn get_phenotype_overview(
             .iter()
             .map(|r| BurdenResult {
                 annotation: r.annotation.clone(),
+                max_maf: r.max_maf,
+                mac: r.mac,
+                mac_case: r.mac_case,
+                mac_control: r.mac_control,
                 pvalue: r.pvalue,
                 pvalue_neg_log10: compute_neg_log10_p(r.pvalue),
                 pvalue_burden: r.pvalue_burden,
@@ -381,7 +421,11 @@ pub async fn get_phenotype_overview(
             let existing = loci_map.get_mut(&key).unwrap();
             if let Some(gene) = existing.genes.iter_mut().find(|g| g.gene_id == gene_id) {
                 for br in burden_results {
-                    if !gene.burden_results.iter().any(|b| b.annotation == br.annotation) {
+                    if !gene
+                        .burden_results
+                        .iter()
+                        .any(|b| b.annotation == br.annotation && b.max_maf == br.max_maf)
+                    {
                         gene.burden_results.push(br);
                     }
                 }
@@ -424,9 +468,17 @@ pub async fn get_phenotype_overview(
     // Convert to sorted vec (by best p-value)
     let mut unified_loci: Vec<UnifiedLocus> = loci_map.into_values().collect();
     unified_loci.sort_by(|a, b| {
-        let best_a = a.pvalue_genome.unwrap_or(f64::MAX).min(a.pvalue_exome.unwrap_or(f64::MAX));
-        let best_b = b.pvalue_genome.unwrap_or(f64::MAX).min(b.pvalue_exome.unwrap_or(f64::MAX));
-        best_a.partial_cmp(&best_b).unwrap_or(std::cmp::Ordering::Equal)
+        let best_a = a
+            .pvalue_genome
+            .unwrap_or(f64::MAX)
+            .min(a.pvalue_exome.unwrap_or(f64::MAX));
+        let best_b = b
+            .pvalue_genome
+            .unwrap_or(f64::MAX)
+            .min(b.pvalue_exome.unwrap_or(f64::MAX));
+        best_a
+            .partial_cmp(&best_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     // Construct image URLs

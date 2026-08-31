@@ -11,7 +11,9 @@ import {
   geneBetaForAncestry,
   geneBurdenDirection,
   type BurdenDirection,
+  type GeneMacColumnMode,
 } from '../geneAssociationSemantics';
+import { formatMacCount } from './Utils';
 
 const Container = styled.div`
   width: 100%;
@@ -189,6 +191,9 @@ interface GeneAssociationResult {
   pvalue_skat: number | null;
   beta_burden: number | null;
   burden_direction: BurdenDirection | null;
+  mac?: number | null;
+  mac_case?: number | null;
+  mac_control?: number | null;
 }
 
 const ANNOTATIONS = ['pLoF', 'missenseLC', 'synonymous'] as const;
@@ -212,6 +217,7 @@ const SIG_THRESHOLD = 2.5e-6;
 
 interface Props {
   analysisId: string;
+  macColumnMode: GeneMacColumnMode;
   maxMaf?: number; // Optional - heatmap shows all MAFs, but could be used for highlighting
 }
 
@@ -226,6 +232,9 @@ interface GeneRow {
     pvalue: number | null;
     beta: number | null;
     direction: BurdenDirection | null;
+    mac?: number | null;
+    mac_case?: number | null;
+    mac_control?: number | null;
   }>;
   minPvalue: number;
   significantCount: number;
@@ -238,7 +247,7 @@ interface Column {
   label: string;
 }
 
-export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
+export const GeneBurdenComposite: React.FC<Props> = ({ analysisId, macColumnMode }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const { goToGene } = useAppNavigation();
 
@@ -334,6 +343,9 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
             gene.burden_direction,
             gene.beta_burden
           ),
+          mac: gene.mac,
+          mac_case: gene.mac_case,
+          mac_control: gene.mac_control,
         };
 
         if (gene.pvalue != null) {
@@ -559,6 +571,30 @@ export const GeneBurdenComposite: React.FC<Props> = ({ analysisId }) => {
               <span style={{ color: 'var(--theme-text-muted, #666)' }}>Beta: </span>
               <span style={{ fontFamily: 'monospace' }}>
                 {hoveredCell.gene.values[hoveredCell.column.key]?.beta?.toFixed(3)}
+              </span>
+            </div>
+          )}
+          {macColumnMode === 'case-control' && (
+            <>
+              <div>
+                <span style={{ color: 'var(--theme-text-muted, #666)' }}>MAC cases: </span>
+                <span style={{ fontFamily: 'monospace' }}>
+                  {formatMacCount(hoveredCell.gene.values[hoveredCell.column.key]?.mac_case)}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--theme-text-muted, #666)' }}>MAC controls: </span>
+                <span style={{ fontFamily: 'monospace' }}>
+                  {formatMacCount(hoveredCell.gene.values[hoveredCell.column.key]?.mac_control)}
+                </span>
+              </div>
+            </>
+          )}
+          {macColumnMode === 'total' && (
+            <div>
+              <span style={{ color: 'var(--theme-text-muted, #666)' }}>MAC total: </span>
+              <span style={{ fontFamily: 'monospace' }}>
+                {formatMacCount(hoveredCell.gene.values[hoveredCell.column.key]?.mac)}
               </span>
             </div>
           )}

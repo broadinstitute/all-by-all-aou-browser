@@ -5,6 +5,7 @@ import React from 'react'
 import styled from 'styled-components'
 
 import { ColorMarker } from '../UserInterface'
+import { isContinuousTrait } from '../geneAssociationSemantics'
 
 export const P_VALUE_BURDEN = 'pValueBurden'
 export const P_VALUE_SKAT = 'pValueSkat'
@@ -216,8 +217,31 @@ export const renderNumberCell = (row: any, key: any) => {
   return truncated
 }
 
+export const MAC_CASES_TOOLTIP =
+  'Minor allele count among cases for binary traits. Continuous traits are not divided into cases and controls.'
+export const MAC_CONTROLS_TOOLTIP =
+  'Minor allele count among controls for binary traits. Continuous traits are not divided into cases and controls.'
+export const MAC_TOTAL_TOOLTIP =
+  'Total minor allele count across the analyzed sample for a continuous trait.'
+
 export const formatMacCount = (value: number | null | undefined) =>
   value === null || value === undefined ? '\u2013' : Math.floor(value).toLocaleString()
+
+/** Preserve numeric CSV cells (including zero) instead of locale-formatted text. */
+export const macCountForCsv = (value: number | null | undefined): number | '' =>
+  value === null || value === undefined ? '' : Math.floor(value)
+
+/** Mixed PheWAS tables keep split columns for binary rows, but mark those
+ * concepts explicitly inapplicable for continuous rows. */
+export const formatMixedPhenotypeMacCount = (
+  value: number | null | undefined,
+  traitType: string | null | undefined
+) => isContinuousTrait(traitType) ? 'N/A' : formatMacCount(value)
+
+export const mixedPhenotypeMacCountForCsv = (
+  value: number | null | undefined,
+  traitType: string | null | undefined
+): number | '' | 'N/A' => isContinuousTrait(traitType) ? 'N/A' : macCountForCsv(value)
 
 export const CountCell = styled.span`
   overflow: hidden;

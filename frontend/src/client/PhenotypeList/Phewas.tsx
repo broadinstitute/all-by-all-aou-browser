@@ -824,12 +824,21 @@ const Phewas = ({
                   data={renderedPhenotypes}
                   columns={[
                     ...columns,
-                    {
-                      key: 'analysis_id',
-                      heading: 'analysis_id',
-                      displayId: 'analysis_id',
-                      isRowHeader: true,
-                    },
+                    ...[
+                      { key: 'phenocode', heading: 'Phenotype', displayId: 'phenotype' },
+                      { key: 'trait_type', heading: 'Trait type', displayId: 'trait_type' },
+                      { key: 'pheno_sex', heading: 'Sex', displayId: 'sex' },
+                      { key: 'category', heading: 'Category', displayId: 'category' },
+                      {
+                        key: 'analysis_id',
+                        heading: 'analysis_id',
+                        displayId: 'analysis_id',
+                        isRowHeader: true,
+                      },
+                    ].filter(
+                      (exportColumn) =>
+                        !columns.some((column: any) => column.displayId === exportColumn.displayId)
+                    ),
                   ]}
                   enableExport={enableExport}
                 />

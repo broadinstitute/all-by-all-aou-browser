@@ -58,6 +58,12 @@ export interface SignificantHit {
 export interface BurdenResult {
   /** Annotation category (e.g., "pLoF", "missenseLC", "synonymous") */
   annotation: string;
+  /** Exact maximum MAF mask for this result row */
+  max_maf: number;
+  /** Minor allele counts for this exact gene/annotation/MAF row */
+  mac: number | null;
+  mac_case: number | null;
+  mac_control: number | null;
   /** SKAT-O p-value (combined test) */
   pvalue?: number;
   /** -log10(pvalue) for SKAT-O */

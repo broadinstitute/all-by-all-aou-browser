@@ -13,7 +13,7 @@ import {
   geneIdAtom,
 } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
-import { hasGeneEffectEstimate } from '../geneAssociationSemantics'
+import { geneMacColumnMode, hasGeneEffectEstimate } from '../geneAssociationSemantics'
 import { TinySpinner } from '../UserInterface'
 import {
   gwasCatalogOptionsAtom,
@@ -635,6 +635,11 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     )
   }
 
+  const regionMacColumnMode = geneMacColumnMode(analysisMetadata?.trait_type)
+  const regionMacColumns = regionMacColumnMode === 'case-control'
+    ? ['mac_case', 'mac_control']
+    : regionMacColumnMode === 'total' ? ['mac_total'] : []
+
   const geneResultsColKeys = [
     'gene_name_phenotype_page',
     // 'chrom',
@@ -644,6 +649,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
     'pvalue',
     'pvalue_skat',
     'pvalue_burden',
+    ...regionMacColumns,
     ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : ['burden_direction']),
     'show',
   ]
@@ -654,6 +660,12 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
 
   const geneResultsColumns = getColumns({
     columnList: geneResultsColKeys,
+    onClickGeneId: handleGeneClick,
+    burdenSet: "pLoF",
+  })
+
+  const geneResultsExportColumns = getColumns({
+    columnList: geneResultsColKeys.filter((key) => key !== 'show'),
     onClickGeneId: handleGeneClick,
     burdenSet: "pLoF",
   })
@@ -821,7 +833,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
                       (a.pvalue ?? 1) - (b.pvalue ?? 1)
                     )
                   })()}
-                  exportColumns={["gene_id"]}
+                  exportColumns={geneResultsExportColumns}
                   analysisId={analysisMetadata?.analysis_id || ""}
                   burdenSet='pLoF'
                   highlightText=''

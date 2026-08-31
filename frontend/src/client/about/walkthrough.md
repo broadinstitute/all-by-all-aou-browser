@@ -60,6 +60,8 @@ For genes, a quantile-quantile (QQ) plot is also provided to help visualize the 
 
 Below the plots, there is a detailed tabular display of associations. Each row corresponds to a gene or variant and includes p-values and other relevant metrics. Effect estimates (betas) are shown only where they are available and scientifically interpretable.
 
+Gene burden tables also report minor allele count (MAC) in a trait-aware form. Binary traits show **MAC cases** and **MAC controls**. Continuous traits have no case/control split, so pages scoped to one continuous phenotype show the existing aggregate count as **MAC total**. Mixed-phenotype PheWAS tables retain the split columns so binary rows remain comparable and display **N/A** for continuous rows. A dash means a count that applies to that trait is unavailable; zero is displayed as `0`.
+
 ### Genome-wide burden results
 
 For gene-level associations, three burden test types are provided and displayed as separate columns in the table. The burden test types available include:
@@ -204,6 +206,9 @@ Brief descriptions about each of the results included in the All by All browser 
 | P-value (SKAT) | Output p-value from a sequence kernel association test, often used for rare variant analysis |
 | P-value (SKAT-O) | Output p-value from an optimized version of SKAT that combines burden and SKAT tests for greater power |
 | Beta | Only available for burden tests; represents the direction of association between the gene and phenotype of interest. The magnitude is not readily interpretable given the weights applied in association testing |
+| MAC cases | Minor allele count among cases for a binary trait |
+| MAC controls | Minor allele count among controls for a binary trait |
+| MAC total | Total minor allele count across the analyzed sample for a continuous trait |
 
 ### Single variant associations
 

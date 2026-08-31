@@ -8,13 +8,30 @@ export type BurdenDirection = 'negative' | 'zero' | 'positive'
 export const hasGeneEffectEstimate = (ancestry: string): boolean =>
   ancestry.toLowerCase() !== 'meta'
 
+export type GeneMacColumnMode = 'case-control' | 'total' | 'none'
+
 /**
- * Case/control MAC is meaningful only for binary phenotypes. Mixed tables keep
- * the columns so binary rows remain comparable; selected continuous pages do not.
+ * Select the scientifically meaningful MAC representation for a page scoped to
+ * one phenotype. API metadata uses binary/continuous; older payloads may call
+ * binary traits categorical. Unknown values deliberately fail closed.
  */
+export const geneMacColumnMode = (
+  traitType: string | null | undefined
+): GeneMacColumnMode => {
+  const normalizedTraitType = traitType?.trim().toLowerCase()
+  if (normalizedTraitType === 'binary' || normalizedTraitType === 'categorical') {
+    return 'case-control'
+  }
+  if (normalizedTraitType === 'continuous') return 'total'
+  return 'none'
+}
+
 export const shouldShowMacCaseControlColumns = (
   traitType: string | null | undefined
-): boolean => traitType?.toLowerCase() !== 'continuous'
+): boolean => geneMacColumnMode(traitType) === 'case-control'
+
+export const isContinuousTrait = (traitType: string | null | undefined): boolean =>
+  geneMacColumnMode(traitType) === 'total'
 
 export const geneBetaForAncestry = (
   ancestry: string,

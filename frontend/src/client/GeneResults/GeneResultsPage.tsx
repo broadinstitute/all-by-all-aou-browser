@@ -19,7 +19,7 @@ import { AxaouConfig } from '../types'
 import { GeneAssociations, AnalysisMetadata } from '../types'
 import { processGeneBurden } from '../utils'
 import { useAppNavigation } from '../hooks/useAppNavigation'
-import { hasGeneEffectEstimate, shouldShowMacCaseControlColumns } from '../geneAssociationSemantics'
+import { geneMacColumnMode, hasGeneEffectEstimate } from '../geneAssociationSemantics'
 
 const ResultsSection = styled.div`
   width: 100%;
@@ -182,16 +182,17 @@ const GeneResultsPage: React.FC<{ size: { width: number; height: number } }> = (
 
   // }
 
-  const showMacColumns = shouldShowMacCaseControlColumns(
-    queryStates.analysisMetadata.data[0]?.trait_type
-  )
+  const macColumnMode = geneMacColumnMode(queryStates.analysisMetadata.data[0]?.trait_type)
+  const macColumns = macColumnMode === 'case-control'
+    ? ['mac_case', 'mac_control']
+    : macColumnMode === 'total' ? ['mac_total'] : []
 
   const baseColumns = [
     'gene_name_phenotype_page',
     // 'chrom',
     // 'position',
     'pvalue',
-    ...(showMacColumns ? ['mac_case', 'mac_control'] : []),
+    ...macColumns,
     ...(hasGeneEffectEstimate(ancestryGroup) ? ['beta_burden'] : ['burden_direction']),
     'show',
   ]

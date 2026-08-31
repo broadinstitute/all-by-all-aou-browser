@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PeakLabelNode } from '../hooks/usePeakLabelLayout';
 import type { BurdenResult, GeneInLocus } from '../types';
+import { formatMacCount, MAC_CASES_TOOLTIP, MAC_CONTROLS_TOOLTIP } from '../../PhenotypeList/Utils';
 
 interface PeakTooltipProps {
   node: PeakLabelNode;
@@ -55,6 +56,26 @@ const formatPvalue = (p: number | undefined, negLog10P?: number): string => {
   if (p < 1e-100) return '< 1e-100';
   if (p < 0.001) return p.toExponential(2);
   return p.toPrecision(3);
+};
+
+const formatMaf = (maf: number): string => `${(maf * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+
+const MacCell: React.FC<{ result: BurdenResult }> = ({ result }) => {
+  const hasCaseMac = result.mac_case != null;
+  const hasControlMac = result.mac_control != null;
+
+  return (
+    <td style={{ textAlign: 'right', padding: '3px 6px', whiteSpace: 'nowrap' }}>
+      {(hasCaseMac || hasControlMac) ? (
+        <>
+          <div title={MAC_CASES_TOOLTIP}>Cases: {formatMacCount(result.mac_case)}</div>
+          <div title={MAC_CONTROLS_TOOLTIP}>Controls: {formatMacCount(result.mac_control)}</div>
+        </>
+      ) : (
+        <div title="Aggregate minor allele count for this exact burden result row">Aggregate: {formatMacCount(result.mac)}</div>
+      )}
+    </td>
+  );
 };
 
 /**
@@ -241,6 +262,9 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
             </div>
             {burdenGenes.slice(0, 4).map((gene, i) => {
               const sigBurdenResults = gene.burden_results!.filter(isBurdenSignificant);
+              const hasMac = sigBurdenResults.some(result =>
+                result.mac != null || result.mac_case != null || result.mac_control != null
+              );
               return (
                 <div key={gene.gene_id || i} style={{ marginBottom: i < Math.min(burdenGenes.length, 4) - 1 ? 8 : 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
@@ -255,6 +279,8 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                     <thead>
                       <tr>
                         <th style={thLeftStyle}>Annotation</th>
+                        <th style={thStyle}>Max MAF</th>
+                        {hasMac && <th style={thStyle}>MAC</th>}
                         <th style={thStyle}>SKAT-O</th>
                         <th style={thStyle}>Burden</th>
                         <th style={thStyle}>SKAT</th>
@@ -263,12 +289,16 @@ export const PeakTooltip: React.FC<PeakTooltipProps> = ({ node, x, y, containerW
                     <tbody>
                       {sigBurdenResults.map((result) => (
                         <tr
-                          key={result.annotation}
+                          key={`${result.annotation}-${result.max_maf}`}
                           style={{ backgroundColor: result.annotation === 'pLoF' ? 'rgba(198,40,40,0.06)' : result.annotation === 'missenseLC' ? 'rgba(249,168,37,0.08)' : undefined }}
                         >
                           <td style={{ padding: '3px 6px', fontWeight: 600, color: result.annotation === 'pLoF' ? '#c62828' : result.annotation === 'missenseLC' ? '#e68a00' : '#444' }}>
                             {formatAnnotation(result.annotation)}
                           </td>
+                          <td style={{ textAlign: 'right', padding: '3px 6px', whiteSpace: 'nowrap' }}>
+                            {formatMaf(result.max_maf)}
+                          </td>
+                          {hasMac && <MacCell result={result} />}
                           <PvalueCell value={result.pvalue} negLog10P={result.pvalue_neg_log10} annotation={result.annotation} />
                           <PvalueCell value={result.pvalue_burden} negLog10P={result.pvalue_burden_neg_log10} annotation={result.annotation} />
                           <PvalueCell value={result.pvalue_skat} negLog10P={result.pvalue_skat_neg_log10} annotation={result.annotation} />

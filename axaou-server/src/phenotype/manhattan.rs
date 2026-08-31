@@ -66,10 +66,15 @@ struct SignificantGeneRow {
     pub gene_symbol: String,
     pub contig: String,
     pub position: i32,
+    pub annotation: String,
+    pub max_maf: f64,
     pub pvalue: f64,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
     pub beta_burden: Option<f64>,
+    pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
 }
 
 /// Peak gene row from ClickHouse for peak annotations
@@ -104,9 +109,13 @@ struct PeakGeneRow {
 struct BurdenRow {
     pub gene_id: String,
     pub annotation: String,
+    pub max_maf: f64,
     pub pvalue: Option<f64>,
     pub pvalue_burden: Option<f64>,
     pub pvalue_skat: Option<f64>,
+    pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
 }
 
 /// Compute -log10(p) with cap for underflowed values
@@ -129,8 +138,16 @@ pub fn compute_neg_log10_p(p: Option<f64>) -> Option<f64> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BurdenResult {
     pub annotation: String,
+    /// The exact maximum MAF mask for this result row.
+    pub max_maf: f64,
+    /// Minor allele counts from this exact gene/annotation/MAF row. Continuous
+    /// traits use the total; binary traits may additionally provide a split.
+    /// Zero is a meaningful observed count.
+    pub mac: Option<i64>,
+    pub mac_case: Option<i64>,
+    pub mac_control: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pvalue: Option<f64>,  // SKAT-O p-value
+    pub pvalue: Option<f64>, // SKAT-O p-value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvalue_neg_log10: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -342,7 +359,10 @@ pub async fn get_manhattan_image(
     let data_version = params.v.as_deref().unwrap_or("");
 
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-{}-{}-{}-image", analysis_id, ancestry, plot_type, contig, data_version);
+    let cache_key = format!(
+        "{}-{}-{}-{}-{}-image",
+        analysis_id, ancestry, plot_type, contig, data_version
+    );
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
@@ -376,9 +396,8 @@ pub async fn get_manhattan_image(
     }
 
     // Parse the GCS URI
-    let (bucket, path) = parse_gcs_uri(&gcs_uri).ok_or_else(|| {
-        AppError::DataTransformError(format!("Invalid GCS URI: {}", gcs_uri))
-    })?;
+    let (bucket, path) = parse_gcs_uri(&gcs_uri)
+        .ok_or_else(|| AppError::DataTransformError(format!("Invalid GCS URI: {}", gcs_uri)))?;
 
     // Create GCS client for this bucket
     let store = GoogleCloudStorageBuilder::new()
@@ -394,12 +413,16 @@ pub async fn get_manhattan_image(
         .map_err(|e| AppError::DataTransformError(format!("Failed to fetch from GCS: {}", e)))?;
 
     // Read all bytes for caching
-    let bytes = result.bytes().await
-        .map_err(|e| AppError::DataTransformError(format!("Failed to read bytes from GCS: {}", e)))?;
+    let bytes = result.bytes().await.map_err(|e| {
+        AppError::DataTransformError(format!("Failed to read bytes from GCS: {}", e))
+    })?;
     let bytes_vec = bytes.to_vec();
 
     // Cache the bytes
-    state.api_cache.insert(cache_key.clone(), bytes_vec.clone()).await;
+    state
+        .api_cache
+        .insert(cache_key.clone(), bytes_vec.clone())
+        .await;
     debug!("Cached Manhattan image: {}", cache_key);
 
     Ok(Response::builder()
@@ -532,45 +555,62 @@ pub(crate) async fn fetch_peak_annotations(
         .clickhouse
         .query(&query)
         .bind(analysis_id) // sig_counts: phenotype
-        .bind(ancestry)    // sig_counts: ancestry
+        .bind(ancestry) // sig_counts: ancestry
         .bind(sequencing_type) // sig_counts: sequencing_type
         .bind(analysis_id) // peaks: phenotype
-        .bind(ancestry)    // peaks: ancestry
+        .bind(ancestry) // peaks: ancestry
         .bind(sequencing_type) // peaks: source
-        .bind(limit)       // peaks: limit
+        .bind(limit) // peaks: limit
         .bind(analysis_id) // coding_variants: phenotype
-        .bind(ancestry)    // coding_variants: ancestry
+        .bind(ancestry) // coding_variants: ancestry
         .bind(sequencing_type) // coding_variants: sequencing_type
         .fetch_all()
         .await
         .map_err(|e| AppError::DataTransformError(format!("Peak annotation query error: {}", e)))?;
 
     // Collect unique gene IDs for burden query
-    let gene_ids: std::collections::HashSet<String> = rows.iter().map(|r| r.gene_id.clone()).collect();
+    let gene_ids: std::collections::HashSet<String> =
+        rows.iter().map(|r| r.gene_id.clone()).collect();
     let gene_ids_vec: Vec<String> = gene_ids.into_iter().collect();
 
     // Fetch burden results for all genes and annotations
     let burden_map = if !gene_ids_vec.is_empty() {
         // Build IN clause with quoted gene IDs
-        let gene_ids_quoted: Vec<String> = gene_ids_vec.iter().map(|id| format!("'{}'", id)).collect();
+        let gene_ids_quoted: Vec<String> =
+            gene_ids_vec.iter().map(|id| format!("'{}'", id)).collect();
         let gene_ids_in = gene_ids_quoted.join(", ");
 
-        // Get best (lowest) p-value per gene per annotation
-        // Use LIMIT BY to get one row per gene+annotation
+        // Get the row containing the best result from any of SKAT-O, burden,
+        // or SKAT for each gene+annotation. The remaining sort terms make ties
+        // deterministic while keeping the selected row's MAF and MAC context.
         let burden_query = format!(
             r#"
             SELECT
                 gene_id,
                 annotation,
+                max_maf,
                 pvalue,
                 pvalue_burden,
-                pvalue_skat
+                pvalue_skat,
+                mac,
+                mac_case,
+                mac_control
             FROM gene_associations
             WHERE phenotype = ?
               AND ancestry = ?
               AND gene_id IN ({})
               AND annotation IN ('pLoF', 'missenseLC', 'synonymous')
-            ORDER BY gene_id, annotation, pvalue ASC
+            ORDER BY
+                gene_id,
+                annotation,
+                least(ifNull(pvalue, 2.0), ifNull(pvalue_burden, 2.0), ifNull(pvalue_skat, 2.0)) ASC,
+                max_maf ASC,
+                ifNull(pvalue, 2.0) ASC,
+                ifNull(pvalue_burden, 2.0) ASC,
+                ifNull(pvalue_skat, 2.0) ASC,
+                ifNull(mac, -1) ASC,
+                ifNull(mac_case, -1) ASC,
+                ifNull(mac_control, -1) ASC
             LIMIT 1 BY gene_id, annotation
             "#,
             gene_ids_in
@@ -592,17 +632,24 @@ pub(crate) async fn fetch_peak_annotations(
         };
 
         // Group burden results by gene_id
-        let mut map: std::collections::HashMap<String, Vec<BurdenResult>> = std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<String, Vec<BurdenResult>> =
+            std::collections::HashMap::new();
         for row in burden_rows {
-            map.entry(row.gene_id.clone()).or_default().push(BurdenResult {
-                annotation: row.annotation,
-                pvalue: row.pvalue,
-                pvalue_neg_log10: compute_neg_log10_p(row.pvalue),
-                pvalue_burden: row.pvalue_burden,
-                pvalue_burden_neg_log10: compute_neg_log10_p(row.pvalue_burden),
-                pvalue_skat: row.pvalue_skat,
-                pvalue_skat_neg_log10: compute_neg_log10_p(row.pvalue_skat),
-            });
+            map.entry(row.gene_id.clone())
+                .or_default()
+                .push(BurdenResult {
+                    annotation: row.annotation,
+                    max_maf: row.max_maf,
+                    mac: row.mac,
+                    mac_case: row.mac_case,
+                    mac_control: row.mac_control,
+                    pvalue: row.pvalue,
+                    pvalue_neg_log10: compute_neg_log10_p(row.pvalue),
+                    pvalue_burden: row.pvalue_burden,
+                    pvalue_burden_neg_log10: compute_neg_log10_p(row.pvalue_burden),
+                    pvalue_skat: row.pvalue_skat,
+                    pvalue_skat_neg_log10: compute_neg_log10_p(row.pvalue_skat),
+                });
         }
         map
     } else {
@@ -624,8 +671,13 @@ pub(crate) async fn fetch_peak_annotations(
         let opt_f64 = |v: f64| if v == 0.0 { None } else { Some(v) };
         // Strip transcript prefix from HGVS (e.g., "ENSP00000380585.1:p.Ala402Cys" -> "p.Ala402Cys")
         let strip_transcript = |s: String| {
-            if s.is_empty() { return None; }
-            Some(s.rsplit_once(':').map_or(s.clone(), |(_, after)| after.to_string()))
+            if s.is_empty() {
+                return None;
+            }
+            Some(
+                s.rsplit_once(':')
+                    .map_or(s.clone(), |(_, after)| after.to_string()),
+            )
         };
 
         match &mut current_peak {
@@ -710,7 +762,10 @@ pub async fn get_manhattan_overlay(
     Path(analysis_id): Path<String>,
     Query(params): Query<ManhattanQuery>,
 ) -> Result<Json<ManhattanOverlay>, AppError> {
-    debug!("Building Manhattan overlay from ClickHouse for phenotype: {}", analysis_id);
+    debug!(
+        "Building Manhattan overlay from ClickHouse for phenotype: {}",
+        analysis_id
+    );
 
     let ancestry = params.ancestry.as_deref().unwrap_or("meta");
     let plot_type = params.plot_type.as_deref().unwrap_or("genome_manhattan");
@@ -718,13 +773,17 @@ pub async fn get_manhattan_overlay(
     let data_version = params.v.as_deref().unwrap_or("");
 
     // Construct cache key with data version
-    let cache_key = format!("{}-{}-{}-{}-{}-overlay-v2", analysis_id, ancestry, plot_type, contig, data_version);
+    let cache_key = format!(
+        "{}-{}-{}-{}-{}-overlay-v3",
+        analysis_id, ancestry, plot_type, contig, data_version
+    );
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for Manhattan overlay: {}", cache_key);
-        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
-            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
+        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes).map_err(|e| {
+            AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e))
+        })?;
         return Ok(Json(overlay));
     }
 
@@ -732,7 +791,8 @@ pub async fn get_manhattan_overlay(
 
     // Handle gene Manhattan separately
     if plot_type == "gene_manhattan" {
-        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry, contig, data_version).await;
+        return get_gene_manhattan_overlay(&state, &analysis_id, ancestry, contig, data_version)
+            .await;
     }
 
     // Determine sequencing type from plot_type for variant Manhattan
@@ -818,8 +878,8 @@ pub async fn get_manhattan_overlay(
         let rows: Vec<SignificantVariantRow> = state
             .clickhouse
             .query(&query)
-            .bind(&analysis_id)  // for IN subquery
-            .bind(&analysis_id)  // for outer WHERE
+            .bind(&analysis_id) // for IN subquery
+            .bind(&analysis_id) // for outer WHERE
             .bind(ancestry)
             .bind(sequencing_type)
             .fetch_all()
@@ -829,7 +889,8 @@ pub async fn get_manhattan_overlay(
         let hits: Vec<SignificantHit> = rows
             .into_iter()
             .map(|row| {
-                let variant_id = make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt);
+                let variant_id =
+                    make_variant_id(&row.contig, row.position, &row.ref_allele, &row.alt);
                 SignificantHit {
                     hit_type: HitType::Variant,
                     id: variant_id.clone(),
@@ -898,15 +959,16 @@ async fn get_gene_manhattan_overlay(
 ) -> Result<Json<ManhattanOverlay>, AppError> {
     // Construct cache key with data version
     let cache_key = format!(
-        "{}-{}-gene_manhattan-{}-{}-overlay-v4",
+        "{}-{}-gene_manhattan-{}-{}-overlay-v5",
         analysis_id, ancestry, contig, data_version
     );
 
     // Check cache first
     if let Some(cached_bytes) = state.api_cache.get(&cache_key).await {
         debug!("Cache hit for gene Manhattan overlay: {}", cache_key);
-        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes)
-            .map_err(|e| AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e)))?;
+        let overlay: ManhattanOverlay = serde_json::from_slice(&cached_bytes).map_err(|e| {
+            AppError::DataTransformError(format!("Failed to deserialize cached overlay: {}", e))
+        })?;
         return Ok(Json(overlay));
     }
 
@@ -925,15 +987,53 @@ async fn get_gene_manhattan_overlay(
     let query = format!(
         r#"
         SELECT
-            gene_id, gene_symbol, contig, gene_start_position AS position,
-            pvalue, pvalue_burden, pvalue_skat, beta_burden
-        FROM gene_associations
-        WHERE phenotype = ?
-            AND ancestry = ?
-            AND pvalue IS NOT NULL
-            AND pvalue < 0.05
-            {xpos_filter}
-        ORDER BY pvalue ASC
+            gene_id,
+            gene_symbol,
+            CAST(contig AS String) AS contig,
+            position,
+            CAST(annotation AS String) AS annotation,
+            max_maf,
+            assumeNotNull(pvalue) AS pvalue,
+            pvalue_burden,
+            pvalue_skat,
+            beta_burden,
+            mac,
+            mac_case,
+            mac_control
+        FROM (
+            SELECT
+                gene_id, gene_symbol, contig, gene_start_position AS position,
+                annotation, max_maf, pvalue, pvalue_burden, pvalue_skat, beta_burden,
+                mac, mac_case, mac_control
+            FROM gene_associations
+            WHERE phenotype = ?
+                AND ancestry = ?
+                AND pvalue IS NOT NULL
+                AND pvalue < 0.05
+                {xpos_filter}
+            ORDER BY
+                gene_id,
+                annotation,
+                pvalue ASC,
+                max_maf ASC,
+                isNull(pvalue_burden) ASC,
+                ifNull(pvalue_burden, 2.0) ASC,
+                isNull(pvalue_skat) ASC,
+                ifNull(pvalue_skat, 2.0) ASC,
+                isNull(beta_burden) ASC,
+                ifNull(beta_burden, 0.0) ASC,
+                isNull(mac) ASC,
+                ifNull(mac, -1) ASC,
+                isNull(mac_case) ASC,
+                ifNull(mac_case, -1) ASC,
+                isNull(mac_control) ASC,
+                ifNull(mac_control, -1) ASC,
+                gene_symbol ASC,
+                contig ASC,
+                position ASC
+            LIMIT 1 BY gene_id, annotation
+        )
+        ORDER BY pvalue ASC, gene_id ASC, annotation ASC, max_maf ASC
         LIMIT 500
         "#,
         xpos_filter = xpos_filter
@@ -948,9 +1048,9 @@ async fn get_gene_manhattan_overlay(
         .await
         .map_err(|e| AppError::DataTransformError(format!("ClickHouse query error: {}", e)))?;
 
-    // Convert to SignificantHit for genes
-    // For genes, compute neg_log10_p from pvalue (gene table doesn't have pre-computed values)
-    let significant_hits: Vec<SignificantHit> = rows
+    // Convert to SignificantHit for genes while retaining the exact source row's
+    // MAF/MAC context for the reduced burden result synthesized below.
+    let gene_results: Vec<(SignificantHit, BurdenResult)> = rows
         .into_iter()
         .map(|row| {
             let neg_log10_p = if row.pvalue <= 0.0 {
@@ -958,7 +1058,20 @@ async fn get_gene_manhattan_overlay(
             } else {
                 Some(-row.pvalue.log10())
             };
-            SignificantHit {
+            let burden_result = BurdenResult {
+                annotation: row.annotation,
+                max_maf: row.max_maf,
+                mac: row.mac,
+                mac_case: row.mac_case,
+                mac_control: row.mac_control,
+                pvalue: Some(row.pvalue),
+                pvalue_neg_log10: neg_log10_p,
+                pvalue_burden: row.pvalue_burden,
+                pvalue_burden_neg_log10: compute_neg_log10_p(row.pvalue_burden),
+                pvalue_skat: row.pvalue_skat,
+                pvalue_skat_neg_log10: compute_neg_log10_p(row.pvalue_skat),
+            };
+            let hit = SignificantHit {
                 hit_type: HitType::Gene,
                 id: row.gene_id,
                 label: row.gene_symbol.clone(),
@@ -975,33 +1088,29 @@ async fn get_gene_manhattan_overlay(
                 ac: None,
                 pvalue_burden: row.pvalue_burden,
                 pvalue_skat: row.pvalue_skat,
-            }
+            };
+            (hit, burden_result)
         })
         .collect();
 
-    let hit_count = significant_hits.len();
+    let hit_count = gene_results.len();
 
     // Synthesize peaks from gene hits so the frontend can use unified Peak-based
-    // components (labels, table navigation) for both variant and gene Manhattans
-    let peaks: Vec<Peak> = significant_hits
+    // components (labels, table navigation) for both variant and gene Manhattans.
+    let peaks: Vec<Peak> = gene_results
         .iter()
-        .map(|hit| {
-            let mut burden_results = Vec::new();
-            // Add burden result if we have any p-values
-            if hit.pvalue_burden.is_some() || hit.pvalue_skat.is_some() {
-                burden_results.push(BurdenResult {
-                    annotation: "Overall".to_string(),
-                    pvalue: Some(hit.pvalue),
-                    pvalue_neg_log10: hit.neg_log10_p,
-                    pvalue_burden: hit.pvalue_burden,
-                    pvalue_burden_neg_log10: compute_neg_log10_p(hit.pvalue_burden),
-                    pvalue_skat: hit.pvalue_skat,
-                    pvalue_skat_neg_log10: compute_neg_log10_p(hit.pvalue_skat),
-                });
-            }
+        .map(|(hit, burden_result)| {
+            let burden_results = if hit.pvalue_burden.is_some() || hit.pvalue_skat.is_some() {
+                vec![burden_result.clone()]
+            } else {
+                Vec::new()
+            };
 
             Peak {
-                locus_id: format!("burden-{}", hit.id),
+                locus_id: format!(
+                    "burden-{}-{}-{}",
+                    hit.id, burden_result.annotation, burden_result.max_maf
+                ),
                 variant_count: 0,
                 sig_variant_count: 0,
                 start: hit.position,
@@ -1036,7 +1145,7 @@ async fn get_gene_manhattan_overlay(
     let display_hits = if contig == "all" {
         vec![]
     } else {
-        significant_hits
+        gene_results.into_iter().map(|(hit, _)| hit).collect()
     };
 
     let overlay = ManhattanOverlay {
@@ -1127,4 +1236,32 @@ pub async fn get_manhattan_data(
         overlay,
         has_overlay,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BurdenResult;
+
+    #[test]
+    fn burden_result_serializes_exact_maf_and_nullable_mac() {
+        let result = BurdenResult {
+            annotation: "pLoF".to_string(),
+            max_maf: 0.001,
+            mac: Some(42),
+            mac_case: Some(0),
+            mac_control: None,
+            pvalue: Some(1e-8),
+            pvalue_neg_log10: Some(8.0),
+            pvalue_burden: None,
+            pvalue_burden_neg_log10: None,
+            pvalue_skat: None,
+            pvalue_skat_neg_log10: None,
+        };
+
+        let json = serde_json::to_value(result).expect("BurdenResult should serialize");
+        assert_eq!(json["max_maf"], 0.001);
+        assert_eq!(json["mac"], 42);
+        assert_eq!(json["mac_case"], 0);
+        assert!(json["mac_control"].is_null());
+    }
 }

@@ -7,7 +7,23 @@ import {
   formatBurdenDirection,
   geneBetaForAncestry,
   geneBurdenDirection,
+  geneMacColumnMode,
+  shouldShowMacCaseControlColumns,
 } from './geneAssociationSemantics'
+
+test('selected phenotype MAC columns recognize current and legacy trait names', () => {
+  assert.equal(geneMacColumnMode('binary'), 'case-control')
+  assert.equal(geneMacColumnMode(' CATEGORICAL '), 'case-control')
+  assert.equal(geneMacColumnMode('continuous'), 'total')
+  assert.equal(shouldShowMacCaseControlColumns('Binary'), true)
+})
+
+test('selected phenotype MAC columns fail closed for unknown metadata', () => {
+  assert.equal(geneMacColumnMode('unknown'), 'none')
+  assert.equal(geneMacColumnMode(''), 'none')
+  assert.equal(geneMacColumnMode(undefined), 'none')
+  assert.equal(shouldShowMacCaseControlColumns(null), false)
+})
 
 test('META direction uses only the explicit enum and never a legacy beta magnitude', () => {
   assert.equal(geneBetaForAncestry('meta', 87.25), null)

@@ -11,7 +11,9 @@ import {
   formatBurdenDirection,
   geneBetaForAncestry,
   type BurdenDirection,
+  type GeneMacColumnMode,
 } from '../geneAssociationSemantics';
+import { formatMacCount } from '../PhenotypeList/Utils';
 
 const Y_AXIS_WIDTH = 50;
 const PLOT_HEIGHT = 400; // Fixed plot height
@@ -28,6 +30,9 @@ export interface GeneAssociationResult {
   pvalue_skat: number | null;
   beta_burden: number | null;
   burden_direction: BurdenDirection | null;
+  mac?: number | null;
+  mac_case?: number | null;
+  mac_control?: number | null;
 }
 
 export interface GeneBurdenManhattanProps {
@@ -40,6 +45,8 @@ export interface GeneBurdenManhattanProps {
   customLabelMode?: boolean;
   /** Callback when a gene label is clicked */
   onGeneClick?: (geneId: string) => void;
+  /** Trait-aware MAC representation for this selected phenotype. */
+  macColumnMode: GeneMacColumnMode;
   /** Optional draggable inset render function — receives container (width, height) */
   inset?: (width: number, height: number) => React.ReactNode;
 }
@@ -62,6 +69,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
   selectedGeneIds,
   customLabelMode = false,
   onGeneClick,
+  macColumnMode,
   inset,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -437,6 +445,24 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
                 <div>
                   <span style={{ color: 'var(--theme-text-muted)' }}>Burden direction: </span>
                   <span>{formatBurdenDirection(hoveredGene.burden_direction)}</span>
+                </div>
+              )}
+              {macColumnMode === 'case-control' && (
+                <>
+                  <div>
+                    <span style={{ color: 'var(--theme-text-muted)' }}>MAC cases: </span>
+                    <span style={{ fontFamily: 'monospace' }}>{formatMacCount(hoveredGene.mac_case)}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--theme-text-muted)' }}>MAC controls: </span>
+                    <span style={{ fontFamily: 'monospace' }}>{formatMacCount(hoveredGene.mac_control)}</span>
+                  </div>
+                </>
+              )}
+              {macColumnMode === 'total' && (
+                <div>
+                  <span style={{ color: 'var(--theme-text-muted)' }}>MAC total: </span>
+                  <span style={{ fontFamily: 'monospace' }}>{formatMacCount(hoveredGene.mac)}</span>
                 </div>
               )}
             </div>

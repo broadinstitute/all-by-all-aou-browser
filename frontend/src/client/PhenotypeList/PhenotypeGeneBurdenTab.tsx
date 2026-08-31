@@ -14,12 +14,18 @@ import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useRestoreFromUrl } from '../initialUrlState';
 import {
   formatBurdenDirection,
+  geneMacColumnMode,
   hasGeneEffectEstimate,
-  shouldShowMacCaseControlColumns,
   type BurdenDirection,
 } from '../geneAssociationSemantics';
 import ExportDataButton from '../ExportDataButton';
-import { formatMacCount } from './Utils';
+import {
+  formatMacCount,
+  macCountForCsv,
+  MAC_CASES_TOOLTIP,
+  MAC_CONTROLS_TOOLTIP,
+  MAC_TOTAL_TOOLTIP,
+} from './Utils';
 import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator';
 
 const Container = styled.div`
@@ -235,7 +241,7 @@ interface GeneAssociationResult {
   mac_control?: number | null;
 }
 
-type SortKey = 'gene_symbol' | 'pvalue' | 'pvalue_burden' | 'pvalue_skat' | 'beta_burden' | 'mac_case' | 'mac_control';
+type SortKey = 'gene_symbol' | 'pvalue' | 'pvalue_burden' | 'pvalue_skat' | 'beta_burden' | 'mac' | 'mac_case' | 'mac_control';
 
 const ANNOTATIONS = [
   { key: 'pLoF', label: 'pLoF' },
@@ -267,8 +273,8 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const showBeta = hasGeneEffectEstimate(ancestryGroup);
   const showDirection = !showBeta;
-  const showMacColumns = shouldShowMacCaseControlColumns(traitType);
-  const tableColumnCount = 6 + (showMacColumns ? 2 : 0);
+  const macColumnMode = geneMacColumnMode(traitType);
+  const tableColumnCount = 6 + (macColumnMode === 'case-control' ? 2 : macColumnMode === 'total' ? 1 : 0);
   const [burdenSet, setBurdenSet] = useRecoilState(burdenSetAtom);
   const { goToGene } = useAppNavigation();
 
@@ -503,19 +509,23 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
           renderForCSV: (row: GeneAssociationResult) =>
             formatBurdenDirection(row.burden_direction),
         }]),
-    ...(showMacColumns ? [
+    ...(macColumnMode === 'case-control' ? [
       {
         key: 'mac_case',
         heading: 'MAC cases',
-        renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_case),
+        renderForCSV: (row: GeneAssociationResult) => macCountForCsv(row.mac_case),
       },
       {
         key: 'mac_control',
         heading: 'MAC controls',
-        renderForCSV: (row: GeneAssociationResult) => formatMacCount(row.mac_control),
+        renderForCSV: (row: GeneAssociationResult) => macCountForCsv(row.mac_control),
       },
-    ] : []),
-  ], [showBeta, showMacColumns]);
+    ] : macColumnMode === 'total' ? [{
+      key: 'mac',
+      heading: 'MAC total',
+      renderForCSV: (row: GeneAssociationResult) => macCountForCsv(row.mac),
+    }] : []),
+  ], [showBeta, macColumnMode]);
 
   return (
     <Container>
@@ -621,7 +631,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
 
       {/* Heatmap View */}
       {viewMode === 'heatmap' && (
-        <GeneBurdenComposite analysisId={analysisId} maxMaf={maxMaf} />
+        <GeneBurdenComposite analysisId={analysisId} macColumnMode={macColumnMode} maxMaf={maxMaf} />
       )}
 
       {/* Standard View */}
@@ -666,6 +676,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
         selectedGeneIds={selectedGeneIds}
         customLabelMode={customLabelMode}
         onGeneClick={handleGeneClickFromPlot}
+        macColumnMode={macColumnMode}
         inset={qqMiniInset}
       />
 
@@ -759,9 +770,9 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
               {showDirection && (
                 <th title="META burden-statistic direction; magnitude unavailable">Direction</th>
               )}
-              {showMacColumns && (
+              {macColumnMode === 'case-control' && (
                 <>
-                  <th aria-sort={getAriaSort('mac_case')}>
+                  <th aria-sort={getAriaSort('mac_case')} title={MAC_CASES_TOOLTIP}>
                     <SortHeaderButton
                       type="button"
                       onClick={() => handleSort('mac_case')}
@@ -771,7 +782,7 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
                       <SortIcon $active={sortKey === 'mac_case'} $desc={sortDesc}>▲</SortIcon>
                     </SortHeaderButton>
                   </th>
-                  <th aria-sort={getAriaSort('mac_control')}>
+                  <th aria-sort={getAriaSort('mac_control')} title={MAC_CONTROLS_TOOLTIP}>
                     <SortHeaderButton
                       type="button"
                       onClick={() => handleSort('mac_control')}
@@ -782,6 +793,18 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
                     </SortHeaderButton>
                   </th>
                 </>
+              )}
+              {macColumnMode === 'total' && (
+                <th aria-sort={getAriaSort('mac')} title={MAC_TOTAL_TOOLTIP}>
+                  <SortHeaderButton
+                    type="button"
+                    onClick={() => handleSort('mac')}
+                    aria-label={`Sort by MAC total; currently ${getAriaSort('mac')}`}
+                  >
+                    MAC total
+                    <SortIcon $active={sortKey === 'mac'} $desc={sortDesc}>▲</SortIcon>
+                  </SortHeaderButton>
+                </th>
               )}
             </tr>
           </thead>
@@ -843,11 +866,14 @@ export const PhenotypeGeneBurdenTab: React.FC<Props> = ({ analysisId, traitType 
                         <BurdenDirectionIndicator direction={gene.burden_direction} />
                       </td>
                     )}
-                    {showMacColumns && (
+                    {macColumnMode === 'case-control' && (
                       <>
                         <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_case)}</td>
                         <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac_control)}</td>
                       </>
+                    )}
+                    {macColumnMode === 'total' && (
+                      <td onClick={() => handleGeneClick(gene)}>{formatMacCount(gene.mac)}</td>
                     )}
                   </tr>
                 );
