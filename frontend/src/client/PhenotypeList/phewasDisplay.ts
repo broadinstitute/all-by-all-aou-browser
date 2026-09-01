@@ -4,6 +4,13 @@ interface AnalysisRow {
   analysis_id: string
 }
 
+/** Keep the transient mobile drawer independent from the saved desktop panel state. */
+export const resolvePhewasControlsOpen = (
+  isMobile: boolean,
+  mobileDrawerOpen: boolean,
+  desktopPanelOpen: boolean
+): boolean => (isMobile ? mobileDrawerOpen : desktopPanelOpen)
+
 /**
  * Whether the persistent comparison set should restrict a PheWAS dataset.
  * Top-hit PheWAS has no comparison controls, so it must ignore shared filter state.

@@ -5,6 +5,7 @@ import {
   filterToComparedPhenotypes,
   getAssociationDetailsAriaLabel,
   getAssociationDetailsNavigation,
+  resolvePhewasControlsOpen,
   selectPhewasExportRows,
   shouldShowComparedOnly,
   updateTopHitDetailLabel,
@@ -20,6 +21,14 @@ const tablePhenotypes = [
   { analysis_id: 'c', source: 'table' },
   { analysis_id: 'a', source: 'table' },
 ]
+
+test('mobile PheWAS options default closed without changing the desktop preference', () => {
+  const desktopPanelOpen = true
+
+  assert.equal(resolvePhewasControlsOpen(true, false, desktopPanelOpen), false)
+  assert.equal(resolvePhewasControlsOpen(true, true, desktopPanelOpen), true)
+  assert.equal(resolvePhewasControlsOpen(false, false, desktopPanelOpen), true)
+})
 
 test('Show compared only filters every plot mode and the table to the same IDs', () => {
   const comparedIds = ['a', 'c']

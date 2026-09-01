@@ -50,6 +50,7 @@ import { ShowControlsButton } from '../UserInterface'
 import { mobileControlContract, optionPanelContract } from '../browserUiContracts'
 import {
   filterToComparedPhenotypes,
+  resolvePhewasControlsOpen,
   selectPhewasExportRows,
   shouldShowComparedOnly,
   updateTopHitDetailLabel,
@@ -219,26 +220,44 @@ const Phewas = ({
   const [betaPlotSelectionBoundary, internalSetBetaPlotSelectionBoundary] = useState(undefined)
 
   const [showPhewasControls, setShowPhewasControls] = useRecoilState(phewasOptsAtom)
+  const [showMobilePhewasControls, setShowMobilePhewasControls] = useState(false)
   const mobileOptionsTriggerRef = useRef<HTMLButtonElement>(null)
   const isMobileOptions =
     size.width > 0 && size.width <= mobileControlContract.phewasOptions.breakpoint
+  const controlsOpen = resolvePhewasControlsOpen(
+    isMobileOptions,
+    showMobilePhewasControls,
+    showPhewasControls
+  )
+
+  const openPhewasControls = () => {
+    if (isMobileOptions) setShowMobilePhewasControls(true)
+    else setShowPhewasControls(true)
+  }
 
   const closePhewasControls = () => {
-    setShowPhewasControls(false)
     if (isMobileOptions) {
+      setShowMobilePhewasControls(false)
       setTimeout(() => mobileOptionsTriggerRef.current?.focus(), 0)
+    } else {
+      setShowPhewasControls(false)
     }
   }
 
+  // A narrow drawer is transient UI, not the persisted desktop panel preference.
   React.useEffect(() => {
-    if (!isMobileOptions || !showPhewasControls) return undefined
+    if (!isMobileOptions) setShowMobilePhewasControls(false)
+  }, [isMobileOptions])
+
+  React.useEffect(() => {
+    if (!isMobileOptions || !showMobilePhewasControls) return undefined
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = previousOverflow
     }
-  }, [isMobileOptions, showPhewasControls])
+  }, [isMobileOptions, showMobilePhewasControls])
 
   const analyses = useRecoilValue(selectedAnalyses)
 
@@ -706,10 +725,10 @@ const Phewas = ({
   return (
     <React.Fragment>
       <RootContainer>
-        {showPhewasControls && isMobileOptions && (
+        {controlsOpen && isMobileOptions && (
           <MobileOptionsBackdrop aria-hidden="true" onClick={closePhewasControls} />
         )}
-        {showPhewasControls && (
+        {controlsOpen && (
           <PhewasControls
             onSearchChange={updateSearchText}
             onClose={closePhewasControls}
@@ -744,10 +763,10 @@ const Phewas = ({
             onSelectNoCategories={handleSelectNoCategories}
           />
         )}
-        {!showPhewasControls && !isMobileOptions && (
+        {!controlsOpen && !isMobileOptions && (
           <ShowControlsButton
             type="button"
-            onClick={() => setShowPhewasControls(true)}
+            onClick={openPhewasControls}
             title={`Show ${optionPanelContract.phewas.label}`}
             aria-label={`Show ${optionPanelContract.phewas.label}`}
             aria-expanded={false}
@@ -757,11 +776,11 @@ const Phewas = ({
           </ShowControlsButton>
         )}
         <div className='data-container' style={{ position: 'relative' }}>
-          {!showPhewasControls && isMobileOptions && (
+          {!controlsOpen && isMobileOptions && (
             <MobileOptionsButton
               ref={mobileOptionsTriggerRef}
               type="button"
-              onClick={() => setShowPhewasControls(true)}
+              onClick={openPhewasControls}
               title={`Show ${optionPanelContract.phewas.label}`}
               aria-label={`Show ${optionPanelContract.phewas.label}`}
               aria-expanded={false}
