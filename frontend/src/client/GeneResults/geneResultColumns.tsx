@@ -27,12 +27,18 @@ import { ContextMenuTrigger } from '../components/ContextMenuTrigger'
 import { useContextMenuNavigation } from '../hooks/useContextMenuNavigation'
 import { formatBurdenDirection } from '../geneAssociationSemantics'
 import { BurdenDirectionIndicator } from '../BurdenDirectionIndicator'
+import {
+  GENE_NAME_COLUMN_MIN_WIDTH_PX,
+  geneNameForResult,
+  geneNameTextStyle,
+} from './geneResultColumnLayout'
 
 // A wrapper to hold state for gene link context menus
 const GeneLinkRenderer = ({ row }: any) => {
   const [menu, setMenu] = useState<{x: number, y: number} | null>(null);
   const navigate = useContextMenuNavigation();
   const { goToGene } = useAppNavigation();
+  const geneName = geneNameForResult(row)
 
   return (
     <>
@@ -42,15 +48,15 @@ const GeneLinkRenderer = ({ row }: any) => {
           goToGene(row.gene_id, { fromPhenotype: true, destination: 'details' })
         }}
         onOpenMenu={setMenu}
-        title="Open gene; press Shift+F10 for more actions"
+        title={`${geneName}. Open gene; press Shift+F10 for more actions`}
       >
-        {row.gene_symbol || row.gene_id}
+        <span style={geneNameTextStyle}>{geneName}</span>
       </ContextMenuTrigger>
       {menu && (
         <UnifiedContextMenu
           x={menu.x}
           y={menu.y}
-          title={`GENE: ${row.gene_symbol || row.gene_id}`}
+          title={`GENE: ${geneName}`}
           targets={[
             { label: 'Gene PheWAS', resultIndex: 'gene-phewas' },
             { label: 'Gene Manhattan', resultIndex: 'gene-manhattan' }
@@ -60,7 +66,7 @@ const GeneLinkRenderer = ({ row }: any) => {
             setMenu(null);
           }}
           onCopy={() => {
-            navigator.clipboard.writeText(row.gene_symbol || row.gene_id);
+            navigator.clipboard.writeText(geneName);
             setMenu(null);
           }}
           copyLabel="Copy Gene Symbol"
@@ -77,11 +83,12 @@ const baseColumns = ({ burdenSet }: any) => [
     displayId: 'gene_name_phenotype_page',
     heading: 'Gene Name',
     isSortable: false,
-    minWidth: 80,
+    minWidth: GENE_NAME_COLUMN_MIN_WIDTH_PX,
     grow: 0,
     render: (row: any) => {
       return <GeneLinkRenderer row={row} />;
     },
+    renderForCSV: geneNameForResult,
   },
   {
     key: 'gene_id',
