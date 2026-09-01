@@ -27,6 +27,14 @@ export const filterToComparedPhenotypes = <Row extends AnalysisRow>(
   return phenotypes.filter((phenotype) => comparedIds.has(phenotype.analysis_id))
 }
 
+/**
+ * Export the table's displayed scientific rows. The caller supplies rows after all
+ * table filters, including a plot brush and "Show compared only"; virtualization
+ * does not participate because it only controls how many of these rows are mounted.
+ */
+export const selectPhewasExportRows = <Row>(displayedTableRows: Row[]): Row[] =>
+  displayedTableRows
+
 interface TopHitLabelUpdate {
   labeledIds: Set<string>
   activeTopHitId: string | null

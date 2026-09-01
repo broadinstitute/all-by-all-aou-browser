@@ -5,6 +5,7 @@ import {
   filterToComparedPhenotypes,
   getAssociationDetailsAriaLabel,
   getAssociationDetailsNavigation,
+  selectPhewasExportRows,
   shouldShowComparedOnly,
   updateTopHitDetailLabel,
 } from './PhenotypeList/phewasDisplay'
@@ -41,12 +42,23 @@ test('Show compared only filters every plot mode and the table to the same IDs',
   }
 })
 
-test('top-hit PheWAS ignores leaked Show compared only state', () => {
+test('export matches displayed table rows after compared-only and plot-brush filters', () => {
+  const brushedTableRows = tablePhenotypes.filter(({ analysis_id }) => analysis_id !== 'b')
+  const displayedTableRows = filterToComparedPhenotypes(brushedTableRows, ['a'], true)
+  const exportRows = selectPhewasExportRows(displayedTableRows)
+
+  assert.equal(exportRows, displayedTableRows)
+  assert.deepEqual(exportRows, [{ analysis_id: 'a', source: 'table' }])
+})
+
+test('top-hit PheWAS ignores leaked Show compared only state in table and export', () => {
   const enabled = shouldShowComparedOnly(true, 'topHit', ['a'])
 
   assert.equal(enabled, false)
   assert.equal(filterToComparedPhenotypes(plotPhenotypes, ['a'], enabled), plotPhenotypes)
-  assert.equal(filterToComparedPhenotypes(tablePhenotypes, ['a'], enabled), tablePhenotypes)
+  const displayedTable = filterToComparedPhenotypes(tablePhenotypes, ['a'], enabled)
+  assert.equal(displayedTable, tablePhenotypes)
+  assert.equal(selectPhewasExportRows(displayedTable), tablePhenotypes)
 })
 
 test('an empty comparison cannot produce an empty Show compared only view', () => {

@@ -6,6 +6,17 @@ export const browsingModeControlContract = {
   ],
 } as const
 
+export const mobileControlContract = {
+  globalSearch: {
+    breakpoint: 750,
+    triggerLabel: 'Open global search',
+    controlsId: 'search-results',
+  },
+  phewasOptions: {
+    breakpoint: 700,
+  },
+} as const
+
 export const optionPanelContract = {
   phewas: {
     id: 'phewas-options-panel',

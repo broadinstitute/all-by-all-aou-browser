@@ -26,7 +26,7 @@ import {
   variantGreenThreshold,
 } from './Utils'
 
-const ControlsContainer = styled.div`
+const ControlsContainer = styled.div<{ $isMobile: boolean }>`
   max-width: 260px;
   min-width: 260px;
   padding: 16px;
@@ -38,6 +38,24 @@ const ControlsContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
+
+  ${({ $isMobile, theme }) =>
+    $isMobile &&
+    `
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 1000;
+      box-sizing: border-box;
+      width: min(360px, calc(100vw - 32px));
+      min-width: 0;
+      max-width: none;
+      height: 100dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 0 16px 24px;
+      border-right: 1px solid ${theme.border};
+      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
+    `}
 `
 
 // MAF Selector with significance dots
@@ -377,6 +395,7 @@ interface PhewasControlsProps {
 
   // Close handler
   onClose: () => void
+  isMobile?: boolean
 
   // Burden set (gene phewas only)
   isGenePhewas: boolean
@@ -420,6 +439,7 @@ interface PhewasControlsProps {
 const PhewasControls: React.FC<PhewasControlsProps> = ({
   onSearchChange,
   onClose,
+  isMobile = false,
   isGenePhewas,
   showEffectEstimate,
   burdenSet,
@@ -450,20 +470,57 @@ const PhewasControls: React.FC<PhewasControlsProps> = ({
   const plotTypeOptions = showEffectEstimate
     ? [{ value: 'P-value' }, { value: 'Beta' }, { value: 'Both' }]
     : [{ value: 'P-value' }]
+  const controlsRef = React.useRef<HTMLDivElement>(null)
+
+  const handlePanelKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isMobile) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
+    if (event.key !== 'Tab') return
+
+    const focusable = controlsRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    )
+    if (!focusable || focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   return (
-    <ControlsContainer id={optionPanelContract.phewas.id}>
+    <ControlsContainer
+      ref={controlsRef}
+      id={optionPanelContract.phewas.id}
+      $isMobile={isMobile}
+      role={isMobile ? 'dialog' : 'region'}
+      aria-modal={isMobile || undefined}
+      aria-labelledby={`${optionPanelContract.phewas.id}-title`}
+      tabIndex={-1}
+      onKeyDown={handlePanelKeyDown}
+    >
       <ControlsHeader>
-        <ControlsHeaderTitle>{optionPanelContract.phewas.label}</ControlsHeaderTitle>
+        <ControlsHeaderTitle id={`${optionPanelContract.phewas.id}-title`}>
+          {optionPanelContract.phewas.label}
+        </ControlsHeaderTitle>
         <ControlsCloseButton
           type="button"
+          autoFocus={isMobile}
           onClick={onClose}
           title={`Hide ${optionPanelContract.phewas.label}`}
           aria-label={`Hide ${optionPanelContract.phewas.label}`}
           aria-expanded={true}
           aria-controls={optionPanelContract.phewas.id}
         >
-          <span aria-hidden="true">‹</span>
+          <span aria-hidden="true">{isMobile ? '×' : '‹'}</span>
         </ControlsCloseButton>
       </ControlsHeader>
 

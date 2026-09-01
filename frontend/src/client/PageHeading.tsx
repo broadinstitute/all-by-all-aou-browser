@@ -1,4 +1,4 @@
-const SearchBarWrapper = styled.div`
+const SearchBarResponsive = styled.div`
   width: 160px;
   min-width: 0;
 
@@ -7,24 +7,21 @@ const SearchBarWrapper = styled.div`
   }
 
   @media (max-width: 1400px) {
-    display: none;
-  }
-`
+    order: 2;
+    flex: 1 1 auto;
+    width: clamp(180px, 40vw, 800px);
+    max-width: 800px;
+    margin: 0 10px;
 
-const SearchBarCompact = styled.div`
-  display: none;
-  flex: 1 1 auto;
-  width: clamp(180px, 40vw, 800px);
-  min-width: 0;
-  max-width: 800px;
-  margin-right: 10px;
-
-  @media (max-width: 1400px) {
-    display: block;
+    input::placeholder {
+      color: inherit;
+    }
   }
 
   @media (max-width: 750px) {
-    display: none;
+    flex: 0 0 auto;
+    width: auto;
+    margin-left: auto;
   }
 `
 import { MouseEvent, useState } from 'react'
@@ -178,7 +175,12 @@ const PageHeadingWrapper = styled.div<PageHeadingWrapperProps>`
     justify-content: space-between;
     padding: 10px 20px;
 
+    .logos {
+      order: 1;
+    }
+
     .nav-items {
+      order: 3;
       margin-left: 0;
     }
   }
@@ -298,8 +300,6 @@ const PageHeading = () => {
         </ExternalLink>
       </div>
       <div className="nav-items">
-        {/* Search bar visible at narrow widths, left of hamburger */}
-        <SearchBarCompact><NewSearchBar /></SearchBarCompact>
         {/* Links Button for Mobile */}
         <button
           type="button"
@@ -371,7 +371,8 @@ const PageHeading = () => {
           </ExternalLink>
         </div>
       </div>
-      <SearchBarWrapper><NewSearchBar /></SearchBarWrapper>
+      {/* Keep one search instance mounted so only one modal can be active. */}
+      <SearchBarResponsive><NewSearchBar compactOnMobile /></SearchBarResponsive>
       {/* Register Button for Desktop */}
       <div className="register">
         <ExternalLink href="https://www.researchallofus.org/register">

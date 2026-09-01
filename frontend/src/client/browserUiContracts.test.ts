@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   browsingModeControlContract,
   getDetailOptionsLabel,
+  mobileControlContract,
   optionPanelContract,
 } from './browserUiContracts'
 
@@ -14,6 +15,15 @@ test('browser mode control is concise and keeps an accessible group name', () =>
     { value: 'sideBySide', label: 'Side by side' },
   ])
   assert.equal('description' in browsingModeControlContract.options[0], false)
+})
+
+test('mobile controls remain touch-sized entry points at their layout breakpoints', () => {
+  assert.deepEqual(mobileControlContract.globalSearch, {
+    breakpoint: 750,
+    triggerLabel: 'Open global search',
+    controlsId: 'search-results',
+  })
+  assert.equal(mobileControlContract.phewasOptions.breakpoint, 700)
 })
 
 test('option panels and restore controls share unambiguous names', () => {

@@ -47,9 +47,10 @@ import {
 import { GeneAssociations } from '../types'
 import filterPhenotypes from './filterPhenotypes'
 import { ShowControlsButton } from '../UserInterface'
-import { optionPanelContract } from '../browserUiContracts'
+import { mobileControlContract, optionPanelContract } from '../browserUiContracts'
 import {
   filterToComparedPhenotypes,
+  selectPhewasExportRows,
   shouldShowComparedOnly,
   updateTopHitDetailLabel,
 } from './phewasDisplay'
@@ -144,6 +145,32 @@ const TableContainer = styled.div`
   min-height: 0;
 `
 
+const MobileOptionsBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.4);
+`
+
+const MobileOptionsButton = styled.button`
+  align-self: flex-start;
+  min-height: 44px;
+  margin: 0 0 8px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--theme-border, #e0e0e0);
+  border-radius: 4px;
+  background: var(--theme-surface-alt, #f5f5f5);
+  color: var(--theme-text, #333);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+
+  &:focus-visible {
+    outline: 2px solid var(--theme-primary, #4f46e5);
+    outline-offset: 2px;
+  }
+`
+
 const Warnings = styled.div`
   display: flex;
   flex-direction: column;
@@ -192,6 +219,26 @@ const Phewas = ({
   const [betaPlotSelectionBoundary, internalSetBetaPlotSelectionBoundary] = useState(undefined)
 
   const [showPhewasControls, setShowPhewasControls] = useRecoilState(phewasOptsAtom)
+  const mobileOptionsTriggerRef = useRef<HTMLButtonElement>(null)
+  const isMobileOptions =
+    size.width > 0 && size.width <= mobileControlContract.phewasOptions.breakpoint
+
+  const closePhewasControls = () => {
+    setShowPhewasControls(false)
+    if (isMobileOptions) {
+      setTimeout(() => mobileOptionsTriggerRef.current?.focus(), 0)
+    }
+  }
+
+  React.useEffect(() => {
+    if (!isMobileOptions || !showPhewasControls) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isMobileOptions, showPhewasControls])
 
   const analyses = useRecoilValue(selectedAnalyses)
 
@@ -606,6 +653,7 @@ const Phewas = ({
     analyses,
     comparisonFilterActive
   )
+  const exportPhenotypes = selectPhewasExportRows(displayTablePhenotypes)
   let pointRadius = comparisonFilterActive ? 6 : 4
 
   // Do not let an empty comparison keep a hidden filter armed. Top-hit mode ignores
@@ -658,10 +706,14 @@ const Phewas = ({
   return (
     <React.Fragment>
       <RootContainer>
-        {showPhewasControls && size.width > 700 && (
+        {showPhewasControls && isMobileOptions && (
+          <MobileOptionsBackdrop aria-hidden="true" onClick={closePhewasControls} />
+        )}
+        {showPhewasControls && (
           <PhewasControls
             onSearchChange={updateSearchText}
-            onClose={() => setShowPhewasControls(false)}
+            onClose={closePhewasControls}
+            isMobile={isMobileOptions}
             isGenePhewas={isGenePhewas}
             showEffectEstimate={showEffectEstimate}
             burdenSet={burdenSet}
@@ -692,7 +744,7 @@ const Phewas = ({
             onSelectNoCategories={handleSelectNoCategories}
           />
         )}
-        {!showPhewasControls && size.width > 700 && (
+        {!showPhewasControls && !isMobileOptions && (
           <ShowControlsButton
             type="button"
             onClick={() => setShowPhewasControls(true)}
@@ -705,6 +757,19 @@ const Phewas = ({
           </ShowControlsButton>
         )}
         <div className='data-container' style={{ position: 'relative' }}>
+          {!showPhewasControls && isMobileOptions && (
+            <MobileOptionsButton
+              ref={mobileOptionsTriggerRef}
+              type="button"
+              onClick={() => setShowPhewasControls(true)}
+              title={`Show ${optionPanelContract.phewas.label}`}
+              aria-label={`Show ${optionPanelContract.phewas.label}`}
+              aria-expanded={false}
+              aria-controls={optionPanelContract.phewas.id}
+            >
+              {optionPanelContract.phewas.label}
+            </MobileOptionsButton>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--theme-surface-alt, #f5f5f5)', borderRadius: '4px', marginBottom: '8px', fontSize: '12px' }}>
             <div>
               <span style={{ color: 'var(--theme-text)' }}><strong>{labeledPhenoIds.size}</strong> phenotypes labeled</span>
@@ -821,7 +886,7 @@ const Phewas = ({
               <div className='buttons'>
                 <ExportDataButton
                   exportFileName={exportFileName}
-                  data={renderedPhenotypes}
+                  data={exportPhenotypes}
                   columns={[
                     ...columns,
                     ...[

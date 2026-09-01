@@ -12,6 +12,7 @@ import { ColorMarker } from './UserInterface';
 import { getCategoryFromConsequence, getLabelForConsequenceTerm } from './vepConsequences';
 import { getConsequenceColor } from './VariantList/variantTableColumns';
 import { variantGreenThreshold, variantYellowThreshold, greenThresholdColor, yellowThresholdColor } from './PhenotypeList/Utils';
+import { mobileControlContract } from './browserUiContracts';
 
 export const SearchBarContainer = styled.div`
   display: flex;
@@ -68,6 +69,12 @@ export const ModalContainer = styled.div`
   padding: 16px;
   color: ${(props) => props.theme.text};
   font-size: 16px;
+
+  @media (max-width: 750px) {
+    box-sizing: border-box;
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
 `;
 
 const ModalBackdrop = styled.div`
@@ -160,7 +167,45 @@ interface SearchResult {
   value: SearchChoice;
 }
 
-export const NewSearchBar: React.FC = () => {
+const MobileSearchButton = styled.button`
+  display: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 8px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  font-size: 20px;
+
+  &:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 750px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+`
+
+const HeaderSearchBarContainer = styled(SearchBarContainer)<{ $compactOnMobile: boolean }>`
+  ${({ $compactOnMobile }) =>
+    $compactOnMobile &&
+    `
+      @media (max-width: 750px) {
+        display: none;
+      }
+    `}
+`
+
+interface NewSearchBarProps {
+  compactOnMobile?: boolean
+}
+
+export const NewSearchBar: React.FC<NewSearchBarProps> = ({ compactOnMobile = false }) => {
   const [inputValue, setInputValue] = useState('');
   const [debouncedValue, setDebouncedValue] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -171,6 +216,7 @@ export const NewSearchBar: React.FC = () => {
   const setSelectedAnalyses = useSetRecoilState(selectedAnalyses);
   const { goToGene, goToPhenotype, goToVariant } = useAppNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const highlightedRef = useRef<HTMLDivElement>(null);
 
   const modalInputRef = useRef<HTMLInputElement>(null);
@@ -391,6 +437,22 @@ export const NewSearchBar: React.FC = () => {
     setInputValue('');
   };
 
+  const openSearch = () => {
+    setShowModal(true);
+    setTimeout(() => modalInputRef.current?.focus(), 0);
+  };
+
+  const closeSearch = () => {
+    setShowModal(false);
+    setTimeout(() => {
+      if (compactOnMobile && window.matchMedia('(max-width: 750px)').matches) {
+        mobileTriggerRef.current?.focus();
+      } else {
+        inputRef.current?.focus();
+      }
+    }, 0);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
@@ -457,7 +519,7 @@ export const NewSearchBar: React.FC = () => {
         break;
       case 'Escape':
         e.preventDefault();
-        setShowModal(false);
+        closeSearch();
         setSearchResults([]);
         break;
       default:
@@ -477,8 +539,8 @@ export const NewSearchBar: React.FC = () => {
 
   return (
     <>
-      <SearchBarContainer>
-        <Icon>🔍</Icon>
+      <HeaderSearchBarContainer $compactOnMobile={compactOnMobile}>
+        <Icon aria-hidden="true">🔍</Icon>
         <Input
           ref={inputRef}
           type="text"
@@ -488,15 +550,39 @@ export const NewSearchBar: React.FC = () => {
           onKeyDown={handleKeyDown}
           aria-autocomplete="list"
           aria-expanded={showModal}
-          aria-controls="search-results"
+          aria-controls={mobileControlContract.globalSearch.controlsId}
         />
         {inputValue && <CloseIcon onClick={handleClearInput}>✖</CloseIcon>}
-      </SearchBarContainer>
+      </HeaderSearchBarContainer>
+      {compactOnMobile && (
+        <MobileSearchButton
+          ref={mobileTriggerRef}
+          type="button"
+          aria-label={mobileControlContract.globalSearch.triggerLabel}
+          aria-expanded={showModal}
+          aria-controls={mobileControlContract.globalSearch.controlsId}
+          onClick={openSearch}
+          className="mobile-global-search-button"
+        >
+          <span aria-hidden="true">🔍</span>
+        </MobileSearchButton>
+      )}
       {showModal && (
         <>
-        <ModalBackdrop onClick={() => setShowModal(false)} />
-        <ModalContainer role="dialog" aria-modal="true" id="search-results">
-          <CloseModalButton onClick={() => setShowModal(false)}>✖</CloseModalButton>
+        <ModalBackdrop onClick={closeSearch} />
+        <ModalContainer
+          role="dialog"
+          aria-modal="true"
+          aria-label="Global search"
+          id={mobileControlContract.globalSearch.controlsId}
+        >
+          <CloseModalButton
+            type="button"
+            aria-label="Close global search"
+            onClick={closeSearch}
+          >
+            ✖
+          </CloseModalButton>
           <QueryBox>
             <Magnifier>🔍</Magnifier>
             <ModalInput
