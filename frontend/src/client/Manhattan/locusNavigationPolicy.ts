@@ -1,3 +1,4 @@
+import type { ResultIndex } from '../sharedState'
 import type { UnifiedGene, UnifiedLocus } from './types'
 
 export const PHENOTYPE_BURDEN_SIGNIFICANCE_THRESHOLD = 2.5e-6
@@ -83,6 +84,180 @@ export const isBurdenOnlyLocus = (locus: UnifiedLocus): boolean =>
 export const getPhenotypeLocusRegionId = (
   locus: Pick<UnifiedLocus, 'contig' | 'start' | 'stop'>
 ): string => `${locus.contig}-${locus.start}-${locus.stop}`
+
+/**
+ * Context-menu payloads occasionally come from plots that only know a lead
+ * position. Prefer the clicked locus bounds and use the historical ±500 kb
+ * window only when either bound is actually absent.
+ */
+export const getContextMenuLocusRegionId = (locus: {
+  contig: string
+  position: number
+  start?: number
+  stop?: number
+}): string => {
+  const start = locus.start ?? Math.max(0, locus.position - 500000)
+  const stop = locus.stop ?? locus.position + 500000
+  return `${locus.contig}-${start}-${stop}`
+}
+
+export type LocusContextMenuActionId =
+  | 'gene-details-current-phenotype'
+  | 'standalone-gene-details-current-phenotype'
+  | 'gene-phewas-all-phenotypes'
+  | 'containing-locus-details-current-phenotype'
+  | 'locus-phewas-all-phenotypes'
+  | 'phenotype-results'
+
+/**
+ * Self-contained context-menu action. The clicked entity provenance travels
+ * with every row, so resolving a duplicate visual/result index can never pick
+ * a different gene or stale Recoil region.
+ */
+export interface LocusContextMenuAction {
+  actionId: LocusContextMenuActionId
+  /** Exact gene from the clicked menu section, never inferred by row index. */
+  geneId: string | null
+  /** Exact clicked containing locus (or position fallback), never current state. */
+  regionId: string | null
+  analysisPolicy: 'preserve-current' | 'clear'
+  destination: 'details' | 'results'
+  label: string
+  resultIndex?: ResultIndex
+}
+
+export interface LocusContextMenuNavigation {
+  stateUpdates: {
+    geneId: string | null
+    regionId: string | null
+    variantId: null
+    analysisId: string | null
+    resultIndex?: ResultIndex
+  }
+  destination: 'details' | 'results'
+}
+
+export type ContextMenuGeneRelationship = 'implicated' | 'nearby' | 'unknown'
+
+const currentPhenotypeSuffix = (hasCurrentPhenotype: boolean): string =>
+  hasCurrentPhenotype ? ' for current phenotype' : ''
+
+export const getGeneLocusContextMenuActions = ({
+  geneId,
+  geneSymbol,
+  relationship,
+  containingRegionId,
+  hasCurrentPhenotype,
+}: {
+  geneId: string
+  geneSymbol: string
+  relationship: ContextMenuGeneRelationship
+  containingRegionId: string | null
+  hasCurrentPhenotype: boolean
+}): LocusContextMenuAction[] => {
+  const phenotypeSuffix = currentPhenotypeSuffix(hasCurrentPhenotype)
+  const geneDetails: LocusContextMenuAction = {
+    actionId:
+      relationship === 'nearby'
+        ? 'standalone-gene-details-current-phenotype'
+        : 'gene-details-current-phenotype',
+    geneId,
+    regionId: containingRegionId,
+    analysisPolicy: 'preserve-current',
+    destination: 'details',
+    label:
+      relationship === 'nearby'
+        ? `Standalone ${geneSymbol} gene page — no locus-specific evidence${phenotypeSuffix}`
+        : `${geneSymbol} gene details${phenotypeSuffix}`,
+  }
+  const genePhewas: LocusContextMenuAction = {
+    actionId: 'gene-phewas-all-phenotypes',
+    geneId,
+    regionId: containingRegionId,
+    analysisPolicy: 'clear',
+    destination: 'results',
+    label: `${geneSymbol} Gene PheWAS (all phenotypes)`,
+    resultIndex: 'gene-phewas',
+  }
+
+  if (relationship === 'nearby' && containingRegionId) {
+    return [
+      {
+        actionId: 'containing-locus-details-current-phenotype',
+        geneId,
+        regionId: containingRegionId,
+        analysisPolicy: 'preserve-current',
+        destination: 'details',
+        label: `Containing locus details ${containingRegionId}${phenotypeSuffix}`,
+      },
+      geneDetails,
+      genePhewas,
+    ]
+  }
+  return [geneDetails, genePhewas]
+}
+
+export const getContainingLocusContextMenuActions = ({
+  containingRegionId,
+  clickedGeneId = null,
+  hasCurrentPhenotype,
+}: {
+  containingRegionId: string
+  clickedGeneId?: string | null
+  hasCurrentPhenotype: boolean
+}): LocusContextMenuAction[] => {
+  const phenotypeSuffix = currentPhenotypeSuffix(hasCurrentPhenotype)
+  return [
+    {
+      actionId: 'containing-locus-details-current-phenotype',
+      geneId: clickedGeneId,
+      regionId: containingRegionId,
+      analysisPolicy: 'preserve-current',
+      destination: 'details',
+      label: `Containing locus details ${containingRegionId}${phenotypeSuffix}`,
+    },
+    {
+      actionId: 'locus-phewas-all-phenotypes',
+      geneId: clickedGeneId,
+      regionId: containingRegionId,
+      analysisPolicy: 'clear',
+      destination: 'results',
+      label: `Locus PheWAS ${containingRegionId} (all phenotypes)`,
+      resultIndex: 'locus-phewas',
+    },
+  ]
+}
+
+/** Build identical semantic state for the same-tab and new-tab renderings. */
+export const getLocusContextMenuNavigation = (
+  action: LocusContextMenuAction,
+  currentAnalysisId: string | null
+): LocusContextMenuNavigation => {
+  const stateUpdates: LocusContextMenuNavigation['stateUpdates'] = {
+    geneId: null,
+    regionId: null,
+    variantId: null,
+    analysisId:
+      action.analysisPolicy === 'preserve-current' ? currentAnalysisId : null,
+  }
+
+  if (
+    action.actionId === 'gene-details-current-phenotype' ||
+    action.actionId === 'standalone-gene-details-current-phenotype' ||
+    action.actionId === 'gene-phewas-all-phenotypes'
+  ) {
+    stateUpdates.geneId = action.geneId
+  }
+  if (
+    action.actionId === 'containing-locus-details-current-phenotype' ||
+    action.actionId === 'locus-phewas-all-phenotypes'
+  ) {
+    stateUpdates.regionId = action.regionId
+  }
+  if (action.resultIndex) stateUpdates.resultIndex = action.resultIndex
+
+  return { stateUpdates, destination: action.destination }
+}
 
 const geneEvidenceWording = (evidenceClass: GeneEvidenceClass): string => {
   if (evidenceClass === 'coding') return 'coding single-variant evidence'

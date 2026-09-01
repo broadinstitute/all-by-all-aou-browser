@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  getContainingLocusContextMenuActions,
+  getContextMenuLocusRegionId,
+  getGeneLocusContextMenuActions,
+  getLocusContextMenuNavigation,
   getPhenotypeLocusNavigationDecision,
   type PhenotypeLocusNavigationDecision,
 } from './Manhattan/locusNavigationPolicy'
@@ -160,6 +164,140 @@ test('burden-only synthetic row or diamond opens its implicated gene', () => {
       'Burden-only gene result; open SYNTHETIC gene details — significant burden evidence'
     )
   }
+})
+
+test('context-menu region IDs prefer exact clicked bounds and have a missing-bounds fallback', () => {
+  assert.equal(
+    getContextMenuLocusRegionId({
+      contig: 'chr2',
+      position: 231399262,
+      start: 230399262,
+      stop: 232399262,
+    }),
+    'chr2-230399262-232399262'
+  )
+  assert.equal(
+    getContextMenuLocusRegionId({ contig: 'chr2', position: 600000 }),
+    'chr2-100000-1100000'
+  )
+  assert.equal(
+    getContextMenuLocusRegionId({ contig: 'chr1', position: 100 }),
+    'chr1-0-500100'
+  )
+})
+
+test('second-gene menu payload retains its own identity and clicked locus', () => {
+  const regionId = 'chr7-700-900'
+  const first = getGeneLocusContextMenuActions({
+    geneId: 'ENSG_FIRST',
+    geneSymbol: 'FIRST',
+    relationship: 'implicated',
+    containingRegionId: regionId,
+    hasCurrentPhenotype: true,
+  })
+  const second = getGeneLocusContextMenuActions({
+    geneId: 'ENSG_SECOND',
+    geneSymbol: 'SECOND',
+    relationship: 'implicated',
+    containingRegionId: regionId,
+    hasCurrentPhenotype: true,
+  })
+
+  assert.equal(first[0].actionId, second[0].actionId)
+  assert.equal(second[0].geneId, 'ENSG_SECOND')
+  assert.equal(second[0].regionId, regionId)
+  assert.deepEqual(
+    getLocusContextMenuNavigation(second[0], analysisId).stateUpdates,
+    expectedGeneState('ENSG_SECOND')
+  )
+})
+
+test('clicked containing locus wins over stale current region and preserves analysis', () => {
+  const [details, phewas] = getContainingLocusContextMenuActions({
+    containingRegionId: 'chr12-1200-1500',
+    clickedGeneId: 'ENSG_CLICKED',
+    hasCurrentPhenotype: true,
+  })
+  const deliberatelyStaleCurrent = {
+    analysisId,
+    regionId: 'chr1-1-2',
+  }
+
+  const detailsNavigation = getLocusContextMenuNavigation(
+    details,
+    deliberatelyStaleCurrent.analysisId
+  )
+  assert.deepEqual(detailsNavigation, {
+    stateUpdates: expectedLocusState('chr12-1200-1500'),
+    destination: 'details',
+  })
+  assert.equal(details.geneId, 'ENSG_CLICKED')
+  assert.match(details.label, /current phenotype/)
+
+  const phewasNavigation = getLocusContextMenuNavigation(
+    phewas,
+    deliberatelyStaleCurrent.analysisId
+  )
+  assert.deepEqual(phewasNavigation, {
+    stateUpdates: {
+      geneId: null,
+      regionId: 'chr12-1200-1500',
+      variantId: null,
+      analysisId: null,
+      resultIndex: 'locus-phewas',
+    },
+    destination: 'results',
+  })
+  assert.match(phewas.label, /\(all phenotypes\)/)
+})
+
+test('nearby and implicated menu labels state different scientific intent', () => {
+  const nearby = getGeneLocusContextMenuActions({
+    geneId: 'ENSG_NEAR',
+    geneSymbol: 'NEAR',
+    relationship: 'nearby',
+    containingRegionId: 'chr3-10-20',
+    hasCurrentPhenotype: true,
+  })
+  const implicated = getGeneLocusContextMenuActions({
+    geneId: 'ENSG_IMPL',
+    geneSymbol: 'IMPL',
+    relationship: 'implicated',
+    containingRegionId: 'chr3-10-20',
+    hasCurrentPhenotype: true,
+  })
+
+  assert.equal(nearby[0].actionId, 'containing-locus-details-current-phenotype')
+  assert.match(nearby[0].label, /^Containing locus details/)
+  assert.match(nearby[1].label, /Standalone NEAR gene page/)
+  assert.match(nearby[1].label, /no locus-specific evidence/)
+  assert.equal(implicated[0].actionId, 'gene-details-current-phenotype')
+  assert.equal(implicated[0].label, 'IMPL gene details for current phenotype')
+  assert.doesNotMatch(implicated[0].label, /Standalone/)
+})
+
+test('same-tab and new-tab rows consume the exact same semantic action state', () => {
+  const actions = getGeneLocusContextMenuActions({
+    geneId: 'ENSG_PARITY',
+    geneSymbol: 'PARITY',
+    relationship: 'implicated',
+    containingRegionId: 'chr4-40-50',
+    hasCurrentPhenotype: true,
+  })
+  for (const action of actions) {
+    const sameTab = getLocusContextMenuNavigation(action, analysisId)
+    const newTab = getLocusContextMenuNavigation(action, analysisId)
+    assert.deepEqual(newTab, sameTab)
+  }
+
+  const genePhewas = actions.find(
+    ({ actionId }) => actionId === 'gene-phewas-all-phenotypes'
+  )!
+  assert.equal(
+    getLocusContextMenuNavigation(genePhewas, analysisId).stateUpdates.analysisId,
+    null
+  )
+  assert.match(genePhewas.label, /\(all phenotypes\)/)
 })
 
 test('reported ZBTB8OSP2 fixture preserves heart-rate locus and clears gene/variant', () => {

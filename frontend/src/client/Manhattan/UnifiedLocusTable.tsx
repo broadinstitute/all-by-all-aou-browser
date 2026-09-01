@@ -98,7 +98,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     x: number;
     y: number;
     locus?: { contig: string; position: number; start?: number; stop?: number };
-    gene?: { geneId: string; geneSymbol: string };
+    gene?: { geneId: string; geneSymbol: string; relationship: 'implicated' | 'nearby' };
   } | null>(null);
 
   // Sort by implicated first, then best p-value
@@ -486,7 +486,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                               x: e.clientX,
                               y: e.clientY,
                               locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
-                              gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
+                              gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol, relationship: 'implicated' },
                             });
                           }}
                           role="link"
@@ -584,7 +584,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                                 x: e.clientX,
                                 y: e.clientY,
                                 locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
-                                gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
+                                gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol, relationship: 'nearby' },
                               });
                             }}
                             role="link"

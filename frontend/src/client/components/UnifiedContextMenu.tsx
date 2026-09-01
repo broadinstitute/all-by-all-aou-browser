@@ -133,8 +133,11 @@ const UtilityRow = styled.button`
   }
 `;
 
-export interface ContextMenuTarget {
+export interface ContextMenuTarget<TAction = unknown> {
   label: string;
+  /** Typed semantic payload preferred by entity-aware menus. */
+  action?: TAction;
+  /** Legacy result-only payload retained for existing menus. */
   resultIndex?: any;
   // Optional: custom action instead of navigation (e.g., for copy actions)
   onClick?: () => void;
@@ -238,13 +241,23 @@ export const UnifiedContextMenu: React.FC<UnifiedContextMenuProps> = ({
             {/* Navigation targets as flat menu */}
             {navTargets.map((t, idx) => (
               <React.Fragment key={`nav-${idx}`}>
-                <UtilityRow type="button" role="menuitem" onClick={() => onNavigate('split', t.resultIndex)}>
+                <UtilityRow
+                  type="button"
+                  role="menuitem"
+                  aria-label={t.label}
+                  onClick={() => onNavigate('split', t.action ?? t.resultIndex)}
+                >
                   {t.icon && <span style={{ marginRight: 4 }}>{t.icon}</span>}
                   {t.label}
                 </UtilityRow>
-                <UtilityRow type="button" role="menuitem" onClick={() => onNavigate('newTab', t.resultIndex)}>
+                <UtilityRow
+                  type="button"
+                  role="menuitem"
+                  aria-label={`Open ${t.label} in new tab`}
+                  onClick={() => onNavigate('newTab', t.action ?? t.resultIndex)}
+                >
                   <span style={{ marginRight: 4, opacity: 0.6 }}>↗</span>
-                  Open in new tab
+                  Open {t.label} in new tab
                 </UtilityRow>
               </React.Fragment>
             ))}

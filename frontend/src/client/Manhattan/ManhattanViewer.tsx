@@ -180,8 +180,8 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
     x: number;
     y: number;
     locus?: { contig: string; position: number; start?: number; stop?: number };
-    gene?: { geneId: string; geneSymbol: string };
-    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
+    gene?: { geneId: string; geneSymbol: string; relationship?: 'implicated' | 'nearby' };
+    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean; relationship: 'implicated' }>;
   } | null>(null);
 
   const regionId = useRecoilValue(regionIdAtom);
@@ -543,6 +543,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                       geneSymbol: g.geneSymbol,
                       burdenTypes: g.burdenTypes,
                       hasCoding: g.hasCoding,
+                      relationship: 'implicated' as const,
                     })),
                   });
                 }}
@@ -863,7 +864,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                       x: e.clientX,
                                       y: e.clientY,
                                       locus: { contig: peak.contig, position: peak.position, start: peak.start, stop: peak.stop },
-                                      gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
+                                      gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol, relationship: 'implicated' },
                                     });
                                   }}
                                   title={`View ${g.gene_symbol} page, right-click for options`}
@@ -908,7 +909,7 @@ export const ManhattanViewer: React.FC<ManhattanViewerProps> = ({
                                         x: e.clientX,
                                         y: e.clientY,
                                         locus: { contig: peak.contig, position: peak.position, start: peak.start, stop: peak.stop },
-                                        gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
+                                        gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol, relationship: 'nearby' },
                                       });
                                     }}
                                     title={`View ${g.gene_symbol} page, right-click for options`}

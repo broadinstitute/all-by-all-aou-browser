@@ -570,6 +570,7 @@ export const GeneBurdenManhattan: React.FC<GeneBurdenManhattanProps> = ({
             contig: contextMenu.gene.contig,
             start: contextMenu.gene.gene_start_position,
             stop: contextMenu.gene.gene_start_position, // We don't have stop position, use start
+            relationship: 'implicated',
           }}
           currentPhenotypeDescription={currentAnalysisId || undefined}
           onClose={() => setContextMenu(null)}

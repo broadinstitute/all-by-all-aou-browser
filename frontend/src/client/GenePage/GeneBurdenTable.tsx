@@ -158,6 +158,7 @@ export const GeneBurdenTable = ({
     geneSymbol: allRows[0].gene_symbol,
     contig: allRows[0].contig,
     start: allRows[0].gene_start_position || undefined,
+    relationship: 'implicated' as const,
   } : null;
 
   return (

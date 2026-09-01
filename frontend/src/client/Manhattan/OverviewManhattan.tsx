@@ -193,7 +193,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
     y: number;
     locus?: { contig: string; position: number; start?: number; stop?: number };
     gene?: { geneId: string; geneSymbol: string };
-    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean }>;
+    genes?: Array<{ geneId: string; geneSymbol: string; burdenTypes?: string[]; hasCoding?: boolean; relationship: 'implicated' }>;
   } | null>(null);
 
   // Convert unified loci to peaks format for label layout
@@ -522,6 +522,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                       geneSymbol: g.geneSymbol,
                       burdenTypes: g.burdenTypes,
                       hasCoding: g.hasCoding,
+                      relationship: 'implicated' as const,
                     })),
                   });
                 }}
