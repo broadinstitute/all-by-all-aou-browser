@@ -1,3 +1,4 @@
+import { MouseEvent } from 'react'
 import styled from 'styled-components'
 
 import { NewSearchBar } from './Searchbox'
@@ -6,6 +7,7 @@ import { Page, Button, ExternalLink } from '@gnomad/ui'
 import { useRecoilValue } from 'recoil'
 import { experienceModeAtom } from './sharedState'
 import { buildStateUrl, useAppNavigation } from './hooks/useAppNavigation'
+import { shouldHandleSemanticLinkClick } from './navigationUrl'
 import { datasetCounts } from './utils'
 import { Link } from 'react-router-dom'
 
@@ -115,7 +117,11 @@ export default function HomePageComponent() {
     activeSurface: 'results',
   })
 
-  const handleBrowseResults = () => goToResults('all-phenotypes')
+  const handleBrowseResults = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!shouldHandleSemanticLinkClick(event)) return
+    event.preventDefault()
+    goToResults('all-phenotypes')
+  }
 
   return (
     <HomePage>

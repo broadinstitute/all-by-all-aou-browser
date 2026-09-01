@@ -3,20 +3,27 @@ import test from 'node:test'
 
 import {
   buildCanonicalNavigationUrl,
-  getAppRouteBeforeNavigation,
+  commitSemanticNavigation,
   getInitialActiveSurface,
   parseNavigationState,
+  SemanticNavigationBrowser,
+  shouldHandleSemanticLinkClick,
 } from './navigationUrl'
 
 const stateFrom = (href: string) => parseNavigationState(new URL(href))
 
-test('search enters /app before state changes without dropping deep-link query state', () => {
-  const search = '?state=%7B%22geneId%22%3A%22ENSG-old%22%7D&dataset=v8'
-  assert.deepEqual(getAppRouteBeforeNavigation('/about', search), {
-    pathname: '/app',
-    search,
-  })
-  assert.equal(getAppRouteBeforeNavigation('/app', search), null)
+test('semantic link clicks preserve native modified-click deep links', () => {
+  const click = {
+    button: 0,
+    defaultPrevented: false,
+    metaKey: false,
+    altKey: false,
+    ctrlKey: false,
+    shiftKey: false,
+  }
+  assert.equal(shouldHandleSemanticLinkClick(click), true)
+  assert.equal(shouldHandleSemanticLinkClick({ ...click, ctrlKey: true }), false)
+  assert.equal(shouldHandleSemanticLinkClick({ ...click, button: 1 }), false)
 })
 
 test('legacy URL layout initializes active surface unless the URL specifies one', () => {
@@ -115,4 +122,149 @@ test('detail links preserve analysis context only when explicitly requested', ()
     regionId: '2-10-20',
     resultLayout: 'detail',
   })
+})
+
+class MemorySemanticBrowser implements SemanticNavigationBrowser {
+  entries: string[]
+  index = 0
+  restored = { pathname: '', state: {} as Record<string, unknown> }
+
+  constructor(initialHref: string) {
+    this.entries = [initialHref]
+    this.notifyUrlChange()
+  }
+
+  getCurrentHref = () => this.entries[this.index]
+
+  pushUrl = (url: string) => {
+    this.entries.splice(this.index + 1)
+    this.entries.push(url)
+    this.index += 1
+  }
+
+  notifyUrlChange = () => {
+    const url = new URL(this.getCurrentHref())
+    this.restored = {
+      pathname: url.pathname,
+      state: parseNavigationState(url),
+    }
+  }
+
+  back() {
+    this.index = Math.max(0, this.index - 1)
+    this.notifyUrlChange()
+  }
+
+  forward() {
+    this.index = Math.min(this.entries.length - 1, this.index + 1)
+    this.notifyUrlChange()
+  }
+}
+
+const appUrl = (state: Record<string, unknown>) =>
+  buildCanonicalNavigationUrl('https://example.org/app', state)
+
+test('Results to Details is one atomic entry and Back/Forward restores presentation', () => {
+  const resultsState = {
+    geneId: null,
+    regionId: null,
+    variantId: null,
+    analysisId: null,
+    resultIndex: 'top-associations',
+    experienceMode: 'focused',
+    activeSurface: 'results',
+    resultLayout: 'full',
+  }
+  const browser = new MemorySemanticBrowser(appUrl(resultsState))
+
+  commitSemanticNavigation(browser, {
+    geneId: 'ENSG1',
+    regionId: null,
+    variantId: null,
+    analysisId: null,
+    resultIndex: 'gene-phewas',
+    experienceMode: 'focused',
+    activeSurface: 'details',
+    resultLayout: 'full',
+  })
+
+  assert.equal(browser.entries.length, 2)
+  assert.deepEqual(browser.restored, {
+    pathname: '/app',
+    state: {
+      geneId: 'ENSG1',
+      regionId: null,
+      variantId: null,
+      analysisId: null,
+      resultIndex: 'gene-phewas',
+      experienceMode: 'focused',
+      activeSurface: 'details',
+      resultLayout: 'full',
+    },
+  })
+  browser.back()
+  assert.deepEqual(browser.restored, { pathname: '/app', state: resultsState })
+  browser.forward()
+  const forwardState = parseNavigationState(new URL(browser.getCurrentHref()))
+  assert.equal(forwardState.activeSurface, 'details')
+  assert.equal(forwardState.resultLayout, 'full')
+})
+
+test('Home and About search push no intermediate /app entry and Back restores route', () => {
+  for (const route of ['/', '/about']) {
+    const browser = new MemorySemanticBrowser(`https://example.org${route}`)
+    commitSemanticNavigation(browser, {
+      geneId: 'ENSG1',
+      regionId: null,
+      variantId: null,
+      analysisId: null,
+      resultIndex: 'gene-phewas',
+      experienceMode: 'sideBySide',
+      activeSurface: 'results',
+      resultLayout: 'full',
+    })
+
+    assert.equal(browser.entries.length, 2)
+    assert.equal(browser.restored.pathname, '/app')
+    browser.back()
+    assert.deepEqual(browser.restored, { pathname: route, state: {} })
+  }
+})
+
+test('header Results navigation pushes one complete destination', () => {
+  const detailState = {
+    geneId: 'ENSG1',
+    resultIndex: 'gene-phewas',
+    experienceMode: 'sideBySide',
+    activeSurface: 'details',
+    resultLayout: 'split',
+  }
+  const browser = new MemorySemanticBrowser(appUrl(detailState))
+
+  commitSemanticNavigation(browser, {
+    geneId: null,
+    regionId: null,
+    variantId: null,
+    analysisId: null,
+    resultIndex: 'top-associations',
+    topResultsTab: 'all-genes',
+    experienceMode: 'sideBySide',
+    activeSurface: 'results',
+    resultLayout: 'full',
+  })
+
+  assert.equal(browser.entries.length, 2)
+  assert.deepEqual(browser.restored.state, {
+    geneId: null,
+    resultIndex: 'top-associations',
+    experienceMode: 'sideBySide',
+    activeSurface: 'results',
+    resultLayout: 'full',
+    regionId: null,
+    variantId: null,
+    analysisId: null,
+    topResultsTab: 'all-genes',
+  })
+  browser.back()
+  assert.deepEqual(browser.restored, { pathname: '/app', state: detailState })
 })

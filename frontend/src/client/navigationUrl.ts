@@ -11,21 +11,37 @@ const LEGACY_TOP_LEVEL_STATE_KEYS = [
 
 export type NavigationState = Record<string, unknown>
 
-export interface AppRouteLocation {
-  pathname: '/app'
-  search: string
+// recoil-sync 0.2 first writes changed replace-history items into the prior
+// entry, then pushes changed push-history items. Semantic pushes are therefore
+// owned by commitSemanticNavigation(); atom writes replace so local derivations
+// (for example locus zoom) cannot create partial destinations on their own.
+export const SEMANTIC_STATE_URL_HISTORY = 'replace' as const
+
+export interface SemanticNavigationBrowser {
+  getCurrentHref: () => string
+  pushUrl: (url: string) => void
+  notifyUrlChange: () => void
 }
 
-/**
- * Route into the browser before committing a Recoil navigation transaction.
- * Preserving the existing query lets recoil-sync merge the transaction into
- * the current deep-link state instead of a Router update overwriting it.
- */
-export const getAppRouteBeforeNavigation = (
-  pathname: string,
-  search: string
-): AppRouteLocation | null =>
-  pathname === '/app' ? null : { pathname: '/app', search }
+export interface SemanticLinkActivation {
+  button: number
+  defaultPrevented: boolean
+  metaKey: boolean
+  altKey: boolean
+  ctrlKey: boolean
+  shiftKey: boolean
+}
+
+/** Leave modified and non-primary clicks to the link so deep links still work. */
+export const shouldHandleSemanticLinkClick = (
+  event: SemanticLinkActivation
+): boolean =>
+  !event.defaultPrevented &&
+  event.button === 0 &&
+  !event.metaKey &&
+  !event.altKey &&
+  !event.ctrlKey &&
+  !event.shiftKey
 
 export const parseNavigationState = (url: URL): NavigationState => {
   const encodedState = url.searchParams.get('state')
@@ -70,6 +86,36 @@ export const buildCanonicalNavigationUrl = (
   for (const key of LEGACY_TOP_LEVEL_STATE_KEYS) url.searchParams.delete(key)
 
   return url.toString()
+}
+
+/**
+ * Push one complete browser destination, then notify Router and recoil-sync.
+ * The prior URL is never partially rewritten, and no intermediate /app route
+ * entry is needed when navigation begins on Home, About, or another route.
+ */
+export const commitSemanticNavigation = (
+  browser: SemanticNavigationBrowser,
+  stateUpdates: NavigationState
+): string => {
+  const currentHref = browser.getCurrentHref()
+  const completeState = {
+    ...parseNavigationState(new URL(currentHref)),
+    ...stateUpdates,
+  }
+  const destinationUrl = buildCanonicalNavigationUrl(currentHref, completeState)
+
+  browser.pushUrl(destinationUrl)
+  browser.notifyUrlChange()
+  return destinationUrl
+}
+
+export const browserSemanticNavigation: SemanticNavigationBrowser = {
+  getCurrentHref: () => window.location.href,
+  pushUrl: (url) => window.history.pushState(null, '', url),
+  notifyUrlChange: () =>
+    window.dispatchEvent(
+      new PopStateEvent('popstate', { state: window.history.state })
+    ),
 }
 
 export const buildStateUrl = (

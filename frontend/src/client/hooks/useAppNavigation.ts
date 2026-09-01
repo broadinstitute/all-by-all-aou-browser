@@ -1,5 +1,10 @@
 import { useCallback } from 'react';
-import { useRecoilTransaction_UNSTABLE, useRecoilValue } from 'recoil';
+import {
+  RecoilValue,
+  useRecoilCallback,
+  useRecoilTransaction_UNSTABLE,
+  useRecoilValue,
+} from 'recoil';
 import {
   activeSurfaceAtom,
   analysisIdAtom,
@@ -20,8 +25,10 @@ import {
   getExperienceModeFromAtoms,
 } from '../browserModeState';
 import {
+  browserSemanticNavigation,
   buildCanonicalNavigationUrl,
   buildStateUrl,
+  commitSemanticNavigation,
   NavigationState,
 } from '../navigationUrl';
 import {
@@ -56,11 +63,14 @@ export function useAppNavigation() {
   const experienceMode = useRecoilValue(experienceModeAtom);
   const resultLayout = useRecoilValue(resultLayoutAtom);
 
-  // All state that defines one visible destination is committed together. This
-  // also lets recoil-sync produce a single coherent history state.
-  const navigate = useRecoilTransaction_UNSTABLE(
-    ({ get, set }) =>
+  // Semantic navigation is a browser-history operation, not a collection of
+  // independent atom writes. Push the complete URL once and let the shared
+  // popstate listener restore Router and Recoil from that exact destination.
+  const navigate = useRecoilCallback(
+    ({ snapshot }) =>
       (updates: NavigationUpdates, options: PresentationOptions) => {
+        const get = <T,>(state: RecoilValue<T>): T =>
+          snapshot.getLoadable(state).valueOrThrow();
         const presentation = getNavigationPresentation(
           getExperienceModeFromAtoms(get),
           get(resultLayoutAtom),
@@ -71,14 +81,10 @@ export function useAppNavigation() {
           }
         );
 
-        if ('geneId' in updates) set(geneIdAtom, updates.geneId);
-        if ('regionId' in updates) set(regionIdAtom, updates.regionId);
-        if ('variantId' in updates) set(variantIdAtom, updates.variantId);
-        if ('analysisId' in updates) set(analysisIdAtom, updates.analysisId);
-        if (updates.resultIndex) set(resultIndexAtom, updates.resultIndex);
-        if (updates.topResultsTab) set(topResultsTabAtom, updates.topResultsTab);
-        set(activeSurfaceAtom, presentation.activeSurface);
-        set(resultLayoutAtom, presentation.resultLayout);
+        commitSemanticNavigation(
+          browserSemanticNavigation,
+          buildDestinationState(updates, presentation)
+        );
       },
     []
   );
@@ -90,6 +96,7 @@ export function useAppNavigation() {
         destination?: 'details' | 'phewas';
         fromPhenotype?: boolean;
         keepVariant?: boolean;
+        analysisId?: string | null;
         resultIndex?: ResultIndex;
         resultsOnly?: boolean;
       }
@@ -101,7 +108,11 @@ export function useAppNavigation() {
           geneId,
           regionId: null,
           ...(!options?.keepVariant ? { variantId: null } : {}),
-          ...(!options?.fromPhenotype ? { analysisId: null } : {}),
+          ...(options?.analysisId !== undefined
+            ? { analysisId: options.analysisId }
+            : !options?.fromPhenotype
+              ? { analysisId: null }
+              : {}),
           ...(options?.resultIndex ? { resultIndex: options.resultIndex } : {}),
         },
         {

@@ -27,12 +27,13 @@ const SearchBarCompact = styled.div`
     display: none;
   }
 `
-import { useState } from 'react'
+import { MouseEvent, useState } from 'react'
 import styled from 'styled-components'
 import { ExternalLink } from '@gnomad/ui'
 import { useRecoilValue } from 'recoil'
 import { experienceModeAtom, TopResultsTab } from './sharedState'
 import { buildStateUrl, useAppNavigation } from './hooks/useAppNavigation'
+import { shouldHandleSemanticLinkClick } from './navigationUrl'
 import { PageHeadingRouterLink, PageHeadingExternalLink } from './UserInterface'
 import { NewSearchBar } from './Searchbox'
 import { Link } from 'react-router-dom'
@@ -269,7 +270,12 @@ const PageHeading = () => {
       activeSurface: 'results',
     })
 
-  const goToResults = (tab: TopResultsTab = 'all-phenotypes') => {
+  const goToResults = (
+    event: MouseEvent<HTMLAnchorElement>,
+    tab: TopResultsTab = 'all-phenotypes'
+  ) => {
+    if (!shouldHandleSemanticLinkClick(event)) return
+    event.preventDefault()
     navigateToResults(tab)
     closeDropdown()
   }
@@ -323,15 +329,15 @@ const PageHeading = () => {
             <PageHeadingRouterLink
               to={resultsUrl()}
               aria-haspopup="menu"
-              onClick={() => goToResults()}
+              onClick={(event) => goToResults(event)}
             >
               Results
             </PageHeadingRouterLink>
             <ResultsSubmenu className="results-submenu" role="menu">
-              <Link role="menuitem" to={resultsUrl('all-phenotypes')} onClick={() => goToResults('all-phenotypes')}>All Phenotypes</Link>
-              <Link role="menuitem" to={resultsUrl('all-genes')} onClick={() => goToResults('all-genes')}>All Genes</Link>
-              <Link role="menuitem" to={resultsUrl('gene-burden')} onClick={() => goToResults('gene-burden')}>Gene Burden</Link>
-              <Link role="menuitem" to={resultsUrl('single-variants')} onClick={() => goToResults('single-variants')}>Single Variants</Link>
+              <Link role="menuitem" to={resultsUrl('all-phenotypes')} onClick={(event) => goToResults(event, 'all-phenotypes')}>All Phenotypes</Link>
+              <Link role="menuitem" to={resultsUrl('all-genes')} onClick={(event) => goToResults(event, 'all-genes')}>All Genes</Link>
+              <Link role="menuitem" to={resultsUrl('gene-burden')} onClick={(event) => goToResults(event, 'gene-burden')}>Gene Burden</Link>
+              <Link role="menuitem" to={resultsUrl('single-variants')} onClick={(event) => goToResults(event, 'single-variants')}>Single Variants</Link>
             </ResultsSubmenu>
           </ResultsDropdownWrapper>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>
@@ -353,7 +359,7 @@ const PageHeading = () => {
             FAQ
           </PageHeadingRouterLink>
 
-          <PageHeadingRouterLink to={resultsUrl()} onClick={() => goToResults()}>
+          <PageHeadingRouterLink to={resultsUrl()} onClick={(event) => goToResults(event)}>
             Results
           </PageHeadingRouterLink>
           <PageHeadingExternalLink href="https://support.researchallofus.org/hc/en-us" onClick={closeDropdown}>

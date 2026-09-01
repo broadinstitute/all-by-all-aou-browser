@@ -13,7 +13,10 @@ import { urlSyncEffect } from 'recoil-sync'
 import randomColor from 'randomcolor'
 import { P_VALUE_BURDEN, P_VALUE_SKAT, P_VALUE_SKAT_O } from './PhenotypeList/Utils'
 import { clampSplitPaneWidth } from './paneLayout'
-import { getInitialActiveSurface } from './navigationUrl'
+import {
+  getInitialActiveSurface,
+  SEMANTIC_STATE_URL_HISTORY,
+} from './navigationUrl'
 import {
   ActiveSurface,
   PRESENTATION_URL_HISTORY,
@@ -32,7 +35,7 @@ export const geneIdAtom = atom<string | null | undefined>({
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -44,7 +47,7 @@ export const regionIdAtom = atom<string | null | undefined>({
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -68,7 +71,7 @@ export const analysisIdAtom = atom<string | null | undefined>({
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -80,7 +83,7 @@ export const variantIdAtom = atom<string | null | undefined>({
   effects: [
     urlSyncEffect({
       refine: nullable(string()),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -167,7 +170,7 @@ export const topResultsTabAtom = atom<TopResultsTab>({
   effects: [
     urlSyncEffect({
       refine: topResultsTabChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -511,7 +514,7 @@ export const resultIndexAtom = atom<ResultIndex>({
   effects: [
     urlSyncEffect({
       refine: resultIndexChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],

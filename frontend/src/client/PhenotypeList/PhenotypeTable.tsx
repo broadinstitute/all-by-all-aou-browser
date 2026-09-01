@@ -468,15 +468,19 @@ export const getPhenotypeColumns = ({
       grow: 0,
       minWidth: 70,
       render: (row: GenePhewasAnnotated) => {
-        const { goToGene, switchAnalysis } = useAppNavigation()
+        const { goToGene } = useAppNavigation()
 
         return (
           <Link
             style={{ cursor: 'pointer' }}
             className='grid-cell-content'
             onClick={() => {
-              switchAnalysis(row.analysis_id)
-              goToGene(row.gene_id, { fromPhenotype: true, keepVariant: true, resultIndex: 'gene-phewas' })
+              goToGene(row.gene_id, {
+                fromPhenotype: true,
+                keepVariant: true,
+                analysisId: row.analysis_id,
+                resultIndex: 'gene-phewas',
+              })
             }}
           >
             {row.gene_symbol || row.gene_id}
