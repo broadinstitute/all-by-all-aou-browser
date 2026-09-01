@@ -17,6 +17,8 @@ export interface PeakLabelsProps {
   labelAreaHeight: number;
   /** Callback when a peak label is clicked (for navigation) */
   onPeakClick?: (node: PeakLabelNode) => void;
+  /** Scientifically explicit tooltip for the destination of a label click. */
+  getPeakDestinationTitle?: (node: PeakLabelNode) => string | undefined;
   /** Callback when a peak dot is clicked to toggle its label on/off.
    *  Second arg is the set of currently labeled peak IDs (for initializing custom mode). */
   onPeakToggle?: (peakId: string, currentLabeledIds: Set<string>) => void;
@@ -61,6 +63,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
   plotHeight,
   labelAreaHeight,
   onPeakClick,
+  getPeakDestinationTitle,
   onPeakToggle,
   hoveredHitPosition,
   onPeakHover,
@@ -215,6 +218,7 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
         const isLabeled = node.isLabeled;
         const dotSize = showDiamond ? (isHovered ? 10 : 7) : (isHovered ? 6 : 4);
         const burdenColor = '#d500f9'; // Bright magenta/purple for strong visibility
+        const destinationTitle = getPeakDestinationTitle?.(node);
 
         // Get label position: dragging > override > computed
         let labelX = node.x;
@@ -241,7 +245,9 @@ export const PeakLabels: React.FC<PeakLabelsProps> = ({
               e.preventDefault();
               onPeakContextMenu?.(node, e.clientX, e.clientY);
             }}
+            data-navigation-destination={destinationTitle}
           >
+            {destinationTitle && <title>{destinationTitle}</title>}
             {/* Peak dot: click toggles label on/off */}
             {/* Invisible wider hit area for easier clicking */}
             <circle

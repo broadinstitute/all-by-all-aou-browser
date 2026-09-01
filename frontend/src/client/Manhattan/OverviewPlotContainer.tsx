@@ -5,13 +5,18 @@ import styled from 'styled-components';
 
 import { OverviewManhattan } from './OverviewManhattan';
 import { UnifiedLocusTable } from './UnifiedLocusTable';
-import type { UnifiedOverviewResponse, UnifiedLocus, UnifiedGene } from './types';
+import type { UnifiedOverviewResponse, UnifiedLocus } from './types';
+import type { PeakLabelNode } from './hooks/usePeakLabelLayout';
 import { axaouDevUrl, pouchDbName, cacheEnabled } from '../Query';
 import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import { configQuery } from '../queryStates';
 import { getOverviewVariantNavigationState } from './overviewVariantNavigation';
+import {
+  getPhenotypeLocusNavigationDecision,
+  type PhenotypeLocusNavigationDecision,
+} from './locusNavigationPolicy';
 
 const Container = styled.div`
   width: 100%;
@@ -36,7 +41,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
-  const { goToGene, goToVariant, getNewTabUrl } = useAppNavigation();
+  const { goToGene, goToRegion, goToVariant, getNewTabUrl } = useAppNavigation();
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
@@ -90,9 +95,16 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     setCustomLabelMode(false);
   }, []);
 
-  const handleGeneClick = useCallback((geneId: string) => {
-    goToGene(geneId, { fromPhenotype: true });
-  }, [goToGene]);
+  const handlePolicyNavigation = useCallback((decision: PhenotypeLocusNavigationDecision) => {
+    if (decision.kind === 'gene' && decision.state.geneId) {
+      goToGene(decision.state.geneId, {
+        fromPhenotype: true,
+        analysisId: decision.state.analysisId,
+      });
+    } else if (decision.state.regionId) {
+      goToRegion(decision.state.regionId, { fromPhenotype: true });
+    }
+  }, [goToGene, goToRegion]);
 
   const handleVariantClick = useCallback((
     variantId: string,
@@ -115,63 +127,6 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     getOverviewVariantNavigationState({ variantId, geneId, analysisId, locus }),
     { destination: 'results' }
   ), [getNewTabUrl, analysisId]);
-
-  const handlePeakClick = useCallback(
-    (node: any) => {
-      if (!node.peak) return;
-
-      const peak = node.peak as UnifiedLocus;
-      const SIG_THRESHOLD = 2.5e-6;
-
-      // Helper to get best burden p-value for a gene
-      const getBestBurdenPvalue = (gene: UnifiedGene): number => {
-        if (!gene.burden_results || gene.burden_results.length === 0) return Infinity;
-        const pvalues = gene.burden_results.flatMap(br => [
-          br.pvalue ?? Infinity,
-          br.pvalue_burden ?? Infinity,
-          br.pvalue_skat ?? Infinity,
-        ]);
-        return Math.min(...pvalues);
-      };
-
-      // Helper to get coding variant count (lof + missense)
-      const getCodingCount = (gene: UnifiedGene): number => {
-        const genomeLof = gene.genome_coding_hits?.lof ?? 0;
-        const genomeMissense = gene.genome_coding_hits?.missense ?? 0;
-        const exomeLof = gene.exome_coding_hits?.lof ?? 0;
-        const exomeMissense = gene.exome_coding_hits?.missense ?? 0;
-        return genomeLof + genomeMissense + exomeLof + exomeMissense;
-      };
-
-      // 1. Find top gene with significant burden result
-      const genesWithSigBurden = peak.genes
-        .filter(g => getBestBurdenPvalue(g) < SIG_THRESHOLD)
-        .sort((a, b) => getBestBurdenPvalue(a) - getBestBurdenPvalue(b));
-
-      if (genesWithSigBurden.length > 0) {
-        const topGene = genesWithSigBurden[0];
-        goToGene(topGene.gene_id, { fromPhenotype: true });
-        return;
-      }
-
-      // 2. Find gene with coding (lof/missense) variants
-      const genesWithCoding = peak.genes
-        .filter(g => getCodingCount(g) > 0)
-        .sort((a, b) => getCodingCount(b) - getCodingCount(a));
-
-      if (genesWithCoding.length > 0) {
-        const topGene = genesWithCoding[0];
-        goToGene(topGene.gene_id, { fromPhenotype: true });
-        return;
-      }
-
-      // 3. Fall back to locus view
-      if (onLocusClick) {
-        onLocusClick(peak.contig, peak.position, peak.start, peak.stop);
-      }
-    },
-    [onLocusClick, goToGene]
-  );
 
   const handleLocusClick = useCallback(
     (contig: string, position: number, start?: number, stop?: number) => {
@@ -228,6 +183,31 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
       return locus.sig_variant_count >= minNonCodingVariants;
     });
   }, [filteredLoci, minNonCodingVariants]);
+
+  const locusById = useMemo(
+    () => new Map(minVarFilteredLoci.map((locus) => [locus.locus_id, locus])),
+    [minVarFilteredLoci]
+  );
+
+  const getPeakNavigationDecision = useCallback((node: PeakLabelNode) => {
+    const locus = locusById.get(node.peak.locus_id);
+    if (!locus) return null;
+    return getPhenotypeLocusNavigationDecision({
+      analysisId,
+      locus,
+      interaction: { kind: 'peak' },
+    });
+  }, [analysisId, locusById]);
+
+  const handlePeakClick = useCallback((node: PeakLabelNode) => {
+    const decision = getPeakNavigationDecision(node);
+    if (decision) handlePolicyNavigation(decision);
+  }, [getPeakNavigationDecision, handlePolicyNavigation]);
+
+  const getPeakDestinationTitle = useCallback(
+    (node: PeakLabelNode) => getPeakNavigationDecision(node)?.tooltip,
+    [getPeakNavigationDecision]
+  );
 
   // Compute the default labeled IDs (mirrors the hook's implicated-first sort)
   // Used when transitioning from default→custom mode so the base set matches what's displayed
@@ -329,6 +309,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
         customLabelMode={customLabelMode}
         topN={topN}
         onPeakClick={handlePeakClick}
+        getPeakDestinationTitle={getPeakDestinationTitle}
         onPeakToggle={(peakId, currentLabeledIds) => togglePeak(peakId, currentLabeledIds)}
         showYAxis={true}
         contig={selectedContig}
@@ -341,7 +322,8 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
           <UnifiedLocusTable
             unifiedLoci={minVarFilteredLoci}
             onLocusClick={handleLocusClick}
-            onGeneClick={handleGeneClick}
+            onNavigate={handlePolicyNavigation}
+            analysisId={analysisId}
             onVariantClick={handleVariantClick}
             getVariantHref={getVariantHref}
             selectedPeakIds={selectedPeakIds}

@@ -1,21 +1,29 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
-import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
+import type { UnifiedLocus, UnifiedGene } from './types';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { analysisIdAtom } from '../sharedState';
 import { shouldHandleSemanticLinkClick } from '../navigationUrl';
 import { getContainingLocusRegionId } from './overviewVariantNavigation';
+import {
+  geneHasDisplayedPhenotypeEvidence,
+  getPhenotypeLocusNavigationDecision,
+  getSignificantBurdenTypes,
+  isBurdenOnlyLocus,
+  type PhenotypeLocusNavigationDecision,
+} from './locusNavigationPolicy';
 import './ManhattanViewer.css';
 
-const SIG_THRESHOLD = 2.5e-6;
 
 export interface UnifiedLocusTableProps {
   /** Unified loci from the overview API */
   unifiedLoci: UnifiedLocus[];
   /** Callback when a locus is clicked (for zoom navigation) */
   onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
-  /** Callback when a gene symbol is clicked */
-  onGeneClick?: (geneId: string) => void;
+  /** Exact phenotype-aware destination selected by the shared locus policy. */
+  onNavigate?: (decision: PhenotypeLocusNavigationDecision) => void;
+  /** Analysis retained by all table navigation decisions. */
+  analysisId: string;
   /** Same-tab semantic navigation for an ordinary coding-variant click. */
   onVariantClick?: (variantId: string, geneId: string, regionId: string) => void;
   /** Canonical href retained for context-menu and modified-click new tabs. */
@@ -45,40 +53,12 @@ export interface UnifiedLocusTableProps {
 }
 
 /**
- * Get unique burden annotation types with significant p-values for a gene
- * Returns array like ['pLoF', 'missenseLC'] for genes with those significant burden tests
- */
-function getGeneBurdenTypes(g: UnifiedGene): string[] {
-  if (!g.burden_results) return [];
-  const types = new Set<string>();
-  for (const b of g.burden_results) {
-    const hasSig =
-      (b.pvalue && b.pvalue < SIG_THRESHOLD) ||
-      (b.pvalue_burden && b.pvalue_burden < SIG_THRESHOLD) ||
-      (b.pvalue_skat && b.pvalue_skat < SIG_THRESHOLD);
-    if (hasSig) {
-      types.add(b.annotation);
-    }
-  }
-  return Array.from(types);
-}
-
-/**
  * Get total coding variant counts for a gene (genome + exome)
  */
 function getGeneCodingCounts(g: UnifiedGene): { lof: number; missense: number } {
   const lof = (g.genome_coding_hits?.lof ?? 0) + (g.exome_coding_hits?.lof ?? 0);
   const missense = (g.genome_coding_hits?.missense ?? 0) + (g.exome_coding_hits?.missense ?? 0);
   return { lof, missense };
-}
-
-/**
- * Check if gene has implicated evidence (burden or coding hits)
- */
-function geneHasEvidence(g: UnifiedGene): boolean {
-  const hasBurden = getGeneBurdenTypes(g).length > 0;
-  const coding = getGeneCodingCounts(g);
-  return hasBurden || coding.lof > 0 || coding.missense > 0;
 }
 
 /**
@@ -89,7 +69,8 @@ function geneHasEvidence(g: UnifiedGene): boolean {
 export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   unifiedLoci,
   onLocusClick,
-  onGeneClick,
+  onNavigate,
+  analysisId,
   onVariantClick,
   getVariantHref,
   selectedPeakIds,
@@ -123,8 +104,8 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   // Sort by implicated first, then best p-value
   const sortedLoci = useMemo(() => {
     return [...unifiedLoci].sort((a, b) => {
-      const aImpl = a.genes.some(geneHasEvidence);
-      const bImpl = b.genes.some(geneHasEvidence);
+      const aImpl = a.genes.some(geneHasDisplayedPhenotypeEvidence);
+      const bImpl = b.genes.some(geneHasDisplayedPhenotypeEvidence);
       if (aImpl !== bImpl) return aImpl ? -1 : 1;
       const bestA = Math.min(a.pvalue_genome ?? Infinity, a.pvalue_exome ?? Infinity);
       const bestB = Math.min(b.pvalue_genome ?? Infinity, b.pvalue_exome ?? Infinity);
@@ -153,7 +134,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
       if (term === 'lof' || term === 'plof') {
         return locus.genes.some((g) => {
           const coding = getGeneCodingCounts(g);
-          const hasLofBurden = getGeneBurdenTypes(g).includes('pLoF');
+          const hasLofBurden = getSignificantBurdenTypes(g).includes('pLoF');
           return coding.lof > 0 || hasLofBurden;
         });
       }
@@ -162,7 +143,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
       if (term === 'missense' || term === 'mis') {
         return locus.genes.some((g) => {
           const coding = getGeneCodingCounts(g);
-          const hasMisBurden = getGeneBurdenTypes(g).includes('missenseLC');
+          const hasMisBurden = getSignificantBurdenTypes(g).includes('missenseLC');
           return coding.missense > 0 || hasMisBurden;
         });
       }
@@ -177,7 +158,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
 
       // Special keywords: "burden" matches loci with any significant burden test
       if (term === 'burden') {
-        return locus.genes.some((g) => getGeneBurdenTypes(g).length > 0);
+        return locus.genes.some((g) => getSignificantBurdenTypes(g).length > 0);
       }
 
       return false;
@@ -187,7 +168,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   // Filter to only loci with gene evidence (singleton filtering is handled by parent)
   const filteredLoci = useMemo(() => {
     if (!showOnlyImplicated) return searchFilteredLoci;
-    return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasEvidence));
+    return searchFilteredLoci.filter((locus) => locus.genes.some(geneHasDisplayedPhenotypeEvidence));
   }, [searchFilteredLoci, showOnlyImplicated]);
 
   const handleSliderChange = useCallback((v: number) => {
@@ -386,12 +367,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             const hasLabel = customLabelMode ? isSelected : index < topN;
 
             // Partition genes: implicated first, then non-implicated
-            const implicatedGenes = locus.genes.filter(geneHasEvidence);
-            const nonImplicatedGenes = locus.genes.filter((g) => !geneHasEvidence(g));
+            const implicatedGenes = locus.genes.filter(geneHasDisplayedPhenotypeEvidence);
+            const nonImplicatedGenes = locus.genes.filter((g) => !geneHasDisplayedPhenotypeEvidence(g));
 
             // Best burden p-value across all genes
             const bestBurdenPvalue = locus.genes.reduce((best, g) => {
-              const types = getGeneBurdenTypes(g);
+              const types = getSignificantBurdenTypes(g);
               if (types.length === 0) return best;
               // Find best p-value across all burden results
               let minP = Infinity;
@@ -404,7 +385,12 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
             }, Infinity);
 
             // Check if this is a burden-only locus (no GWAS signal)
-            const isBurdenOnly = locus.pvalue_genome == null && locus.pvalue_exome == null;
+            const isBurdenOnly = isBurdenOnlyLocus(locus);
+            const locusDecision = getPhenotypeLocusNavigationDecision({
+              analysisId,
+              locus,
+              interaction: { kind: 'locus' },
+            });
 
             return (
               <tr
@@ -422,13 +408,11 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   />
                 </td>
                 <td
-                  onClick={() => {
-                    // Burden-only loci: navigate to the representative gene instead of the locus region
-                    if (isBurdenOnly && implicatedGenes.length > 0) {
-                      onGeneClick?.(implicatedGenes[0].gene_id);
-                    } else {
-                      onLocusClick?.(locus.contig, locus.position, locus.start, locus.stop);
-                    }
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => onNavigate?.(locusDecision)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onNavigate?.(locusDecision);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -438,8 +422,9 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                       locus: { contig: locus.contig, position: locus.position, start: locus.start, stop: locus.stop },
                     });
                   }}
-                  style={{ cursor: (onLocusClick || onGeneClick) ? 'pointer' : 'default' }}
-                  title={isBurdenOnly && implicatedGenes.length > 0 ? `Click to view ${implicatedGenes[0].gene_symbol}` : "Click to view locus, right-click for options"}
+                  style={{ cursor: onNavigate ? 'pointer' : 'default' }}
+                  aria-label={locusDecision.destinationLabel}
+                  title={`${locusDecision.tooltip} Right-click for more options.`}
                 >
                   <span style={{ color: 'var(--theme-primary, #262262)', textDecoration: 'underline' }}>
                     {locus.contig}:{locus.position.toLocaleString()}
@@ -463,8 +448,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                 <td>
                   {/* Implicated genes shown first - ALL of them, never truncated */}
                   {implicatedGenes.map((g, i) => {
-                    const burdenTypes = getGeneBurdenTypes(g);
+                    const burdenTypes = getSignificantBurdenTypes(g);
                     const coding = getGeneCodingCounts(g);
+                    const geneDecision = getPhenotypeLocusNavigationDecision({
+                      analysisId,
+                      locus,
+                      interaction: { kind: 'gene', geneId: g.gene_id },
+                    });
                     const hasBurden = burdenTypes.length > 0;
                     const hasCoding = coding.lof > 0 || coding.missense > 0;
 
@@ -481,7 +471,13 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                           style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--theme-primary, #262262)' }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onGeneClick?.(g.gene_id);
+                            onNavigate?.(geneDecision);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.stopPropagation();
+                              onNavigate?.(geneDecision);
+                            }
                           }}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -493,7 +489,10 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                               gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                             });
                           }}
-                          title={`View ${g.gene_symbol} page, right-click for options`}
+                          role="link"
+                          tabIndex={0}
+                          aria-label={geneDecision.destinationLabel}
+                          title={`${geneDecision.tooltip} Right-click for more options.`}
                         >
                           {g.gene_symbol}
                         </span>
@@ -558,13 +557,25 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                   {/* Non-implicated genes condensed */}
                   {nonImplicatedGenes.length > 0 && (
                     <span style={{ color: 'var(--theme-text-muted, #888)', fontSize: 11 }}>
-                      {nonImplicatedGenes.slice(0, 3).map((g, idx) => (
+                      {nonImplicatedGenes.slice(0, 3).map((g, idx) => {
+                        const geneDecision = getPhenotypeLocusNavigationDecision({
+                          analysisId,
+                          locus,
+                          interaction: { kind: 'gene', geneId: g.gene_id },
+                        });
+                        return (
                         <React.Fragment key={g.gene_id}>
                           <span
                             style={{ cursor: 'pointer', textDecoration: 'underline' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onGeneClick?.(g.gene_id);
+                              onNavigate?.(geneDecision);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.stopPropagation();
+                                onNavigate?.(geneDecision);
+                              }
                             }}
                             onContextMenu={(e) => {
                               e.preventDefault();
@@ -576,13 +587,17 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                                 gene: { geneId: g.gene_id, geneSymbol: g.gene_symbol },
                               });
                             }}
-                            title={`View ${g.gene_symbol} page, right-click for options`}
+                            role="link"
+                            tabIndex={0}
+                            aria-label={geneDecision.destinationLabel}
+                            title={`${geneDecision.tooltip} Right-click for more options.`}
                           >
                             {g.gene_symbol}
                           </span>
                           {idx < 2 && idx < nonImplicatedGenes.length - 1 && ', '}
                         </React.Fragment>
-                      ))}
+                        );
+                      })}
                       {nonImplicatedGenes.length > 3 && ` +${nonImplicatedGenes.length - 3}`}
                     </span>
                   )}

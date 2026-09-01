@@ -31,6 +31,8 @@ export interface OverviewManhattanProps {
   topN?: number;
   /** Callback when a peak label is clicked */
   onPeakClick?: (node: PeakLabelNode) => void;
+  /** Scientifically explicit tooltip for the destination of a peak label click. */
+  getPeakDestinationTitle?: (node: PeakLabelNode) => string | undefined;
   /** Callback when a ghost peak dot is clicked to toggle its label */
   onPeakToggle?: (peakId: string, currentLabeledIds: Set<string>) => void;
   /** Show Y-axis with -log10(p) labels */
@@ -133,6 +135,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
   customLabelMode = false,
   topN = 10,
   onPeakClick,
+  getPeakDestinationTitle,
   onPeakToggle,
   showYAxis = true,
   contig = 'all',
@@ -507,6 +510,7 @@ export const OverviewManhattan: React.FC<OverviewManhattanProps> = ({
                 hoveredHitPosition={null}
                 onPeakHover={handlePeakHover}
                 onPeakClick={onPeakClick}
+                getPeakDestinationTitle={getPeakDestinationTitle}
                 onPeakToggle={onPeakToggle}
                 onPeakContextMenu={(node, clientX, clientY) => {
                   setContextMenu({
