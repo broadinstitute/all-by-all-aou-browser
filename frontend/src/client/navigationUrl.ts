@@ -20,7 +20,6 @@ export const SEMANTIC_STATE_URL_HISTORY = 'replace' as const
 export interface SemanticNavigationBrowser {
   getCurrentHref: () => string
   pushUrl: (url: string) => void
-  notifyUrlChange: () => void
 }
 
 export interface SemanticLinkActivation {
@@ -89,9 +88,10 @@ export const buildCanonicalNavigationUrl = (
 }
 
 /**
- * Push one complete browser destination, then notify Router and recoil-sync.
- * The prior URL is never partially rewritten, and no intermediate /app route
- * entry is needed when navigation begins on Home, About, or another route.
+ * Push one complete browser destination through React Router's history.
+ * Router and recoil-sync observe that single history notification, so the
+ * prior URL is never partially rewritten and no intermediate /app entry is
+ * needed when navigation begins on Home, About, or another route.
  */
 export const commitSemanticNavigation = (
   browser: SemanticNavigationBrowser,
@@ -105,17 +105,7 @@ export const commitSemanticNavigation = (
   const destinationUrl = buildCanonicalNavigationUrl(currentHref, completeState)
 
   browser.pushUrl(destinationUrl)
-  browser.notifyUrlChange()
   return destinationUrl
-}
-
-export const browserSemanticNavigation: SemanticNavigationBrowser = {
-  getCurrentHref: () => window.location.href,
-  pushUrl: (url) => window.history.pushState(null, '', url),
-  notifyUrlChange: () =>
-    window.dispatchEvent(
-      new PopStateEvent('popstate', { state: window.history.state })
-    ),
 }
 
 export const buildStateUrl = (

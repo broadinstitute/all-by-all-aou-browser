@@ -11,6 +11,7 @@ import { ancestryGroupAtom, selectedContigAtom } from '../sharedState';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { useLocalStorage, useLocalStorageSet } from '../hooks/useLocalStorage';
 import { configQuery } from '../queryStates';
+import { getOverviewVariantNavigationState } from './overviewVariantNavigation';
 
 const Container = styled.div`
   width: 100%;
@@ -35,7 +36,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
 }) => {
   const ancestryGroup = useRecoilValue(ancestryGroupAtom);
   const [selectedContig, setSelectedContig] = useRecoilState(selectedContigAtom);
-  const { goToGene, openInNewTab } = useAppNavigation();
+  const { goToGene, goToVariant, getNewTabUrl } = useAppNavigation();
   const configState = useRecoilValue(configQuery);
   // Prefer build-time env var, fall back to runtime config
   const dataVersion = (typeof process !== 'undefined' && process.env?.DATA_VERSION) || configState.data?.data_version || '';
@@ -93,16 +94,27 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
     goToGene(geneId, { fromPhenotype: true });
   }, [goToGene]);
 
-  const handleVariantClick = useCallback((variantId: string, geneId: string) => {
-    openInNewTab({
-      variantId,
+  const handleVariantClick = useCallback((
+    variantId: string,
+    geneId: string,
+    regionId: string
+  ) => {
+    goToVariant(variantId, {
       geneId,
+      regionId,
       analysisId,
       resultIndex: 'variant-phewas',
-      resultLayout: 'split',
-      regionId: null,
     });
-  }, [openInNewTab, analysisId]);
+  }, [goToVariant, analysisId]);
+
+  const getVariantHref = useCallback((
+    variantId: string,
+    geneId: string,
+    locus: UnifiedLocus
+  ) => getNewTabUrl(
+    getOverviewVariantNavigationState({ variantId, geneId, analysisId, locus }),
+    { destination: 'results' }
+  ), [getNewTabUrl, analysisId]);
 
   const handlePeakClick = useCallback(
     (node: any) => {
@@ -331,6 +343,7 @@ export const OverviewPlotContainer: React.FC<OverviewPlotContainerProps> = ({
             onLocusClick={handleLocusClick}
             onGeneClick={handleGeneClick}
             onVariantClick={handleVariantClick}
+            getVariantHref={getVariantHref}
             selectedPeakIds={selectedPeakIds}
             onTogglePeak={togglePeak}
             customLabelMode={customLabelMode}

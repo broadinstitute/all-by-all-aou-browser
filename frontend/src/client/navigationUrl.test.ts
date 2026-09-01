@@ -140,6 +140,7 @@ class MemorySemanticBrowser implements SemanticNavigationBrowser {
     this.entries.splice(this.index + 1)
     this.entries.push(url)
     this.index += 1
+    this.notifyUrlChange()
   }
 
   notifyUrlChange = () => {
@@ -208,6 +209,41 @@ test('Results to Details is one atomic entry and Back/Forward restores presentat
   const forwardState = parseNavigationState(new URL(browser.getCurrentHref()))
   assert.equal(forwardState.activeSurface, 'details')
   assert.equal(forwardState.resultLayout, 'full')
+})
+
+test('same-variant result change preserves phenotype, gene, and containing locus', () => {
+  const sourceState = {
+    experienceMode: 'focused',
+    resultLayout: 'split',
+    activeSurface: 'results',
+    geneId: 'ENSG00000089225',
+    regionId: 'chr12-114300000-114500000',
+    analysisId: 'heart-rate-mean',
+    variantId: 'chr12-114399544-C-A',
+    resultIndex: 'pheno-info',
+  }
+  const browser = new MemorySemanticBrowser(appUrl(sourceState))
+
+  commitSemanticNavigation(browser, {
+    variantId: 'chr12-114399544-C-A',
+    geneId: 'ENSG00000089225',
+    regionId: 'chr12-114300000-114500000',
+    analysisId: 'heart-rate-mean',
+    resultIndex: 'variant-phewas',
+    experienceMode: 'focused',
+    activeSurface: 'results',
+    resultLayout: 'split',
+  })
+
+  assert.equal(browser.entries.length, 2)
+  assert.deepEqual(browser.restored.state, {
+    ...sourceState,
+    resultIndex: 'variant-phewas',
+  })
+  browser.back()
+  assert.deepEqual(browser.restored.state, sourceState)
+  browser.forward()
+  assert.equal(browser.restored.state.resultIndex, 'variant-phewas')
 })
 
 test('Home and About search push no intermediate /app entry and Back restores route', () => {

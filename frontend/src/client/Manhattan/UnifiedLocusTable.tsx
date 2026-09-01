@@ -3,6 +3,8 @@ import { useRecoilValue } from 'recoil';
 import type { UnifiedLocus, UnifiedGene, BurdenResult } from './types';
 import { LocusGeneContextMenu } from './components/LocusGeneContextMenu';
 import { analysisIdAtom } from '../sharedState';
+import { shouldHandleSemanticLinkClick } from '../navigationUrl';
+import { getContainingLocusRegionId } from './overviewVariantNavigation';
 import './ManhattanViewer.css';
 
 const SIG_THRESHOLD = 2.5e-6;
@@ -14,8 +16,10 @@ export interface UnifiedLocusTableProps {
   onLocusClick?: (contig: string, position: number, start?: number, stop?: number) => void;
   /** Callback when a gene symbol is clicked */
   onGeneClick?: (geneId: string) => void;
-  /** Callback when a coding variant is clicked (opens split view) */
-  onVariantClick?: (variantId: string, geneId: string) => void;
+  /** Same-tab semantic navigation for an ordinary coding-variant click. */
+  onVariantClick?: (variantId: string, geneId: string, regionId: string) => void;
+  /** Canonical href retained for context-menu and modified-click new tabs. */
+  getVariantHref?: (variantId: string, geneId: string, locus: UnifiedLocus) => string;
   /** Set of selected peak IDs for custom labeling */
   selectedPeakIds: Set<string>;
   /** Callback to toggle a peak selection - passes filtered loci for initialization */
@@ -87,6 +91,7 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
   onLocusClick,
   onGeneClick,
   onVariantClick,
+  getVariantHref,
   selectedPeakIds,
   onTogglePeak,
   customLabelMode,
@@ -511,16 +516,26 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
                           const moreCount = totalCoding > 1 ? totalCoding - 1 : 0;
                           return (
                             <>
-                              <span
-                                style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline' : undefined, textDecorationStyle: 'dotted' as const, textUnderlineOffset: '2px' }}
-                                onClick={variantId ? (e) => { e.stopPropagation(); onVariantClick?.(variantId, g.gene_id); } : undefined}
-                                title={variantId ?? undefined}
+                              <a
+                                href={variantId ? getVariantHref?.(variantId, g.gene_id, locus) : undefined}
+                                style={{ fontSize: 10, marginLeft: 6, color, fontWeight: 600, cursor: variantId ? 'pointer' : undefined, textDecoration: variantId ? 'underline dotted' : undefined, textUnderlineOffset: '2px' }}
+                                onClick={variantId ? (e) => {
+                                  e.stopPropagation();
+                                  if (!shouldHandleSemanticLinkClick(e)) return;
+                                  e.preventDefault();
+                                  onVariantClick?.(
+                                    variantId,
+                                    g.gene_id,
+                                    getContainingLocusRegionId(locus)
+                                  );
+                                } : undefined}
+                                title={variantId ? `${variantId} — open Variant PheWAS (Ctrl/Cmd-click or context menu opens a new tab)` : undefined}
                               >
                                 {g.best_coding_hgvsp}
                                 {g.best_coding_pvalue ? ` P=${g.best_coding_pvalue < 0.001 ? g.best_coding_pvalue.toExponential(1) : g.best_coding_pvalue.toPrecision(2)}` : ''}
                                 {g.best_coding_beta !== undefined && <span style={{ color: g.best_coding_beta > 0 ? '#2e7d32' : '#c62828' }}>{g.best_coding_beta > 0 ? ' ↑' : ' ↓'}</span>}
                                 {g.best_coding_ac ? ` AC:${g.best_coding_ac}` : ''}
-                              </span>
+                              </a>
                               {moreCount > 0 && (
                                 <span style={{ fontSize: 10, marginLeft: 4, color: 'var(--theme-text-muted, #888)' }}>+{moreCount} more</span>
                               )}

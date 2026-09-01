@@ -1,4 +1,5 @@
-import { BrowserRouter as Router } from 'react-router-dom'
+import { useMemo } from 'react'
+import { BrowserRouter as Router, useHistory } from 'react-router-dom'
 import { RecoilRoot } from 'recoil'
 import { RecoilURLSyncJSON } from 'recoil-sync'
 import styled from 'styled-components'
@@ -7,6 +8,7 @@ import { useAuth0, Auth0Provider } from '@auth0/auth0-react'
 import Login from './Login'
 import Logout from './Logout'
 import App from './App'
+import { createRecoilRouterBrowserInterface } from './routerHistory'
 
 const LoginPage = styled.div`
   width: 100vw;
@@ -17,17 +19,30 @@ const LoginPage = styled.div`
   justify-content: center;
 `
 
-const MainApp = ({ showLogout }: { showLogout: boolean }) => {
+const RouterSyncedApp = ({ showLogout }: { showLogout: boolean }) => {
+  const history = useHistory()
+  const browserInterface = useMemo(
+    () => createRecoilRouterBrowserInterface(history),
+    [history]
+  )
+
   return (
-    <Router>
-      <RecoilRoot>
-        <RecoilURLSyncJSON location={{ part: 'queryParams', param: 'state' }}>
-          <App showLogout={showLogout} />
-        </RecoilURLSyncJSON>
-      </RecoilRoot>
-    </Router>
+    <RecoilRoot>
+      <RecoilURLSyncJSON
+        location={{ part: 'queryParams', param: 'state' }}
+        browserInterface={browserInterface}
+      >
+        <App showLogout={showLogout} />
+      </RecoilURLSyncJSON>
+    </RecoilRoot>
   )
 }
+
+const MainApp = ({ showLogout }: { showLogout: boolean }) => (
+  <Router>
+    <RouterSyncedApp showLogout={showLogout} />
+  </Router>
+)
 
 const Main = () => {
   const { user, isAuthenticated, error } = useAuth0()

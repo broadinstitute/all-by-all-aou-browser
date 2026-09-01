@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
 import {
   RecoilValue,
   useRecoilCallback,
@@ -25,7 +26,6 @@ import {
   getExperienceModeFromAtoms,
 } from '../browserModeState';
 import {
-  browserSemanticNavigation,
   buildCanonicalNavigationUrl,
   buildStateUrl,
   commitSemanticNavigation,
@@ -40,6 +40,7 @@ import {
   NavigationDestination,
 } from '../experienceNavigation';
 import { canFitTwoPanes } from '../browserShell';
+import { routerLocationFromUrl } from '../routerHistory';
 
 export { buildStateUrl };
 
@@ -60,12 +61,20 @@ type PresentationOptions = {
 };
 
 export function useAppNavigation() {
+  const history = useHistory();
   const experienceMode = useRecoilValue(experienceModeAtom);
   const resultLayout = useRecoilValue(resultLayoutAtom);
+  const semanticNavigation = useMemo(
+    () => ({
+      getCurrentHref: () => window.location.href,
+      pushUrl: (url: string) => history.push(routerLocationFromUrl(url)),
+    }),
+    [history]
+  );
 
   // Semantic navigation is a browser-history operation, not a collection of
-  // independent atom writes. Push the complete URL once and let the shared
-  // popstate listener restore Router and Recoil from that exact destination.
+  // independent atom writes. Push the complete URL once through Router. The
+  // shared history listener then projects that visit into Recoil atomically.
   const navigate = useRecoilCallback(
     ({ snapshot }) =>
       (updates: NavigationUpdates, options: PresentationOptions) => {
@@ -82,11 +91,11 @@ export function useAppNavigation() {
         );
 
         commitSemanticNavigation(
-          browserSemanticNavigation,
+          semanticNavigation,
           buildDestinationState(updates, presentation)
         );
       },
-    []
+    [semanticNavigation]
   );
 
   const goToGene = useCallback(
@@ -304,7 +313,7 @@ export function useAppNavigation() {
     []
   );
 
-  const openInNewTab = useCallback(
+  const getNewTabUrl = useCallback(
     (
       stateUpdates: NavigationState,
       options: {
@@ -334,16 +343,25 @@ export function useAppNavigation() {
             options.resultsOnly ?? stateUpdates.resultLayout === 'full',
         }
       );
-      window.open(
-        buildCanonicalNavigationUrl(
-          window.location.href,
-          buildDestinationState(stateUpdates, presentation),
-          { preserveKeys: options.preserveKeys }
-        ),
-        '_blank'
+      return buildCanonicalNavigationUrl(
+        window.location.href,
+        buildDestinationState(stateUpdates, presentation),
+        { preserveKeys: options.preserveKeys }
       );
     },
     [experienceMode, resultLayout]
+  );
+
+  const openInNewTab = useCallback(
+    (
+      stateUpdates: NavigationState,
+      options: {
+        destination?: NavigationDestination;
+        resultsOnly?: boolean;
+        preserveKeys?: readonly ('geneId' | 'regionId' | 'variantId' | 'analysisId')[];
+      } = {}
+    ) => window.open(getNewTabUrl(stateUpdates, options), '_blank'),
+    [getNewTabUrl]
   );
 
   const setExperienceMode = useRecoilTransaction_UNSTABLE(
@@ -414,6 +432,7 @@ export function useAppNavigation() {
     switchAnalysis,
     clearVariant,
     clearAll,
+    getNewTabUrl,
     openInNewTab,
     setExperienceMode,
     compareSideBySide,

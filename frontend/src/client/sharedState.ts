@@ -59,7 +59,7 @@ export const selectedContigAtom = atom<string>({
   effects: [
     urlSyncEffect({
       refine: string(),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -103,7 +103,7 @@ export const phenotypeTabAtom = atom<PhenotypeTab>({
   effects: [
     urlSyncEffect({
       refine: phenotypeTabChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
     }),
   ],
 })
@@ -120,7 +120,7 @@ export const phenotypePlotViewAtom = atom<PhenotypePlotView>({
   effects: [
     urlSyncEffect({
       refine: phenotypePlotViewChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
     }),
   ],
 })
@@ -139,7 +139,7 @@ export const geneBurdenViewModeAtom = atom<GeneBurdenViewMode>({
   effects: [
     urlSyncEffect({
       refine: geneBurdenViewModeChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
     }),
   ],
 })
@@ -150,7 +150,7 @@ export const geneBurdenShowSigAtom = atom<boolean>({
   effects: [
     urlSyncEffect({
       refine: bool(),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
     }),
   ],
 })
@@ -191,7 +191,7 @@ export const burdenSetAtom = atom<BurdenSetOptions>({
   effects: [
     urlSyncEffect({
       refine: burdenSetChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -204,7 +204,7 @@ export const locusMafAtom = atom<MafOption>({
   effects: [
     urlSyncEffect({
       refine: number(),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -260,7 +260,7 @@ export const phewasOptsAtom = atom<boolean>({
   effects: [
     urlSyncEffect({
       refine: bool(),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -303,7 +303,7 @@ export const hideGeneOptsAtom = atom<boolean>({
   effects: [
     urlSyncEffect({
       refine: bool(),
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -365,7 +365,7 @@ export const ancestryGroupAtom = atom<AncestryGroupCodes>({
   effects: [
     urlSyncEffect({
       refine: ancestryChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
@@ -385,7 +385,7 @@ export const sequencingTypeAtom = atom<SequencingType>({
   effects: [
     urlSyncEffect({
       refine: sequencingTypeChecker,
-      history: 'push',
+      history: SEMANTIC_STATE_URL_HISTORY,
       syncDefault: true,
     }),
   ],
