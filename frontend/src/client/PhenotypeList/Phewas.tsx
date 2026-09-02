@@ -55,12 +55,13 @@ import {
   shouldShowComparedOnly,
   updateTopHitDetailLabel,
 } from './phewasDisplay'
+import { getPhewasTableLayoutPolicy, PhewasLayoutMode } from './phewasLayout'
 
-const RootContainerGene = styled.div`
+const RootContainerGene = styled.div<{ $layoutMode: PhewasLayoutMode }>`
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 1300px;
+  min-height: ${({ $layoutMode }) => ($layoutMode === 'document' ? '0' : '1300px')};
   max-width: 100%;
   min-width: 0;
 
@@ -85,10 +86,10 @@ const RootContainerGene = styled.div`
   }
 `
 
-const PhenotypeTableInnerContainer = styled.div`
-  position: absolute;
+const PhenotypeTableInnerContainer = styled.div<{ $layoutMode: PhewasLayoutMode }>`
+  position: ${({ $layoutMode }) => ($layoutMode === 'document' ? 'relative' : 'absolute')};
   width: 100%;
-  height: 100%;
+  height: ${({ $layoutMode }) => ($layoutMode === 'document' ? 'auto' : '100%')};
 `
 
 const TooltipHint = styled(TooltipHintBase)`
@@ -136,12 +137,12 @@ const DragHandle = styled.div`
 
 const RootContainerVariant = styled(RootContainerGene)``
 
-const TableContainer = styled.div`
+const TableContainer = styled.div<{ $layoutMode: PhewasLayoutMode }>`
   position: relative;
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  overflow: hidden;
+  flex: ${({ $layoutMode }) => ($layoutMode === 'document' ? '0 0 auto' : '1 1 auto')};
+  overflow: ${({ $layoutMode }) => ($layoutMode === 'document' ? 'visible' : 'hidden')};
   min-width: 0;
   min-height: 0;
 `
@@ -190,6 +191,25 @@ interface Category {
   analysisCount: number
 }
 
+type PhewasProps = {
+  columns: any[]
+  onPointClick: (phenotype: any) => void
+  uniquePhenotypes: any[]
+  categories: Category[]
+  exportFileName: string
+  enableExport?: boolean
+  availableAncestries?: AncestryGroupCodes[]
+  onHoverAnalysis?: (analysisId: string | null) => void
+  size: { width: number; height: number }
+  phewasType?: 'variant' | 'topHit' | 'gene' | 'locus'
+  layoutMode?: PhewasLayoutMode
+  burdenSet?: unknown
+  setBurdenSet?: unknown
+  showPlotTypeControls?: boolean
+  showAnalysisGroups?: boolean
+  showBurdenTestControls?: boolean
+}
+
 const Phewas = ({
   columns: originalColumns,
   onPointClick,
@@ -201,7 +221,8 @@ const Phewas = ({
   onHoverAnalysis,
   size,
   phewasType = 'gene', // "variant", "topHit", "gene", "locus"
-}: any) => {
+  layoutMode = 'pane',
+}: PhewasProps) => {
   const isGenePhewas = phewasType === 'gene' || phewasType === 'topHit'
   const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
   const showEffectEstimate = !isGenePhewas || ancestryGroup !== 'meta'
@@ -695,19 +716,12 @@ const Phewas = ({
 
   const activeAnalyses = comparisonFilterActive ? undefined : selected
 
-  let numRowsRendered = 20
-
-  if (windowSize.height) {
-    // Account for plot height when calculating available table space
-    // Base offset includes header, controls, and other UI elements
-    const baseOffset = 280
-    const availableHeight = windowSize.height - baseOffset - totalPlotHeight
-    numRowsRendered = Math.floor(availableHeight / 25) // 25px per row
-  }
-
-  if (numRowsRendered < 10) {
-    numRowsRendered = 10
-  }
+  const tableLayoutPolicy = getPhewasTableLayoutPolicy({
+    layoutMode,
+    rowCount: displayTablePhenotypes.length,
+    windowHeight: windowSize.height,
+    plotHeight: totalPlotHeight,
+  })
 
   const RootContainer = isGenePhewas ? RootContainerGene : RootContainerVariant
 
@@ -724,7 +738,7 @@ const Phewas = ({
 
   return (
     <React.Fragment>
-      <RootContainer>
+      <RootContainer $layoutMode={layoutMode} data-phewas-layout={layoutMode}>
         {controlsOpen && isMobileOptions && (
           <MobileOptionsBackdrop aria-hidden="true" onClick={closePhewasControls} />
         )}
@@ -889,8 +903,8 @@ const Phewas = ({
             style={{ cursor: isDragging ? 'ns-resize' : 'ns-resize' }}
             title="Drag to resize plot area"
           />
-          <TableContainer>
-            <PhenotypeTableInnerContainer>
+          <TableContainer $layoutMode={layoutMode}>
+            <PhenotypeTableInnerContainer $layoutMode={layoutMode}>
               <PhenotypeTable
                 columns={columns}
                 highlightText={searchText}
@@ -900,7 +914,11 @@ const Phewas = ({
                 sortKey={sortKey}
                 sortOrder // TODO
                 phenotypes={displayTablePhenotypes}
-                numRowsRendered={numRowsRendered}
+                numRowsRendered={tableLayoutPolicy.numRowsRendered}
+                emptyStateHeight={tableLayoutPolicy.emptyStateHeight}
+                emptyStateMessage={
+                  layoutMode === 'document' ? 'No associations found' : 'No phenotypes found'
+                }
               />
               <div className='buttons'>
                 <ExportDataButton

@@ -38,11 +38,11 @@ const DescriptionContainer = styled.span`
   text-overflow: ellipsis;
   white-space: nowrap;
 `
-const NoPhenotypes = styled.div`
+const NoPhenotypes = styled.div<{ $height: number }>`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: ${(props) => (props as any).height}px;
+  height: ${({ $height }) => $height}px;
   border: 1px dashed var(--theme-border, gray);
   color: var(--theme-text, inherit);
   font-size: 20px;
@@ -690,6 +690,8 @@ type OwnPhenotypeTableProps = {
   sortOrder: boolean
   phenotypes: any[]
   numRowsRendered?: number
+  emptyStateHeight?: number
+  emptyStateMessage?: string
 }
 // @ts-expect-error ts-migrate(2456) FIXME: Type alias 'PhenotypeTableProps' circularly refere... Remove this comment to see the full error message
 type PhenotypeTableProps = OwnPhenotypeTableProps & typeof PhenotypeTable.defaultProps
@@ -706,10 +708,15 @@ const PhenotypeTable = (props: PhenotypeTableProps) => {
     sortOrder,
     phenotypes,
     numRowsRendered,
+    emptyStateHeight,
+    emptyStateMessage,
   } = props
   if (phenotypes.length === 0) {
-    // @ts-expect-error ts-migrate(2769) FIXME: No overload matches this call.
-    return <NoPhenotypes height={320}>No phenotypes found</NoPhenotypes>
+    return (
+      <NoPhenotypes $height={emptyStateHeight} role="status" aria-live="polite">
+        {emptyStateMessage}
+      </NoPhenotypes>
+    )
   }
   return (
     <Grid
@@ -736,5 +743,7 @@ PhenotypeTable.defaultProps = {
   onHoverPhenotype: () => { },
   onRequestSort: () => { },
   numRowsRendered: 20,
+  emptyStateHeight: 320,
+  emptyStateMessage: 'No phenotypes found',
 }
 export default PhenotypeTable

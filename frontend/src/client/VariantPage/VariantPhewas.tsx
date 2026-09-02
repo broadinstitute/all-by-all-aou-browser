@@ -10,6 +10,7 @@ import styled from 'styled-components'
 import { getPhenotypeColumns } from '../PhenotypeList/PhenotypeTable'
 import { modifyCategoryColor } from '../PhenotypeList/phenotypeUtils'
 import Phewas from '../PhenotypeList/Phewas'
+import { getVariantPhewasLayoutMode } from '../PhenotypeList/phewasLayout'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
   ancestryGroupAtom,
@@ -524,6 +525,7 @@ const ConnectedVariantPhewas = ({
           onHoverAnalysis={onHoverAnalysis}
           exportFileName={`variant-phewas-exomes_${variantId}`}
           phewasType="variant"
+          layoutMode={getVariantPhewasLayoutMode(layout)}
           size={size}
         />
       </VariantAssociationsSection>

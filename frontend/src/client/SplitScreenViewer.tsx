@@ -246,8 +246,8 @@ const FocusedVariantContent = styled.div<{ $padding: number }>`
 const GenomicContextSection = styled.section`
   width: 100%;
   min-width: 0;
-  margin-top: 32px;
-  padding-top: 24px;
+  margin-top: 15px;
+  padding-top: 8px;
   border-top: 1px solid var(--theme-border, #ddd);
 
   & > h2 {
