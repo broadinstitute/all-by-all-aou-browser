@@ -14,13 +14,14 @@ Researchers can quickly navigate between genes, single variants, and phenotypes 
 
 ### **Overview**
 
-The All by All browser offers two ways to work. **Focused** shows one complete page at a time and is the clearest place to start. Select a gene, locus, variant, or association to open its Details page, then use the prominent **Back to results** action to return without losing your filters or scientific context.
+The All by All browser offers two ways to work through the **Focused / Side by side** control in the Status Bar:
 
-**Side by side** is an optional comparison workflow for wide screens. It preserves the familiar resizable Results pane on the left and association Details on the right. Use the layout buttons or drag the central dotted line to adjust the panes. Depending on the Results pane width, some controls or table columns may be automatically hidden.
+* **Focused mode:** Choose **Focused** for one task-oriented, vertically scrolling workspace and the best default for reading or exploring without narrow panes. Results and Details generally appear one page at a time, with related content kept together and a context-aware return action. Browser Back and Forward restore the originating results or workspace.
+* **Side by side:** On sufficiently wide screens, use coordinated, resizable **Results** on the left and **Details** on the right for direct comparison. The layout controls select Results only, Split, or Details only, and the central dotted divider resizes the panes in Split view. Pane width can affect which controls or table columns are visible.
 
-Use the visible **Focused / Side by side** control in the Status Bar to switch workflows. When both pages fit, Focused Details also offers **Compare side by side**. Switching modes retains the selected phenotype, gene, locus, variant, analyses, and the prior Side-by-side layout as much as possible. The Status Bar also displays the current scientific context and includes a **Theme Toggle** for Light, Dark, and System (OS preference) display modes.
+Switching modes preserves the selected phenotype, gene, locus, variant, and analyses, as well as the remembered Side-by-side layout where it remains valid. When both pages fit, Focused also offers **Compare side by side**. The Status Bar displays the current scientific context and includes a **Theme Toggle** for Light, Dark, and System (OS preference) display modes.
 
-On phones, tablets, narrow desktop windows, or at high zoom, the browser automatically shows one active page at a time. This temporary responsive view does not change a saved Side-by-side preference or pane layout: widening the browser restores it. Wide tables scroll within their content area, and Details includes the same keyboard-accessible Back action.
+On phones, tablets, narrow desktop windows, or at high zoom, a Side-by-side preference temporarily shows one active page at a time. The preference and pane layout are retained, and widening the browser restores the prior layout. Focused remains one document. Wide tables scroll within their content area, and Details includes the same keyboard-accessible return action.
 
 <img src="/SVG/1-walkthrough-layout@4x.png" />
 
@@ -93,7 +94,7 @@ The symbols use both shape and color and include explanatory hover text. Positiv
 
 <img src="/SVG/6-walkthrough-heatmap@4x.png" />
 
-You can interact with plot points or click the arrow under "Details" to open more information about the selected gene or variant. In Focused mode, Details replaces Results and includes a context-aware Back action. In Side by side mode, the same action updates the right-hand pane.
+You can interact with plot points or click the arrow under "Details" to open more information about the selected gene or variant. In Focused mode, the information opens within one scrolling workspace with a context-aware return action. In Side by side mode, the same action updates the right-hand Details pane.
 
 ### Genome-wide single variant results
 
@@ -181,7 +182,7 @@ Clicking on a specific variant ID from any table will open the **Variant PheWAS*
 
 ### Variant details and gene context
 
-When exploring a variant's PheWAS, selecting an association opens detailed annotations for the variant. These appear on a full Details page in Focused mode or in the right-hand pane in Side by side mode. The annotations include its Ensembl Variant Effect Predictor (VEP) consequence, HGVS notations, allele frequencies, and case/control breakdowns. The view also highlights the associated gene, allowing you to pivot to the Gene Page for broader regional context or burden statistics.
+When exploring a variant's PheWAS, selecting an association updates the variant's scientific context. In Focused mode, the relevant information stays together in one scrolling workspace. In Side by side mode, Results can remain on the left while Details open in the right-hand pane. The annotations include its Ensembl Variant Effect Predictor (VEP) consequence, HGVS notations, allele frequencies, and case/control breakdowns.
 
 <img src="/SVG/13-walkthrough-variant-phewas-gene@4x.png" />
 
