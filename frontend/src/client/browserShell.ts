@@ -55,6 +55,43 @@ export const getResponsivePagePadding = (width?: number | null): number => {
 }
 
 export type BrowserSurface = 'results' | 'details'
+export type BrowserShellRenderPolicy =
+  | { kind: 'stacked-variant'; renderMode: 'stacked-variant' }
+  | { kind: 'single-surface'; renderMode: 'results-only' | 'details-only' }
+  | { kind: 'wide'; renderMode: PaneRenderMode }
+
+/**
+ * Focused variants are one composed task document at every width. Other
+ * Focused destinations and narrow Side-by-side views retain the existing
+ * one-surface-at-a-time behavior.
+ */
+export const getResponsiveBrowserShellRenderPolicy = ({
+  experienceMode,
+  activeSurface,
+  resultLayout,
+  width,
+  variantId,
+}: {
+  experienceMode: ExperienceMode
+  activeSurface: ActiveSurface
+  resultLayout: ResultLayout
+  width?: number | null
+  variantId?: string | null
+}): BrowserShellRenderPolicy => {
+  if (experienceMode === 'focused' && variantId) {
+    return { kind: 'stacked-variant', renderMode: 'stacked-variant' }
+  }
+
+  if (experienceMode === 'focused' || !canFitTwoPanes(width)) {
+    return {
+      kind: 'single-surface',
+      renderMode: activeSurface === 'results' ? 'results-only' : 'details-only',
+    }
+  }
+
+  return { kind: 'wide', renderMode: getPaneRenderMode(resultLayout) }
+}
+
 export type RetainedSurfaceMounts = Record<BrowserSurface, boolean>
 
 /**

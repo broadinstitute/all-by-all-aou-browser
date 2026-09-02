@@ -8,6 +8,7 @@ import {
   getBrowserShellRenderMode,
   getDetailsContextLabel,
   getResponsiveBrowserShellRenderMode,
+  getResponsiveBrowserShellRenderPolicy,
   getResponsivePagePadding,
   getRetainedSurfaceMounts,
   getRetainedSurfaceVisibility,
@@ -44,6 +45,52 @@ test('narrow containers temporarily use one active surface without changing layo
   assert.equal(shouldShowLayoutControls('sideBySide', 1099), false)
   assert.equal(shouldShowLayoutControls('sideBySide', 1100), true)
   assert.equal(shouldShowLayoutControls('focused', 1600), false)
+})
+
+test('Focused variant policy composes one stacked workspace at every width', () => {
+  for (const width of [480, 1600]) {
+    assert.deepEqual(
+      getResponsiveBrowserShellRenderPolicy({
+        experienceMode: 'focused',
+        activeSurface: 'details',
+        resultLayout: 'split',
+        width,
+        variantId: 'chr17-43057062-T-TG',
+      }),
+      { kind: 'stacked-variant', renderMode: 'stacked-variant' }
+    )
+  }
+})
+
+test('Focused without a variant retains its active single surface', () => {
+  assert.deepEqual(
+    getResponsiveBrowserShellRenderPolicy({
+      experienceMode: 'focused',
+      activeSurface: 'results',
+      resultLayout: 'split',
+      width: 1600,
+      variantId: null,
+    }),
+    { kind: 'single-surface', renderMode: 'results-only' }
+  )
+})
+
+test('Side by side with a variant retains wide and responsive behavior', () => {
+  const input = {
+    experienceMode: 'sideBySide' as const,
+    activeSurface: 'details' as const,
+    resultLayout: 'split' as const,
+    variantId: 'chr17-43057062-T-TG',
+  }
+
+  assert.deepEqual(
+    getResponsiveBrowserShellRenderPolicy({ ...input, width: 1600 }),
+    { kind: 'wide', renderMode: 'split' }
+  )
+  assert.deepEqual(
+    getResponsiveBrowserShellRenderPolicy({ ...input, width: 480 }),
+    { kind: 'single-surface', renderMode: 'details-only' }
+  )
 })
 
 test('single-surface Results stays mounted across Details and Back', () => {

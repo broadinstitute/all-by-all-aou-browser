@@ -24,15 +24,15 @@ const EmptyState = styled.div`
   text-align: center;
 `
 
-const Container = styled.div`
+const Container = styled.div<{ $embedded: boolean }>`
   display: flex;
   flex-direction: row;
   width: 100%;
   min-width: 0;
-  height: 100%;
-  min-height: 100%;
+  height: ${({ $embedded }) => ($embedded ? 'auto' : '100%')};
+  min-height: ${({ $embedded }) => ($embedded ? '0' : '100%')};
   max-width: 100%;
-  overflow: hidden;
+  overflow: ${({ $embedded }) => ($embedded ? 'visible' : 'hidden')};
   position: relative;
 
   & > :first-child {
@@ -42,13 +42,13 @@ const Container = styled.div`
 
   @media (max-width: 600px) {
     flex-direction: column;
-    overflow-y: auto;
+    overflow-y: ${({ $embedded }) => ($embedded ? 'visible' : 'auto')};
 
     & > :first-child {
       order: 2;
       flex: 1 1 auto;
       width: 100%;
-      min-height: 320px;
+      min-height: ${({ $embedded }) => ($embedded ? '0' : '320px')};
     }
 
     & > :not(:first-child) {
@@ -57,7 +57,9 @@ const Container = styled.div`
   }
 `
 
-export const LocusPageRoot: React.FC = () => {
+export const LocusPageRoot: React.FC<{ embedded?: boolean }> = ({
+  embedded = false,
+}) => {
   const [hideGeneOptions, setHideGeneOptions] = useRecoilState(hideGeneOptsAtom)
   const analysisId = useRecoilValue(analysisIdAtom)
   const geneId = useRecoilValue(geneIdAtom)
@@ -74,9 +76,9 @@ export const LocusPageRoot: React.FC = () => {
   }
 
   return (
-    <Container>
-      <LocusPageDataContainer />
-      {!hideGeneOptions && <GenePageControls />}
+    <Container $embedded={embedded} data-locus-layout={embedded ? 'embedded' : 'standalone'}>
+      <LocusPageDataContainer embedded={embedded} />
+      {!hideGeneOptions && <GenePageControls embedded={embedded} />}
       {hideGeneOptions && (
         <ShowControlsButton
           type="button"

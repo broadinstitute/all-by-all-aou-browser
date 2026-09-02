@@ -44,8 +44,20 @@ const Container = styled(HalfPage)`
   }
 `
 
+const VariantWorkspaceTitle = styled.h1`
+  width: 100%;
+  margin: 0 0 4px;
+  font-size: 20px;
+`
 
+const VariantAssociationsSection = styled.section`
+  width: 100%;
+`
 
+const VariantAssociationCount = styled.p`
+  width: 100%;
+  font-size: 14px;
+`
 
 const VariantInfoWrapper = styled.div`
   width: 100%;
@@ -265,7 +277,15 @@ const VariantInfo: React.FC<VariantInfoProps> = ({ variantData }) => {
 };
 
 
-const ConnectedVariantPhewas = ({ size }: any) => {
+type VariantPhewasProps = {
+  layout?: 'standalone' | 'composed'
+  size?: { width: number; height: number }
+}
+
+const ConnectedVariantPhewas = ({
+  size,
+  layout = 'standalone',
+}: VariantPhewasProps & { size: { width: number; height: number } }) => {
   const { width } = size
 
   const analyses = useRecoilValue(selectedAnalyses)
@@ -462,31 +482,53 @@ const ConnectedVariantPhewas = ({ size }: any) => {
     setHoveredVariant(variantId)
   }
 
+  const associationCount = (
+    <>
+      {uniquePhenotypes && uniquePhenotypes.length} single variant associations with{' '}
+      <strong>{variantData.variant_id}</strong>
+    </>
+  )
+
   return (
-    <Container>
+    <Container data-variant-phewas-layout={layout}>
       <DocumentTitle title={variantId} />
-      <h3>Variant: {variantId}</h3>
+      {layout === 'composed' ? (
+        <VariantWorkspaceTitle id="focused-variant-title">
+          Variant: {variantId}
+        </VariantWorkspaceTitle>
+      ) : (
+        <h3>Variant: {variantId}</h3>
+      )}
       <VariantInfo variantData={variantData} />
 
-      <h3 className='app-section-title .variant-phewas'>
-        {uniquePhenotypes && uniquePhenotypes.length} single variant associations with{' '}
-        <strong>{variantData.variant_id}</strong>
-      </h3>
-      <Phewas
-        uniquePhenotypes={uniquePhenotypes}
-        categories={categoriesPrepared}
-        burdenSet={burdenSet}
-        setBurdenSet={setBurdenSet}
-        availableAncestries={[]}
-        columns={phenotypesInVariantColumns}
-        onPointClick={onPointClick}
-        onHoverAnalysis={onHoverAnalysis}
-        exportFileName={`variant-phewas-exomes_${variantId}`}
-        phewasType='variant'
-        size={size}
-      />
+      <VariantAssociationsSection
+        aria-labelledby={layout === 'composed' ? 'variant-associations-heading' : undefined}
+        data-focused-variant-section="associations"
+      >
+        {layout === 'composed' ? (
+          <>
+            <h2 id="variant-associations-heading">Variant associations</h2>
+            <VariantAssociationCount>{associationCount}</VariantAssociationCount>
+          </>
+        ) : (
+          <h3 className="app-section-title variant-phewas">{associationCount}</h3>
+        )}
+        <Phewas
+          uniquePhenotypes={uniquePhenotypes}
+          categories={categoriesPrepared}
+          burdenSet={burdenSet}
+          setBurdenSet={setBurdenSet}
+          availableAncestries={[]}
+          columns={phenotypesInVariantColumns}
+          onPointClick={onPointClick}
+          onHoverAnalysis={onHoverAnalysis}
+          exportFileName={`variant-phewas-exomes_${variantId}`}
+          phewasType="variant"
+          size={size}
+        />
+      </VariantAssociationsSection>
       {/* {warnings} */}
     </Container>
   )
 }
-export default withSize()(ConnectedVariantPhewas) as React.FC
+export default withSize()(ConnectedVariantPhewas) as React.FC<VariantPhewasProps>

@@ -27,7 +27,7 @@ import {
   canFitTwoPanes,
   getBackToResultsLabel,
   getDetailsContextLabel,
-  getResponsiveBrowserShellRenderMode,
+  getResponsiveBrowserShellRenderPolicy,
   getResponsivePagePadding,
   getRetainedSurfaceMounts,
   getRetainedSurfaceVisibility,
@@ -225,6 +225,36 @@ export const DetailsSurface = ({
   )
 }
 
+const FocusedVariantDocument = styled.article`
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+`
+
+const FocusedVariantContent = styled.div<{ $padding: number }>`
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 12px ${({ $padding }) => $padding}px 48px;
+`
+
+const GenomicContextSection = styled.section`
+  width: 100%;
+  min-width: 0;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--theme-border, #ddd);
+
+  & > h2 {
+    margin: 0 0 16px;
+  }
+`
+
 const ResizableItems = withSize({
   refreshMode: 'debounce',
   refreshRate: 100,
@@ -241,6 +271,7 @@ const ResizableItems = withSize({
     const experienceMode = useRecoilValue(experienceModeAtom)
     const activeSurface = useRecoilValue(activeSurfaceAtom)
     const resultsLayout = useRecoilValue(resultLayoutAtom)
+    const { variantId } = useGetActiveItems()
 
     const measuredWidth = Number.isFinite(size?.width) ? size?.width : undefined
     const setBrowserContainerWidth = useSetRecoilState(browserContainerWidthAtom)
@@ -259,14 +290,14 @@ const ResizableItems = withSize({
 
     const containerHeight = size?.height || windowSize.height
     const leftPanelSize = { width: defaultWidth, height: containerHeight }
-    const shellRenderMode = getResponsiveBrowserShellRenderMode(
+    const renderPolicy = getResponsiveBrowserShellRenderPolicy({
       experienceMode,
       activeSurface,
-      resultsLayout,
-      measuredWidth
-    )
+      resultLayout: resultsLayout,
+      width: measuredWidth,
+      variantId,
+    })
     const twoPanesFit = canFitTwoPanes(measuredWidth)
-    const renderSingleSurface = experienceMode === 'focused' || !twoPanesFit
     const pagePadding = getResponsivePagePadding(measuredWidth)
     const resultsSurfaceSize = {
       width: Math.max(0, (measuredWidth ?? 0) - pagePadding * 2),
@@ -274,7 +305,32 @@ const ResizableItems = withSize({
     }
     const retainedSurfaceMounts = useRef({ results: false, details: false })
 
-    if (renderSingleSurface) {
+    if (renderPolicy.kind === 'stacked-variant') {
+      return (
+        <FocusedVariantDocument
+          aria-labelledby="focused-variant-title"
+          data-browser-experience="focused"
+          data-focused-variant-workspace="stacked"
+          data-pane-render-mode="stacked-variant"
+          data-responsive-layout="single-document"
+        >
+          <FocusedVariantContent $padding={pagePadding}>
+            <VariantPhewas layout="composed" size={resultsSurfaceSize} />
+            <GenomicContextSection
+              aria-labelledby="genomic-context-heading"
+              data-focused-variant-section="genomic-context"
+            >
+              <h2 id="genomic-context-heading">Genomic context</h2>
+              <LocusPageRoot embedded />
+            </GenomicContextSection>
+          </FocusedVariantContent>
+        </FocusedVariantDocument>
+      )
+    }
+
+    const shellRenderMode = renderPolicy.renderMode
+
+    if (renderPolicy.kind === 'single-surface') {
       const activeSingleSurface = shellRenderMode === 'results-only' ? 'results' : 'details'
       retainedSurfaceMounts.current = getRetainedSurfaceMounts(
         retainedSurfaceMounts.current,

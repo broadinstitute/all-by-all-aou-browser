@@ -192,7 +192,7 @@ const processVariants = ({
     )
   ) as VariantDataset[];
 }
-export const LocusPageDataContainer = () => {
+export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolean }) => {
   interface Data {
     geneModels: GeneModels[]
     geneAssociations: GeneAssociations[]
@@ -620,6 +620,7 @@ export const LocusPageDataContainer = () => {
         locusPlotData={locusPlotData}
         regionOverlay={regionOverlay}
         isLargeRegion={isLargeRegion}
+        embedded={embedded}
       />
     </>
   )

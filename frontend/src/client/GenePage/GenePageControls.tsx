@@ -58,22 +58,22 @@ const ControlsHeaderWrapper = styled(ControlsHeader)`
   grid-area: controls-header;
 `
 
-const GenePageControlsGeneFocus = styled.div`
+const GenePageControlsGeneFocus = styled.div<{ $embedded?: boolean }>`
   box-sizing: border-box;
   flex: 0 0 230px;
   width: 230px;
   min-width: 0;
   max-width: 230px;
   margin-left: 5px;
-  height: 100%;
+  height: ${({ $embedded }) => ($embedded ? 'auto' : '100%')};
   min-height: 0;
-  max-height: 100%;
-  align-self: stretch;
+  max-height: ${({ $embedded }) => ($embedded ? 'none' : '100%')};
+  align-self: ${({ $embedded }) => ($embedded ? 'flex-start' : 'stretch')};
   padding-left: 0;
   padding-right: 0;
 
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-y: ${({ $embedded }) => ($embedded ? 'visible' : 'auto')};
+  overflow-x: ${({ $embedded }) => ($embedded ? 'visible' : 'hidden')};
 
   display: grid;
   grid-auto-rows: min-content;
@@ -826,7 +826,7 @@ const UnselectVariant: React.FC = () => {
   )
 }
 
-export const GenePageControls = () => {
+export const GenePageControls = ({ embedded = false }: { embedded?: boolean }) => {
   const variantId = useRecoilValue(variantIdAtom)
   const regionId = useRecoilValue(regionIdAtom)
   const setHideGeneOpts = useSetRecoilState(hideGeneOptsAtom)
@@ -905,14 +905,17 @@ export const GenePageControls = () => {
 
   if (variantId) {
     return (
-      <GenePageControlStylesVariantFocus id={optionPanelContract.detail.id}>
+      <GenePageControlStylesVariantFocus
+        id={optionPanelContract.detail.id}
+        $embedded={embedded}
+      >
         <VariantPageControls />
       </GenePageControlStylesVariantFocus>
     )
   }
 
   return (
-    <GenePageControlsGeneFocus id={optionPanelContract.detail.id}>
+    <GenePageControlsGeneFocus id={optionPanelContract.detail.id} $embedded={embedded}>
       <GenePageControlsItems />
     </GenePageControlsGeneFocus>
   )

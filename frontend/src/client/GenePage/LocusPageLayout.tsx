@@ -54,11 +54,11 @@ import {
 import GeneResultsTable from '../GeneResults/GeneResultsTable'
 
 // Styled Components (unchanged)
-const GenePageGridStyles = styled.div`
+const GenePageGridStyles = styled.div<{ $embedded?: boolean }>`
   width: 100%;
   min-width: 0;
-  height: 100%;
-  min-height: 100%;
+  height: ${({ $embedded }) => ($embedded ? 'auto' : '100%')};
+  min-height: ${({ $embedded }) => ($embedded ? '0' : '100%')};
 
   h3 {
     max-width: 100%;
@@ -70,11 +70,11 @@ const GenePageGridStyles = styled.div`
 
   .associations-page-grid {
     width: 100%;
-    height: 100%;
+    height: ${({ $embedded }) => ($embedded ? 'auto' : '100%')};
     box-sizing: border-box;
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: ${({ $embedded }) => ($embedded ? 'visible' : 'auto')};
     overflow-x: auto;
     padding-inline: ${GENE_DETAIL_INLINE_GUTTER_PX}px;
     padding-bottom: 50px;
@@ -380,6 +380,8 @@ type LocusPageLayoutProps = {
   regionOverlay?: RegionOverlayResponse
   /** Whether this is a large region using server-side rendering */
   isLargeRegion?: boolean
+  /** Flow within a parent document instead of owning a full-height scroller. */
+  embedded?: boolean
 }
 
 // Main Component
@@ -393,6 +395,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   locusPlotData,
   regionOverlay,
   isLargeRegion,
+  embedded = false,
 }) => {
   const [membershipFilters, setMembershipFilters] = useRecoilState(membershipFiltersAtom)
   const variantDetails = useRecoilValue(multiAnalysisVariantDetailsAtom)
@@ -708,7 +711,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   };
 
   return (
-    <Container>
+    <Container $embedded={embedded}>
       <div className="associations-page-grid">
         {!variantId && !regionId && (
           <>
