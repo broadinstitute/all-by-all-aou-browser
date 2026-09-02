@@ -10,6 +10,11 @@ import { Spinner, StatusMessage } from '../UserInterface'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { modifyCategoryColor, CategoriesResponse } from './phenotypeUtils'
 import CategoryFilter from '../Shared/CategoryFilter'
+import {
+  initialAllPhenotypesSortState,
+  nextAllPhenotypesSortState,
+  sortAllPhenotypesRows,
+} from './allPhenotypesSort'
 
 const Container = styled.div`
   display: flex;
@@ -221,8 +226,8 @@ const AllPhenotypesTab = () => {
   const [searchText, setSearchText] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedTraitTypes, setSelectedTraitTypes] = useState<Set<string>>(new Set())
-  const [sortKey, setSortKey] = useState('sig_loci_count')
-  const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>('descending')
+  const [sortState, setSortState] = useState(initialAllPhenotypesSortState)
+  const { sortKey, sortOrder } = sortState
 
   const [xAxis, setXAxis] = useState<XAxisField>('n_cases')
   const [yAxis, setYAxis] = useState<YAxisField>('sig_loci_count')
@@ -325,16 +330,7 @@ const AllPhenotypesTab = () => {
       )
     }
 
-    return [...result].sort((a: PhenotypeSummaryRow, b: PhenotypeSummaryRow) => {
-      const valA = a[sortKey as keyof PhenotypeSummaryRow]
-      const valB = b[sortKey as keyof PhenotypeSummaryRow]
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return sortOrder === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA)
-      }
-      return sortOrder === 'ascending'
-        ? (valA as number) - (valB as number)
-        : (valB as number) - (valA as number)
-    })
+    return sortAllPhenotypesRows(result, sortState)
   }, [data, searchText, selectedCategories, selectedTraitTypes, sortKey, sortOrder])
 
   const handleRowClick = (row: PhenotypeSummaryRow) => {
@@ -520,12 +516,7 @@ const AllPhenotypesTab = () => {
   ]
 
   const handleRequestSort = (newSortKey: string) => {
-    if (newSortKey === sortKey)
-      setSortOrder(sortOrder === 'ascending' ? 'descending' : 'ascending')
-    else {
-      setSortKey(newSortKey)
-      setSortOrder('descending')
-    }
+    setSortState((current) => nextAllPhenotypesSortState(current, newSortKey))
   }
 
   if (anyLoading() && !data)
