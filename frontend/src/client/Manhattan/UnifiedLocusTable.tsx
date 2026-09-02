@@ -12,6 +12,11 @@ import {
   isBurdenOnlyLocus,
   type PhenotypeLocusNavigationDecision,
 } from './locusNavigationPolicy';
+import {
+  AVAILABLE_TABLE_BOTTOM_PADDING,
+  AVAILABLE_TABLE_MIN_VIEWPORT_HEIGHT,
+  useAvailableTableHeight,
+} from '../availableTableHeight';
 import './ManhattanViewer.css';
 
 
@@ -187,8 +192,25 @@ export const UnifiedLocusTable: React.FC<UnifiedLocusTableProps> = ({
     setVisibleRowCount((prev) => prev + 100);
   }, []);
 
+  const loadedRowCount = Math.min(filteredLoci.length, visibleRowCount);
+  const { ref: tableViewportRef, policy: tableHeightPolicy } = useAvailableTableHeight<HTMLDivElement>({
+    rowCount: loadedRowCount,
+    rowHeight: 32,
+    headerHeight: 35,
+  });
+
   return (
-    <div className="manhattan-table-container">
+    <div
+      ref={tableViewportRef}
+      className="manhattan-table-container"
+      style={{
+        maxHeight: Math.max(tableHeightPolicy.availableHeight, AVAILABLE_TABLE_MIN_VIEWPORT_HEIGHT),
+        marginBottom: tableHeightPolicy.reserveHeight + AVAILABLE_TABLE_BOTTOM_PADDING,
+      }}
+      data-available-height-table="unified-loci"
+      data-available-height-capacity={tableHeightPolicy.capacity}
+      data-available-height-reserve={tableHeightPolicy.reserveHeight}
+    >
       {/* Control panel above table */}
       <div
         style={{

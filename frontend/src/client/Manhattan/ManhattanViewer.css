@@ -124,11 +124,9 @@
   cursor: pointer;
 }
 
-/* Variant table - scrollable independently */
+/* Page-level result table: its live max-height is supplied by useAvailableTableHeight. */
 .manhattan-table-container {
   margin-top: 16px;
-  margin-bottom: 250px;
-  max-height: 400px;
   overflow: auto;
   border: 1px solid var(--theme-border, #e0e0e0);
   border-radius: 4px;
