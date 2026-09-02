@@ -1,14 +1,12 @@
 import { Button } from '@gnomad/ui'
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useSetRecoilState } from 'recoil'
 
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
   analysisIdAtom,
   ancestryGroupAtom,
   AncestryGroupCodes,
-  geneIdAtom,
-  regionIdAtom,
   selectedAnalyses,
   variantIdAtom,
   locusMafAtom,
@@ -21,8 +19,6 @@ import {
   burdenTestSignificanceAtom,
   BurdenTestSignificanceMap,
 } from '../sharedState'
-import { StatusMessage } from '../UserInterface'
-
 import { renderCountText } from '../PhenotypeList/Utils'
 
 import { addVariantIdsToList, annotateWorstConsequence, processGeneBurden } from '../utils'
@@ -47,6 +43,11 @@ import {
   RegionOverlayResponse,
 } from '../types'
 import { LocusPageLayout } from './LocusPageLayout'
+import {
+  findVariantById,
+  GenomicContext,
+  parseVariantLocus,
+} from './genomicContext'
 
 /**
  * Convert regionId format from "19-32216732-34497056" to "19:32216732-34497056"
@@ -192,7 +193,13 @@ const processVariants = ({
     )
   ) as VariantDataset[];
 }
-export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolean }) => {
+export const LocusPageDataContainer = ({
+  embedded = false,
+  context,
+}: {
+  embedded?: boolean
+  context: GenomicContext
+}) => {
   interface Data {
     geneModels: GeneModels[]
     geneAssociations: GeneAssociations[]
@@ -202,10 +209,10 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
     [key: string]: any
   }
 
-  const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
-  const geneId = useRecoilValue(geneIdAtom)
   const analysisId = useRecoilValue(analysisIdAtom)
+  const regionId = context.kind === 'locus' ? context.regionId : null
+  const geneIdOrName = context.kind === 'gene' ? context.geneId : null
 
   if (!analysisId) {
     return null
@@ -215,15 +222,19 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
 
   const analyses = selectedAnalysesList.length === 0 ? [analysisId] : selectedAnalysesList
 
-  const geneIdOrName = geneId
-
-  const [ancestryGroup, setAncestryGroup] = useRecoilState(ancestryGroupAtom)
+  const ancestryGroup = useRecoilValue(ancestryGroupAtom)
 
   let queries = [
     {
       url: `${axaouDevUrl}/analyses?ancestry_group=${ancestryGroup}`,
       name: 'analysesMetadata',
     },
+    ...(variantId
+      ? [{
+          url: `${axaouDevUrl}/variants/annotations/${variantId}?extended=true`,
+          name: 'selectedVariantAnnotation',
+        }]
+      : []),
   ]
 
   const sequencingTypes = ["exome", "genome"];
@@ -317,21 +328,6 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
         ...variantAnnotationRegionQueries,
       ]
 
-  // When we have a variantId but no gene or region, infer a region
-  // from the variant ID so we can show the locus context.
-  const setRegionId = useSetRecoilState(regionIdAtom)
-  useEffect(() => {
-    if (regionId || geneIdOrName || !variantId) return
-    const parts = variantId.replace(/^chr/, '').split('-')
-    if (parts.length >= 2) {
-      const contig = parts[0]
-      const pos = parseInt(parts[1], 10)
-      if (!isNaN(pos)) {
-        setRegionId(`${contig}-${pos - 500000}-${pos + 500000}`)
-      }
-    }
-  }, [regionId, geneIdOrName, variantId, setRegionId])
-
   if (regionId) {
     queries = [...queries, ...regionQueries]
   } else if (geneIdOrName) {
@@ -341,7 +337,7 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
   const { queryStates: allQueryState } = useQuery<Data>({
     dbName: pouchDbName,
     queries,
-    deps: [geneIdOrName, analysisId, selectedAnalysesList, regionId, ancestryGroup],
+    deps: [geneIdOrName, analysisId, selectedAnalysesList, regionId, variantId, ancestryGroup],
     cacheEnabled,
   })
 
@@ -355,10 +351,9 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
   const variantDatasets = useMemo(() => {
     // For large regions, build lightweight variant datasets from the overlay's
     // significant hits instead of fetching + processing the full variant set.
+    let datasets: VariantDataset[]
     if (isLargeRegion) {
-      if (!regionOverlay?.significant_hits?.length) return []
-
-      const data: VariantJoined[] = regionOverlay.significant_hits.map((hit: any) => {
+      const data: VariantJoined[] = (regionOverlay?.significant_hits ?? []).map((hit: any) => {
         const parts = hit.id.replace(/^chr/, '').split('-')
         const contig = parts[0] ? (parts[0].startsWith('chr') ? parts[0] : `chr${parts[0]}`) : hit.contig
         const position = hit.position || (parts[1] ? parseInt(parts[1], 10) : 0)
@@ -386,24 +381,69 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
         } as any as VariantJoined
       })
 
-      return [{
+      datasets = [{
         sequencingType: 'combined',
         ancestryGroup,
         analysisId: analysisId!,
         data,
       }]
+    } else {
+      datasets = processVariants({
+        analysisId,
+        analyses,
+        analysesMetadata,
+        queryStates,
+      });
     }
 
-    let datasets: VariantDataset[] = []
-    datasets = processVariants({
-      analysisId,
-      analyses,
-      analysesMetadata,
-      queryStates,
-    });
+    if (variantId) {
+      const rawAnnotation = queryStates.selectedVariantAnnotation?.data
+      const annotationArray = Array.isArray(rawAnnotation)
+        ? rawAnnotation
+        : rawAnnotation ? [rawAnnotation] : []
+      const annotated = addVariantIdsToList(annotationArray)
+        .map(annotateWorstConsequence) as VariantJoined[]
+      let selected = findVariantById(annotated, variantId)
+
+      // The canonical ID itself is sufficient for an honest positional marker
+      // while annotation data is unavailable; no allele/position fuzzy match.
+      if (!selected) {
+        const parsed = parseVariantLocus(variantId)
+        if (parsed) {
+          selected = {
+            variant_id: variantId,
+            locus: {
+              contig: parsed.contig.startsWith('chr') ? parsed.contig : `chr${parsed.contig}`,
+              position: parsed.position,
+            },
+            pvalue: null,
+            consequence: 'unknown',
+            analysis_id: analysisId,
+            analysis_description: analysisId,
+            ancestry_group: ancestryGroup,
+            sequencing_type: 'selected',
+          } as unknown as VariantJoined
+        }
+      }
+
+      const alreadyPresent = datasets.some((dataset) =>
+        Boolean(findVariantById(dataset.data, variantId))
+      )
+      if (selected && !alreadyPresent) {
+        datasets = [
+          ...datasets,
+          {
+            sequencingType: 'selected',
+            ancestryGroup,
+            analysisId,
+            data: [selected],
+          },
+        ]
+      }
+    }
 
     return datasets
-  }, [geneId, regionId, selectedAnalysesList, analysisId, analysesMetadata, queryStates, ancestryGroup, isLargeRegion, regionOverlay]);
+  }, [regionId, variantId, selectedAnalysesList, analysisId, analysesMetadata, queryStates, ancestryGroup, isLargeRegion, regionOverlay]);
 
   const geneModels = queryStates.geneModels?.data || []
 
@@ -621,6 +661,7 @@ export const LocusPageDataContainer = ({ embedded = false }: { embedded?: boolea
         regionOverlay={regionOverlay}
         isLargeRegion={isLargeRegion}
         embedded={embedded}
+        context={context}
       />
     </>
   )

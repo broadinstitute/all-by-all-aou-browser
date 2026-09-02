@@ -30,7 +30,12 @@ import {
   buildStateUrl,
   commitSemanticNavigation,
   NavigationState,
+  parseNavigationState,
 } from '../navigationUrl';
+import {
+  APP_RETURN_ORIGIN_STATE_KEY,
+  getAppReturnOrigin,
+} from '../focusedReturnPolicy';
 import {
   buildDestinationState,
   getCanonicalNewTabPresentation,
@@ -67,7 +72,16 @@ export function useAppNavigation() {
   const semanticNavigation = useMemo(
     () => ({
       getCurrentHref: () => window.location.href,
-      pushUrl: (url: string) => history.push(routerLocationFromUrl(url)),
+      pushUrl: (url: string) => {
+        const origin = getAppReturnOrigin(
+          parseNavigationState(new URL(window.location.href))
+        );
+        history.push(
+          routerLocationFromUrl(url, {
+            [APP_RETURN_ORIGIN_STATE_KEY]: origin,
+          })
+        );
+      },
     }),
     [history]
   );

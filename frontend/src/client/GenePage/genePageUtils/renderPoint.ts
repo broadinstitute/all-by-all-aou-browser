@@ -3,6 +3,7 @@ import { transparentize } from 'polished'
 import { VariantJoined } from '../../types'
 import { GwasCatalogOption } from '../../variantState'
 import { getCategoryFromConsequence } from '../../vepConsequences'
+import { variantIdsEqual } from '../genomicContext'
 
 interface Margin {
   top: number
@@ -62,7 +63,7 @@ export const renderPoint = ({
     applyStroke = true
   }
 
-  const isExplicitlySelected = selectedVariantId && point.data.variant_id === selectedVariantId;
+  const isExplicitlySelected = selectedVariantId && variantIdsEqual(point.data.variant_id, selectedVariantId);
   const hasAnySelection = !!selectedVariantId;
   const isHovered = activeVariant && point.data.variant_id === activeVariant;
 

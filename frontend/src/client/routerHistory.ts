@@ -4,21 +4,27 @@ export interface RouterLocationDescriptor {
   pathname: string
   search: string
   hash: string
+  state?: unknown
 }
 
 export interface AppRouterHistory {
   push: (location: RouterLocationDescriptor) => void
   replace: (location: RouterLocationDescriptor) => void
   listen: (listener: () => void) => () => void
+  location?: { state?: unknown }
 }
 
 /** Convert an absolute canonical URL into the location shape expected by history@4. */
-export const routerLocationFromUrl = (url: string): RouterLocationDescriptor => {
+export const routerLocationFromUrl = (
+  url: string,
+  state?: unknown
+): RouterLocationDescriptor => {
   const parsed = new URL(url)
   return {
     pathname: parsed.pathname,
     search: parsed.search,
     hash: parsed.hash,
+    ...(state === undefined ? {} : { state }),
   }
 }
 
@@ -29,10 +35,16 @@ export const routerLocationFromUrl = (url: string): RouterLocationDescriptor => 
 export const createRecoilRouterBrowserInterface = (
   history: AppRouterHistory,
   getCurrentHref: () => string = () => window.location.href
-): BrowserInterface => ({
-  getURL: getCurrentHref,
-  replaceURL: (url) => history.replace(routerLocationFromUrl(url)),
-  // Deliberately replace even if a future atom is accidentally marked push.
-  pushURL: (url) => history.replace(routerLocationFromUrl(url)),
-  listenChangeURL: (handler) => history.listen(handler),
-})
+): BrowserInterface => {
+  const replaceProjection = (url: string) =>
+    history.replace(routerLocationFromUrl(url, history.location?.state))
+
+  return {
+    getURL: getCurrentHref,
+    // Preserve semantic origin metadata while atom projections replace URL state.
+    replaceURL: replaceProjection,
+    // Deliberately replace even if a future atom is accidentally marked push.
+    pushURL: replaceProjection,
+    listenChangeURL: (handler) => history.listen(handler),
+  }
+}

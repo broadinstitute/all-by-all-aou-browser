@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { RegionsTrack, RegionViewer, PositionAxisTrack } from '@axaou/ui'
+import { RegionViewer, PositionAxisTrack } from '@axaou/ui'
 import { useRecoilState, useRecoilValue } from 'recoil'
 import styled from 'styled-components'
 import { Button } from '@gnomad/ui' // Ensure Table is imported
@@ -7,10 +7,8 @@ import { QueryState } from '@axaou/ui'
 
 import {
   AncestryGroupCodes,
-  regionIdAtom,
   variantIdAtom,
   locusMafAtom,
-  geneIdAtom,
 } from '../sharedState'
 import { useAppNavigation } from '../hooks/useAppNavigation'
 import { geneMacColumnMode, hasGeneEffectEstimate } from '../geneAssociationSemantics'
@@ -52,6 +50,13 @@ import {
   RegionOverlayResponse,
 } from '../types'
 import GeneResultsTable from '../GeneResults/GeneResultsTable'
+import {
+  findVariantById,
+  GenomicContext,
+  includeSelectedVariant,
+  normalizeVariantId,
+  variantIdsEqual,
+} from './genomicContext'
 
 // Styled Components (unchanged)
 const GenePageGridStyles = styled.div<{ $embedded?: boolean }>`
@@ -380,6 +385,8 @@ type LocusPageLayoutProps = {
   regionOverlay?: RegionOverlayResponse
   /** Whether this is a large region using server-side rendering */
   isLargeRegion?: boolean
+  /** Effective render context; URL provenance remains in Recoil untouched. */
+  context: GenomicContext
   /** Flow within a parent document instead of owning a full-height scroller. */
   embedded?: boolean
 }
@@ -395,6 +402,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   locusPlotData,
   regionOverlay,
   isLargeRegion,
+  context,
   embedded = false,
 }) => {
   const [membershipFilters, setMembershipFilters] = useRecoilState(membershipFiltersAtom)
@@ -405,10 +413,10 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const [sortState, setSortState] = useRecoilState(sortStateAtom)
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
   const gwasCatalogOption = useRecoilValue(gwasCatalogOptionsAtom)
-  const regionId = useRecoilValue(regionIdAtom)
+  const regionId = context.kind === 'locus' ? context.regionId : null
   const [activeTab, setActiveTab] = useState<TableTab>('geneBurden')
   const locusMaf = useRecoilValue(locusMafAtom)
-  const geneId = useRecoilValue(geneIdAtom)
+  const geneId = context.kind === 'gene' ? context.geneId : null
   const { goToGene, goToLocus } = useAppNavigation()
   const regionViewerSlotRef = React.useRef<HTMLDivElement>(null)
   const [regionViewerWidth, setRegionViewerWidth] = React.useState(0)
@@ -439,7 +447,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   const selectedVariantPos = React.useMemo(() => {
     if (!variantId || !variantDatasets) return null
     for (const vds of variantDatasets) {
-      const v = vds.data.find(d => d.variant_id === variantId)
+      const v = findVariantById(vds.data, variantId)
       if (v?.locus?.position) return v.locus.position
     }
     return null
@@ -526,7 +534,8 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
       .filter((vds) => vds.ancestryGroup === ancestryGroup)
       .flatMap((vds) => {
         const effectiveSearchText = variantId ? '' : searchText
-        let filtered = filterVariants(vds.data, { ...filter, searchText: effectiveSearchText }, membershipFilters).map(enrichVariantWithMetadata)
+        const sourceVariants = vds.data.map(enrichVariantWithMetadata)
+        let filtered = filterVariants(sourceVariants, { ...filter, searchText: effectiveSearchText }, membershipFilters)
 
         if (regionId) {
           const { start, stop } = parseRegionId(regionId);
@@ -548,16 +557,17 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
           filtered = filtered.filter((v) => v.gwas_catalog)
         }
 
-        return filtered
+        return includeSelectedVariant(filtered, sourceVariants, variantId)
       })
 
     // Deduplicate across all sequencing types — outer merge can produce
     // the same variant from both exome and genome; prefer the record with association data.
     const seen = new Map<string, VariantJoined>()
     for (const v of allFiltered) {
-      const existing = seen.get(v.variant_id)
+      const identity = normalizeVariantId(v.variant_id)
+      const existing = seen.get(identity)
       if (!existing || (v.pvalue != null && existing.pvalue == null)) {
-        seen.set(v.variant_id, v)
+        seen.set(identity, v)
       }
     }
 
@@ -585,17 +595,24 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
   // can appear in both exome and genome datasets; prefer the one with pvalue.
   const tableDatasets = React.useMemo(() => {
     if (!variantId) return datasets;
-    const allMatches = datasets.flatMap(ds => ds.filter(v => v.variant_id === variantId));
+    const allMatches = datasets.flatMap(ds => ds.filter(v => variantIdsEqual(v.variant_id, variantId)));
     const seen = new Map<string, VariantJoined>();
     for (const v of allMatches) {
-      const existing = seen.get(v.variant_id);
+      const identity = normalizeVariantId(v.variant_id);
+      const existing = seen.get(identity);
       if (!existing || (v.pvalue != null && existing.pvalue == null)) {
-        seen.set(v.variant_id, v);
+        seen.set(identity, v);
       }
     }
     const deduped = Array.from(seen.values());
     return [deduped];
   }, [datasets, variantId]);
+
+  const hasSelectedVariantRow = Boolean(
+    variantId && tableDatasets.some((dataset) =>
+      dataset.some((variant) => variantIdsEqual(variant.variant_id, variantId))
+    )
+  )
 
   const renderTitle = () => {
     if (!regionId) {
@@ -741,7 +758,7 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
         {regionId && (
           <div className="grid-area grid-area-plot-controls">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-              <ZoomRegion />
+              {context.kind === 'locus' && context.source === 'explicit' && <ZoomRegion />}
             </div>
             <LoadingSpinners queryStates={queryStates} />
           </div>
@@ -757,7 +774,13 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
               rightPanelWidth={40}
             >
               <>
-                <LocusPagePlots variantDatasets={datasets} locusPlotData={locusPlotData} regionOverlay={regionOverlay} isLargeRegion={isLargeRegion} />
+                <LocusPagePlots
+                  variantDatasets={datasets}
+                  locusPlotData={locusPlotData}
+                  regionOverlay={regionOverlay}
+                  isLargeRegion={isLargeRegion}
+                  context={context}
+                />
                 {regions && <GenesTrackContainer geneModelsInRegion={geneModels} geneAssociations={geneAssociations} locusMaf={locusMaf} />}
                 <div style={{ height: 8 }} />
                 <PositionAxisTrack />
@@ -773,6 +796,24 @@ const LocusPageLayoutComponent: React.FC<LocusPageLayoutProps> = ({
         )}
 
         <div className="grid-area grid-area-variant-table">
+          {variantId && (
+            <div
+              data-selected-variant-table-row={hasSelectedVariantRow ? variantId : undefined}
+              role="status"
+              style={{
+                marginBottom: 8,
+                padding: '8px 10px',
+                borderLeft: '4px solid #c62828',
+                background: 'var(--theme-surface-alt, #f5f5f5)',
+              }}
+            >
+              {hasSelectedVariantRow ? (
+                <>Selected variant <strong>{variantId}</strong></>
+              ) : (
+                <>Selected variant table data unavailable for <strong>{variantId}</strong></>
+              )}
+            </div>
+          )}
           {regionId ? (
             <>
               <TabContainer>

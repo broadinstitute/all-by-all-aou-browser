@@ -12,6 +12,7 @@ import {
 } from '../sharedState'
 import { ShowControlsButton } from '../UserInterface'
 import { getDetailOptionsLabel, optionPanelContract } from '../browserUiContracts'
+import { resolveGenomicContext } from './genomicContext'
 
 const EmptyState = styled.div`
   display: flex;
@@ -65,7 +66,11 @@ export const LocusPageRoot: React.FC<{ embedded?: boolean }> = ({
   const geneId = useRecoilValue(geneIdAtom)
   const regionId = useRecoilValue(regionIdAtom)
   const variantId = useRecoilValue(variantIdAtom)
-  const optionsLabel = getDetailOptionsLabel({ variantId, regionId })
+  const context = resolveGenomicContext({ variantId, geneId, regionId })
+  const optionsLabel = getDetailOptionsLabel({
+    variantId,
+    regionId: context.kind === 'locus' ? context.regionId : null,
+  })
 
   if (!analysisId) {
     return <EmptyState>Choose a phenotype to see association details.</EmptyState>
@@ -77,8 +82,10 @@ export const LocusPageRoot: React.FC<{ embedded?: boolean }> = ({
 
   return (
     <Container $embedded={embedded} data-locus-layout={embedded ? 'embedded' : 'standalone'}>
-      <LocusPageDataContainer embedded={embedded} />
-      {!hideGeneOptions && <GenePageControls embedded={embedded} />}
+      <LocusPageDataContainer embedded={embedded} context={context} />
+      {!hideGeneOptions && (
+        <GenePageControls embedded={embedded} contextKind={context.kind} />
+      )}
       {hideGeneOptions && (
         <ShowControlsButton
           type="button"

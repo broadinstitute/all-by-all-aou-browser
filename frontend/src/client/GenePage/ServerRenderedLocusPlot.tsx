@@ -78,6 +78,9 @@ interface ServerRenderedLocusPlotProps {
   onClickVariant?: (variant: SignificantHit) => void
   marginTop?: number
   marginBottom?: number
+  selectedVariantId?: string | null
+  selectedVariantPosition?: number | null
+  selectedVariantPvalue?: number | null
 }
 
 export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = ({
@@ -89,6 +92,9 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   onClickVariant,
   marginTop = 0,
   marginBottom = 0,
+  selectedVariantId,
+  selectedVariantPosition,
+  selectedVariantPvalue,
 }) => {
   const { scalePosition, centerPanelWidth } = useContext(RegionViewerContext)
 
@@ -201,6 +207,21 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
   }, [loadedImage, scalePosition, height])
 
   // Map significant hits to display coordinates
+  const selectedMarker = useMemo(() => {
+    if (!selectedVariantId || selectedVariantPosition == null) return null
+    const x = scalePosition(selectedVariantPosition)
+    const matchedHit = regionOverlay?.significant_hits?.find(
+      (hit) => hit.id.replace(/^chr(?=[^-]+-\d+-)/i, '') ===
+        selectedVariantId.replace(/^chr(?=[^-]+-\d+-)/i, '')
+    )
+    const pvalue = matchedHit?.pvalue ?? selectedVariantPvalue
+    const drawablePvalue = pvalue === 0 ? Number.MIN_VALUE : pvalue
+    const y = drawablePvalue != null && regionOverlay?.sidecar
+      ? computeY(drawablePvalue, regionOverlay.sidecar.y_axis, height)
+      : height - 8
+    return { x, y, pvalue }
+  }, [selectedVariantId, selectedVariantPosition, selectedVariantPvalue, scalePosition, regionOverlay, height])
+
   const displayVariants = useMemo(() => {
     if (!regionOverlay?.significant_hits || !regionOverlay?.sidecar) return []
 
@@ -299,7 +320,40 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
             />
           )
         })}
+        {selectedMarker && (
+          <g
+            data-selected-variant-marker={selectedVariantId}
+            aria-label={`Selected variant ${selectedVariantId}`}
+          >
+            <line
+              x1={selectedMarker.x}
+              x2={selectedMarker.x}
+              y1={marginTop}
+              y2={height + marginTop}
+              stroke="#c62828"
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              opacity={0.8}
+            />
+            <circle
+              cx={selectedMarker.x}
+              cy={selectedMarker.y + marginTop}
+              r={9}
+              fill="rgba(255,255,255,0.75)"
+              stroke="#c62828"
+              strokeWidth={4}
+              pointerEvents="none"
+            />
+            <title>{`Selected variant ${selectedVariantId}`}</title>
+          </g>
+        )}
       </OverlaySvg>
+
+      {selectedVariantId && !selectedMarker && (
+        <div role="status" style={{ position: 'absolute', left: 8, bottom: 2, fontSize: 12 }}>
+          Selected variant position unavailable
+        </div>
+      )}
 
       {/* Tooltip */}
       {hoveredHit && (

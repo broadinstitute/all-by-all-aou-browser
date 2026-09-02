@@ -643,10 +643,11 @@ const AlleleFrequencySlider: React.FC = () => {
   )
 }
 
-const AlleleFrequencyLegend: React.FC = () => {
+const AlleleFrequencyLegend: React.FC<{ isRegion?: boolean }> = ({ isRegion }) => {
   const regionId = useRecoilValue(regionIdAtom)
-  const isRegion = regionId !== null && regionId !== undefined
-  const alleleFrequencyScale = getAlleleFrequencyScale(isRegion)
+  const alleleFrequencyScale = getAlleleFrequencyScale(
+    isRegion ?? (regionId !== null && regionId !== undefined)
+  )
 
   const margin = { left: 5, right: 5 }
   const width = 170
@@ -826,11 +827,18 @@ const UnselectVariant: React.FC = () => {
   )
 }
 
-export const GenePageControls = ({ embedded = false }: { embedded?: boolean }) => {
+export const GenePageControls = ({
+  embedded = false,
+  contextKind,
+}: {
+  embedded?: boolean
+  contextKind?: 'gene' | 'locus'
+}) => {
   const variantId = useRecoilValue(variantIdAtom)
   const regionId = useRecoilValue(regionIdAtom)
   const setHideGeneOpts = useSetRecoilState(hideGeneOptsAtom)
-  const optionsLabel = getDetailOptionsLabel({ variantId, regionId })
+  const effectiveRegionId = contextKind === 'gene' ? null : regionId
+  const optionsLabel = getDetailOptionsLabel({ variantId, regionId: effectiveRegionId })
   const hideOptionsLabel = `Hide ${optionsLabel}`
 
   const tableFormat = useRecoilValue(multiAnalysisVariantTableFormatAtom)
@@ -861,7 +869,7 @@ export const GenePageControls = ({ embedded = false }: { embedded?: boolean }) =
         <PvalueLegend />
         {/* <TransparencySlider /> */}
         {/* <AlleleFrequencySlider /> */}
-        <AlleleFrequencyLegend />
+        <AlleleFrequencyLegend isRegion={contextKind === 'locus'} />
         {/* <TableFormatControls /> */}
         <FieldGroupControls />
         <IndividualFieldCheckboxes />

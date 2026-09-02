@@ -20,6 +20,7 @@ import {
   MISSING_ASSOCIATION_RESULT_DESCRIPTION,
   MISSING_ASSOCIATION_RESULT_LABEL,
 } from './geneVariantSemantics'
+import { variantIdsEqual } from './genomicContext'
 
 const PlotWrapper = styled.div`
   display: flex;
@@ -423,7 +424,7 @@ export const LocusPvaluePlot = ({
       .filter(p => {
         // If a variant is explicitly selected, show ONLY its label
         if (selectedVariantId) {
-          return p.data.variant_id === selectedVariantId;
+          return variantIdsEqual(p.data.variant_id, selectedVariantId);
         }
 
         const hasCustomLabel = variantLabels[p.data.variant_id];
@@ -516,7 +517,7 @@ export const LocusPvaluePlot = ({
 
     for (let i = 0; i < points.length; i += 1) {
       const point = points[i];
-      const isExplicitlySelected = selectedVariantId && point.data.variant_id === selectedVariantId;
+      const isExplicitlySelected = selectedVariantId && variantIdsEqual(point.data.variant_id, selectedVariantId);
       const isHovered = activeVariant && point.data.variant_id === activeVariant;
       const isActiveAnalysis = activeAnalysis && activeVariant && point.data.analysis_id === activeAnalysis && point.data.variant_id === activeVariant;
 
@@ -715,6 +716,10 @@ export const LocusPvaluePlot = ({
   return (
     <PlotWrapper>
       <canvas
+        data-selected-variant-highlight={selectedVariantId || undefined}
+        aria-label={selectedVariantId
+          ? `Association plot. Selected variant ${selectedVariantId} is highlighted with a red ring.`
+          : 'Association plot'}
         ref={mainCanvas}
         height={totalHeight * scale}
         width={width * scale}

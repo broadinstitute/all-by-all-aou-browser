@@ -143,7 +143,7 @@ export const getDetailsContextLabel = ({
   const context = [
     analysisId && `phenotype ${analysisId}`,
     geneId && `gene ${geneId}`,
-    regionId && `locus chr${regionId.replace('-', ':')}`,
+    regionId && `locus ${(regionId.startsWith('chr') ? regionId : `chr${regionId}`).replace('-', ':')}`,
     variantId && `variant ${variantId}`,
   ].filter(Boolean)
 

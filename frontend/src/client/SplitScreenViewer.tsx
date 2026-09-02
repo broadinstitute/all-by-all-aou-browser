@@ -23,16 +23,13 @@ import { LocusPageRoot } from './GenePage/LocusPageRoot'
 import LocusPhewas from './GenePage/LocusPhewas'
 import AvailableAnalyses from './PhenotypeList/AvailableAnalyses'
 import {
-  canCompareSideBySide,
   canFitTwoPanes,
-  getBackToResultsLabel,
-  getDetailsContextLabel,
   getResponsiveBrowserShellRenderPolicy,
   getResponsivePagePadding,
   getRetainedSurfaceMounts,
   getRetainedSurfaceVisibility,
 } from './browserShell'
-import { useAppNavigation } from './hooks/useAppNavigation'
+import { FocusedWorkspaceHeader } from './FocusedWorkspaceHeader'
 
 type SurfaceSize = { width: number; height: number }
 
@@ -111,56 +108,6 @@ const FocusedDetails = styled.div`
   min-height: 0;
 `
 
-const FocusedDetailsHeader = styled.nav`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  flex: 0 0 auto;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--theme-border, #ddd);
-  background: var(--theme-surface-alt, #f5f5f5);
-
-  button {
-    padding: 8px 14px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-
-  .back-to-results {
-    border-color: #262262;
-    background: #262262;
-    color: white;
-  }
-
-  .details-context {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--theme-text-muted, #555);
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .compare-surfaces {
-    margin-left: auto;
-  }
-
-  button:focus-visible {
-    outline: 3px solid var(--theme-primary, #4f46e5);
-    outline-offset: 2px;
-  }
-
-  @media (max-width: 600px) {
-    padding: 8px 12px;
-
-    .details-context {
-      order: 3;
-      width: 100%;
-    }
-  }
-`
-
 const FocusedDetailsBody = styled.div`
   flex: 1 1 auto;
   min-width: 0;
@@ -175,8 +122,7 @@ export const DetailsSurface = ({
   focused?: boolean
   width?: number
 }) => {
-  const { analysisId, geneId, regionId, variantId, resultIndex } = useGetActiveItems()
-  const { compareSideBySide, openResultsPane } = useAppNavigation()
+  const { analysisId, geneId, regionId, variantId } = useGetActiveItems()
 
   if (!focused) {
     return (
@@ -186,38 +132,15 @@ export const DetailsSurface = ({
     )
   }
 
-  const showCompare = canCompareSideBySide({
-    width,
-    analysisId,
-    geneId,
-    regionId,
-    variantId,
-  })
-
   return (
     <FocusedDetails data-browser-surface="details">
-      <FocusedDetailsHeader aria-label="Details navigation">
-        <button
-          type="button"
-          className="back-to-results"
-          onClick={openResultsPane}
-          title="Return to the results page you came from"
-        >
-          ← {getBackToResultsLabel(resultIndex)}
-        </button>
-        <div className="details-context" aria-live="polite">
-          {getDetailsContextLabel({ analysisId, geneId, regionId, variantId })}
-        </div>
-        {showCompare && (
-          <button
-            type="button"
-            className="compare-surfaces"
-            onClick={compareSideBySide}
-          >
-            Compare side by side
-          </button>
-        )}
-      </FocusedDetailsHeader>
+      <FocusedWorkspaceHeader
+        analysisId={analysisId}
+        geneId={geneId}
+        regionId={regionId}
+        variantId={variantId}
+        width={width}
+      />
       <FocusedDetailsBody>
         <LocusPageRoot />
       </FocusedDetailsBody>
@@ -271,7 +194,7 @@ const ResizableItems = withSize({
     const experienceMode = useRecoilValue(experienceModeAtom)
     const activeSurface = useRecoilValue(activeSurfaceAtom)
     const resultsLayout = useRecoilValue(resultLayoutAtom)
-    const { variantId } = useGetActiveItems()
+    const { analysisId, geneId, regionId, variantId } = useGetActiveItems()
 
     const measuredWidth = Number.isFinite(size?.width) ? size?.width : undefined
     const setBrowserContainerWidth = useSetRecoilState(browserContainerWidthAtom)
@@ -314,6 +237,13 @@ const ResizableItems = withSize({
           data-pane-render-mode="stacked-variant"
           data-responsive-layout="single-document"
         >
+          <FocusedWorkspaceHeader
+            analysisId={analysisId}
+            geneId={geneId}
+            regionId={regionId}
+            variantId={variantId}
+            width={measuredWidth}
+          />
           <FocusedVariantContent $padding={pagePadding}>
             <VariantPhewas layout="composed" size={resultsSurfaceSize} />
             <GenomicContextSection

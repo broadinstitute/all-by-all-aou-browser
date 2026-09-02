@@ -30,7 +30,6 @@ import { useState } from 'react'
 import {
   analysisIdAtom,
   ancestryGroupAtom,
-  regionIdAtom,
   selectedAnalysesColorsSelector,
   variantIdAtom,
 } from '../sharedState'
@@ -41,6 +40,10 @@ import { variantGreenThreshold } from '../PhenotypeList/Utils'
 import { createLogLogScaleY } from './logLogScale'
 import { associationNegLog10P, hasAssociationPvalue } from './geneVariantSemantics'
 import { axaouDevUrl } from '../Query'
+import {
+  GenomicContext,
+  resolveSelectedVariantMarker,
+} from './genomicContext'
 
 export const consequenceCategoryColors = {
   lof: 'rgb(255, 88, 63)',
@@ -193,6 +196,7 @@ type AssociationsInGeneProps = {
   regionOverlay?: RegionOverlayResponse
   /** Whether this is a large region using server-side rendering */
   isLargeRegion?: boolean
+  context: GenomicContext
 }
 
 const onVariantHoverLabel =
@@ -288,13 +292,13 @@ const ServerPlotYAxis: React.FC<{ height: number; width: number }> = ({ height, 
   )
 }
 
-export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, isLargeRegion }: AssociationsInGeneProps) => {
-  const regionId = useRecoilValue(regionIdAtom)
+export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, isLargeRegion, context }: AssociationsInGeneProps) => {
+  const regionId = context.kind === 'locus' ? context.regionId : null
   const variantId = useRecoilValue(variantIdAtom)
   const analysisId = useRecoilValue(analysisIdAtom)
   const ancestryGroup = useRecoilValue(ancestryGroupAtom)
 
-  const isRegion = regionId !== undefined && regionId !== null
+  const isRegion = context.kind === 'locus'
 
   const alleleFrequencyScale = getAlleleFrequencyScale(isRegion)
 
@@ -363,6 +367,15 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
   }
 
   const variantsAll = variantDatasets.flatMap((v) => v)
+  const selectedMarkerPolicy = resolveSelectedVariantMarker({
+    variants: variantsAll,
+    selectedVariantId: variantId,
+    isLargeRegion: Boolean(isLargeRegion),
+  })
+  const selectedVariant =
+    selectedMarkerPolicy.kind === 'marker' ? selectedMarkerPolicy.variant : null
+  const selectedVariantPosition =
+    selectedMarkerPolicy.kind === 'marker' ? selectedMarkerPolicy.position : null
 
   React.useEffect(() => {
     if (!enableVariantLabels) {
@@ -509,6 +522,9 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 onClickVariant={onPngVariantClick}
                 marginTop={SERVER_PLOT_MARGIN.top}
                 marginBottom={SERVER_PLOT_MARGIN.bottom}
+                selectedVariantId={variantId}
+                selectedVariantPosition={selectedVariantPosition}
+                selectedVariantPvalue={selectedVariant?.pvalue ?? null}
               />
               <div style={{ width: rightPanelWidth, flexShrink: 0 }} />
             </>
@@ -554,6 +570,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 activeAnalysis={undefined}
                 activeVariant={hoveredVariant}
                 selectedVariantId={variantId}
+                selectedVariant={selectedVariant ?? null}
                 betaScale={betaScale}
                 alleleFrequencyScale={alleleFrequencyScale}
                 transparency={transparency}

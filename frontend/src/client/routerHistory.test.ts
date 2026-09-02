@@ -29,6 +29,27 @@ test('recoil URL writes can only replace the current Router visit', () => {
   ])
 })
 
+test('recoil URL projections retain semantic return-origin history state', () => {
+  const locations: unknown[] = []
+  const originState = { __axaouReturnOrigin: 'phenotype-results' }
+  const history = {
+    location: { state: originState },
+    push: (_location: unknown) => undefined,
+    replace: (location: unknown) => locations.push(location),
+    listen: (_listener: () => void) => () => undefined,
+  }
+  const browser = createRecoilRouterBrowserInterface(history)
+
+  browser.replaceURL?.('https://example.org/app?state=%7B%7D')
+
+  assert.deepEqual(locations, [{
+    pathname: '/app',
+    search: '?state=%7B%7D',
+    hash: '',
+    state: originState,
+  }])
+})
+
 test('all shared URL atoms are replace-only so lazy defaults cannot create visits', () => {
   const source = readFileSync(join(__dirname, 'sharedState.ts'), 'utf8')
   assert.equal(source.includes("history: 'push'"), false)
