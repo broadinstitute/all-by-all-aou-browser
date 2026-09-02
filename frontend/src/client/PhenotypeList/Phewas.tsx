@@ -50,6 +50,7 @@ import { ShowControlsButton } from '../UserInterface'
 import { mobileControlContract, optionPanelContract } from '../browserUiContracts'
 import {
   filterToComparedPhenotypes,
+  getPhewasEmptyStateMessage,
   resolvePhewasControlsOpen,
   selectPhewasExportRows,
   shouldShowComparedOnly,
@@ -916,9 +917,12 @@ const Phewas = ({
                 phenotypes={displayTablePhenotypes}
                 numRowsRendered={tableLayoutPolicy.numRowsRendered}
                 emptyStateHeight={tableLayoutPolicy.emptyStateHeight}
-                emptyStateMessage={
-                  layoutMode === 'document' ? 'No associations found' : 'No phenotypes found'
-                }
+                emptyStateMessage={getPhewasEmptyStateMessage({
+                  unfilteredAssociationCount: uniquePhenotypes.length,
+                  displayedAssociationCount: displayTablePhenotypes.length,
+                  fallbackMessage:
+                    layoutMode === 'document' ? 'No associations found' : 'No phenotypes found',
+                })}
               />
               <div className='buttons'>
                 <ExportDataButton

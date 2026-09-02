@@ -10,6 +10,10 @@ import styled from 'styled-components'
 import { getPhenotypeColumns } from '../PhenotypeList/PhenotypeTable'
 import { modifyCategoryColor } from '../PhenotypeList/phenotypeUtils'
 import Phewas from '../PhenotypeList/Phewas'
+import {
+  shouldRenderVariantPhewas,
+  VARIANT_ASSOCIATION_EMPTY_MESSAGE,
+} from '../PhenotypeList/phewasDisplay'
 import { getVariantPhewasLayoutMode } from '../PhenotypeList/phewasLayout'
 import { axaouDevUrl, cacheEnabled, pouchDbName } from '../Query'
 import {
@@ -58,6 +62,19 @@ const VariantAssociationsSection = styled.section`
 const VariantAssociationCount = styled.p`
   width: 100%;
   font-size: 14px;
+`
+
+const EmptyAssociationsCallout = styled.p`
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid ${(props) => props.theme.border};
+  border-radius: 4px;
+  background: ${(props) => props.theme.surfaceAlt};
+  color: ${(props) => props.theme.textMuted};
+  font-size: 14px;
+  line-height: 1.4;
 `
 
 const VariantInfoWrapper = styled.div`
@@ -483,6 +500,7 @@ const ConnectedVariantPhewas = ({
     setHoveredVariant(variantId)
   }
 
+  const hasUnfilteredAssociations = shouldRenderVariantPhewas(variantAssociations.data.length)
   const associationCount = (
     <>
       {uniquePhenotypes && uniquePhenotypes.length} single variant associations with{' '}
@@ -509,25 +527,35 @@ const ConnectedVariantPhewas = ({
         {layout === 'composed' ? (
           <>
             <h2 id="variant-associations-heading">Variant associations</h2>
-            <VariantAssociationCount>{associationCount}</VariantAssociationCount>
+            {hasUnfilteredAssociations && (
+              <VariantAssociationCount>{associationCount}</VariantAssociationCount>
+            )}
           </>
         ) : (
-          <h3 className="app-section-title variant-phewas">{associationCount}</h3>
+          <h3 className="app-section-title variant-phewas">
+            {hasUnfilteredAssociations ? associationCount : 'Variant associations'}
+          </h3>
         )}
-        <Phewas
-          uniquePhenotypes={uniquePhenotypes}
-          categories={categoriesPrepared}
-          burdenSet={burdenSet}
-          setBurdenSet={setBurdenSet}
-          availableAncestries={[]}
-          columns={phenotypesInVariantColumns}
-          onPointClick={onPointClick}
-          onHoverAnalysis={onHoverAnalysis}
-          exportFileName={`variant-phewas-exomes_${variantId}`}
-          phewasType="variant"
-          layoutMode={getVariantPhewasLayoutMode(layout)}
-          size={size}
-        />
+        {hasUnfilteredAssociations ? (
+          <Phewas
+            uniquePhenotypes={uniquePhenotypes}
+            categories={categoriesPrepared}
+            burdenSet={burdenSet}
+            setBurdenSet={setBurdenSet}
+            availableAncestries={[]}
+            columns={phenotypesInVariantColumns}
+            onPointClick={onPointClick}
+            onHoverAnalysis={onHoverAnalysis}
+            exportFileName={`variant-phewas-exomes_${variantId}`}
+            phewasType="variant"
+            layoutMode={getVariantPhewasLayoutMode(layout)}
+            size={size}
+          />
+        ) : (
+          <EmptyAssociationsCallout role="status">
+            {VARIANT_ASSOCIATION_EMPTY_MESSAGE}
+          </EmptyAssociationsCallout>
+        )}
       </VariantAssociationsSection>
       {/* {warnings} */}
     </Container>
