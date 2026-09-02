@@ -36,7 +36,7 @@ import {
 import { useAppNavigation } from '../hooks/useAppNavigation'
 
 import { interpolateRdBu, interpolateGreens } from 'd3-scale-chromatic'
-import { variantGreenThreshold } from '../PhenotypeList/Utils'
+import { VARIANT_ASSOCIATION_INCLUSION_PVALUE } from '../PhenotypeList/phewasDisplay'
 import { createLogLogScaleY } from './logLogScale'
 import { associationNegLog10P, hasAssociationPvalue } from './geneVariantSemantics'
 import { axaouDevUrl } from '../Query'
@@ -583,7 +583,7 @@ export const LocusPagePlots = ({ variantDatasets, locusPlotData, regionOverlay, 
                 pointColor={variantColor(multiAnalysisColorBy, logLogScale, analysesColors)}
                 applyStroke={!isRegion}
                 onClickPoint={onClickVariant}
-                thresholds={[{ color: 'gainsboro', value: variantGreenThreshold, label: '' }]}
+                thresholds={[{ color: 'gainsboro', value: VARIANT_ASSOCIATION_INCLUSION_PVALUE, label: '' }]}
                 pointLabel={onVariantHoverLabel({
                   showAnalysisDescription: variantDatasets.length === 1 ? false : true,
                 })}

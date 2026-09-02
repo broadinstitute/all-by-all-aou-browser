@@ -17,8 +17,10 @@ import {
   MAC_TOTAL_TOOLTIP,
 } from '../PhenotypeList/Utils'
 import { GeneAssociations, AnalysisMetadata } from '../types'
+import { MembershipFilterOptions } from '../variantState'
 import { LocusGeneContextMenu } from '../Manhattan/components/LocusGeneContextMenu'
 import { geneMacColumnMode } from '../geneAssociationSemantics'
+import { isBurdenAnnotationSelected, setBurdenAnnotationSelected } from './burdenMembershipFilters'
 
 const Table = styled(BaseTable)`
   min-width: 325px;
@@ -55,8 +57,8 @@ export const prepareAllMafTableData = (geneAssociations: GeneAssociations[]) => 
 interface Props {
   geneAssociations: GeneAssociations[]
   analysisMetadata?: AnalysisMetadata
-  membershipFilters?: any
-  setMembershipFilters?: any
+  membershipFilters?: MembershipFilterOptions
+  setMembershipFilters?: (filters: MembershipFilterOptions) => void
 }
 
 const allGeneQcPass = true // TODO: fix me
@@ -207,11 +209,13 @@ export const GeneBurdenTable = ({
                 <td>
                   <Checkbox
                     label=''
-                    checked={membershipFilters[row.annotation] || false}
+                    checked={isBurdenAnnotationSelected(row.annotation, membershipFilters)}
                     id={`${row.annotation}-${row.max_maf}-membership`}
                     disabled={false}
                     onChange={(checked: boolean) => {
-                      setMembershipFilters({ ...membershipFilters, [row.annotation]: checked })
+                      setMembershipFilters?.(
+                        setBurdenAnnotationSelected(row.annotation, checked, membershipFilters)
+                      )
                     }}
                   />
                 </td>

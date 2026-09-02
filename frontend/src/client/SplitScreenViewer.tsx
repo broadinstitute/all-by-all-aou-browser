@@ -30,6 +30,7 @@ import {
   getRetainedSurfaceVisibility,
 } from './browserShell'
 import { FocusedWorkspaceHeader } from './FocusedWorkspaceHeader'
+import { useBrowserSurfaceScrollRestoration } from './browserSurfaceScrollRestoration'
 
 type SurfaceSize = { width: number; height: number }
 
@@ -198,6 +199,7 @@ const ResizableItems = withSize({
 
     const measuredWidth = Number.isFinite(size?.width) ? size?.width : undefined
     const setBrowserContainerWidth = useSetRecoilState(browserContainerWidthAtom)
+    const resultsScrollRef = useBrowserSurfaceScrollRestoration<HTMLElement>()
 
     useEffect(() => {
       setBrowserContainerWidth(measuredWidth ?? null)
@@ -231,6 +233,7 @@ const ResizableItems = withSize({
     if (renderPolicy.kind === 'stacked-variant') {
       return (
         <FocusedVariantDocument
+          ref={resultsScrollRef}
           aria-labelledby="focused-variant-title"
           data-browser-experience="focused"
           data-focused-variant-workspace="stacked"
@@ -269,6 +272,7 @@ const ResizableItems = withSize({
 
       return (
         <div
+          ref={resultsScrollRef}
           data-browser-experience={experienceMode === 'focused' ? 'focused' : 'side-by-side'}
           data-responsive-layout="single-surface"
           data-pane-render-mode={shellRenderMode}
@@ -307,6 +311,7 @@ const ResizableItems = withSize({
     if (shellRenderMode === 'results-only') {
       return (
         <div
+          ref={resultsScrollRef}
           data-browser-experience="side-by-side"
           data-pane-render-mode="results-only"
           data-responsive-layout="wide"
@@ -358,7 +363,7 @@ const ResizableItems = withSize({
           }}
         >
           <div className="resizable-grid-item1">
-            <div className="resizable-inner-container">
+            <div ref={resultsScrollRef} className="resizable-inner-container">
               <ResultsSurface size={leftPanelSize} />
             </div>
           </div>

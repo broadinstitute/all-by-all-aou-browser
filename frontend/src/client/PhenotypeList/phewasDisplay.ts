@@ -1,19 +1,15 @@
 export type PhewasType = 'gene' | 'variant' | 'topHit' | 'locus'
 
 /**
- * The significant-variant cutoff is runtime pipeline configuration and is not
- * exposed by the variant PheWAS endpoint. Do not duplicate the checked-in
- * config's 5e-8 setting here: other ingests can use a different strict cutoff.
- *
- * Sources: genohype/cli/src/manhattan/config.rs (configurable threshold),
- * genohype/cli/src/distributed/worker/handlers/manhattan.rs (strict `<`), and
- * axaou-server/src/variants/phewas.rs (row-only API response).
+ * The loaded AoU dataset uses the strict significant-variant cutoff configured
+ * by `threshold = 5e-8` in axaou-server/phenotype-data.toml.
  */
 export const VARIANT_ASSOCIATION_THRESHOLD_SOURCE =
-  'dataset-configured-strict-cutoff-not-exposed-by-api' as const
+  'axaou-server/phenotype-data.toml:threshold=5e-8' as const
+export const VARIANT_ASSOCIATION_INCLUSION_PVALUE = 5e-8
 
 export const VARIANT_ASSOCIATION_EMPTY_MESSAGE =
-  'No variant associations were found below the data pipeline’s configured inclusion p-value threshold. This absence of loaded associations does not establish that the variant has no effect.'
+  'No variant associations were found with p < 5 × 10⁻⁸.'
 
 /** Collapse Variant PheWAS only when the unfiltered API result itself is empty. */
 export const shouldRenderVariantPhewas = (unfilteredAssociationCount: number): boolean =>

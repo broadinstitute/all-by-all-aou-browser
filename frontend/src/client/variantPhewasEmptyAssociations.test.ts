@@ -7,11 +7,16 @@ import {
   getPhewasEmptyStateMessage,
   shouldRenderVariantPhewas,
   VARIANT_ASSOCIATION_EMPTY_MESSAGE,
+  VARIANT_ASSOCIATION_INCLUSION_PVALUE,
   VARIANT_ASSOCIATION_THRESHOLD_SOURCE,
 } from './PhenotypeList/phewasDisplay'
 
 const variantPhewasSource = readFileSync(
   join(__dirname, 'VariantPage/VariantPhewas.tsx'),
+  'utf8'
+)
+const locusPagePlotsSource = readFileSync(
+  join(__dirname, 'GenePage/LocusPagePlots.tsx'),
   'utf8'
 )
 
@@ -46,21 +51,30 @@ test('filtered-to-zero remains distinct and tells the user filters hid API rows'
   )
 })
 
-test('cutoff source contract is strict and does not fabricate unavailable API metadata', () => {
+test('empty state reports the exact strict cutoff from the AoU pipeline config', () => {
   assert.equal(
     VARIANT_ASSOCIATION_THRESHOLD_SOURCE,
-    'dataset-configured-strict-cutoff-not-exposed-by-api'
+    'axaou-server/phenotype-data.toml:threshold=5e-8'
   )
-  assert.match(VARIANT_ASSOCIATION_EMPTY_MESSAGE, /below the data pipeline’s configured inclusion p-value threshold/)
-  assert.doesNotMatch(VARIANT_ASSOCIATION_EMPTY_MESSAGE, /5\s*(?:e|×\s*10)[−-]?8/i)
+  assert.equal(VARIANT_ASSOCIATION_INCLUSION_PVALUE, 5e-8)
+  assert.equal(
+    VARIANT_ASSOCIATION_EMPTY_MESSAGE,
+    'No variant associations were found with p < 5 × 10⁻⁸.'
+  )
 })
 
-test('compact empty callout is accessible and uses non-causal wording', () => {
+test('interactive region plot uses the loaded-association inclusion threshold', () => {
+  assert.match(
+    locusPagePlotsSource,
+    /thresholds=\{\[\{ color: 'gainsboro', value: VARIANT_ASSOCIATION_INCLUSION_PVALUE, label: '' \}\]\}/
+  )
+})
+
+test('compact empty callout remains accessible', () => {
   assert.match(variantPhewasSource, /const EmptyAssociationsCallout = styled\.p/)
   assert.match(variantPhewasSource, /margin: 4px 0 12px;/)
   assert.match(variantPhewasSource, /padding: 10px 12px;/)
   assert.match(variantPhewasSource, /<EmptyAssociationsCallout role="status">/)
-  assert.match(VARIANT_ASSOCIATION_EMPTY_MESSAGE, /does not establish that the variant has no effect/)
 })
 
 test('nonempty variant associations retain the existing PheWAS behavior', () => {
