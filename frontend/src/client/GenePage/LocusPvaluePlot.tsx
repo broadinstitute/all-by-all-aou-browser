@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import styled, { useTheme } from 'styled-components'
 
 import type { VariantJoined } from '../types'
+import { getVariantInteractionCursor } from '@axaou/ui'
 
 import { createLogLogScaleY } from './logLogScale'
 
@@ -332,7 +333,7 @@ export const LocusPvaluePlot = ({
   width = 1100,
   alleleFrequencyScale,
   betaScale,
-  onClickPoint = (d) => console.log(JSON.stringify(d)),
+  onClickPoint,
   pointColor = () => '#383838',
   pointLabel = (d) => {
     let variantLabel = 'FIXME'
@@ -696,7 +697,7 @@ export const LocusPvaluePlot = ({
     const clickY = event.clientY - bounds.top - margin.top
 
     const point = findNearestPoint(clickX, clickY)
-    if (point) {
+    if (point && onClickPoint) {
       onClickPoint(point.data)
     }
   }
@@ -726,7 +727,8 @@ export const LocusPvaluePlot = ({
         style={{
           height: `${totalHeight}px`,
           width: `${width}px`,
-          display: 'block'
+          display: 'block',
+          cursor: getVariantInteractionCursor(Boolean(hoveredHit), Boolean(onClickPoint))
         }}
         onClick={onClick}
         onContextMenu={onContextMenu}

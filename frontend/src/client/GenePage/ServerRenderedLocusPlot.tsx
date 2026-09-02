@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import styled from 'styled-components'
 import { scaleLinear } from 'd3-scale'
-import { RegionViewerContext, TRACK_EDGE_PADDING } from '@axaou/ui'
+import { getVariantInteractionCursor, RegionViewerContext, TRACK_EDGE_PADDING } from '@axaou/ui'
 import type { SignificantHit } from '@axaou/ui'
 import { axaouDevUrl } from '../Query'
 import type { RegionOverlayResponse, LocusPlotYAxisConfig } from '../types'
@@ -300,7 +300,11 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
-        style={{ top: 0 }}
+        data-hovered-variant={hoveredHit?.id || undefined}
+        style={{
+          top: 0,
+          cursor: getVariantInteractionCursor(Boolean(hoveredHit), Boolean(onClickVariant), 'crosshair'),
+        }}
       >
         {displayVariants.map((v) => {
           const isHovered = hoveredHit?.id === v.id
@@ -316,8 +320,13 @@ export const ServerRenderedLocusPlot: React.FC<ServerRenderedLocusPlotProps> = (
               fill={color}
               stroke={isHovered ? '#333' : 'none'}
               strokeWidth={isHovered ? 2 : 0}
-              style={{ cursor: 'pointer', opacity: 0.7 }}
-            />
+              style={{
+                cursor: getVariantInteractionCursor(true, Boolean(onClickVariant), 'crosshair'),
+                opacity: 0.7,
+              }}
+            >
+              <title>{onClickVariant ? `Open variant ${v.id}` : `Variant ${v.id}`}</title>
+            </circle>
           )
         })}
         {selectedMarker && (

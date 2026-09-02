@@ -3,6 +3,7 @@ export type { QueryState } from './useQuery';
 export { getQueryCacheDatabase, destroyQueryCacheDatabase } from './queryCache';
 
 export {
+  getVariantInteractionCursor,
   LocusPlotTrack,
   RegionViewer,
   PositionAxisTrack,
@@ -17,6 +18,7 @@ export type {
   YAxisConfig,
   ImageDimensions,
   SignificantHit,
+  VariantPlotFallbackCursor,
 } from './RegionViewer';
 
 export { Grid } from './Grid/Grid';

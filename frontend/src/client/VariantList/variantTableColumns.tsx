@@ -440,7 +440,7 @@ export const getVariantColumns = ({
         const { goToVariant } = useAppNavigation()
 
         return (
-          <Link>
+          <Link style={{ cursor: 'pointer' }} title={`Open variant ${row.variant_id}`}>
             <Highlighter
               className='grid-cell-content'
               searchWords={highlightWords}
@@ -468,7 +468,7 @@ export const getVariantColumns = ({
         const { goToVariant } = useAppNavigation()
 
         return (
-          <Link>
+          <Link style={{ cursor: 'pointer' }} title={`Open variant ${row.variant_id}`}>
             <Highlighter
               className='grid-cell-content'
               searchWords={highlightWords}

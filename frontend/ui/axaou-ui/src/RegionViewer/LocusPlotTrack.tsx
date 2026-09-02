@@ -2,6 +2,7 @@ import React, { useContext, useState, useCallback, useMemo, useRef, useEffect } 
 import styled from "styled-components";
 import { scaleLinear } from "d3-scale";
 import { RegionViewerContext } from "./RegionViewer";
+import { getVariantInteractionCursor } from "./variantInteractionCursor";
 
 // =============================================================================
 // Types
@@ -386,7 +387,11 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
         <OverlaySvg
           width={imgWidth}
           height={height}
-          style={{ left: imgLeft }}
+          data-hovered-variant={hoveredVariant?.id || undefined}
+          style={{
+            left: imgLeft,
+            cursor: getVariantInteractionCursor(Boolean(hoveredVariant), Boolean(onClickVariant), "crosshair"),
+          }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
@@ -403,8 +408,12 @@ export const LocusPlotTrack: React.FC<LocusPlotTrackProps> = ({
                 fill={isHovered ? "#ff6b6b" : "rgba(220, 53, 69, 0.6)"}
                 stroke={isHovered ? "#c92a2a" : "none"}
                 strokeWidth={isHovered ? 2 : 0}
-                style={{ cursor: "pointer" }}
-              />
+                style={{
+                  cursor: getVariantInteractionCursor(true, Boolean(onClickVariant), "crosshair"),
+                }}
+              >
+                <title>{onClickVariant ? `Open variant ${v.id}` : `Variant ${v.id}`}</title>
+              </circle>
             );
           })}
         </OverlaySvg>

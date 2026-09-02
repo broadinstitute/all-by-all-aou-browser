@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import styled, { useTheme } from 'styled-components'
 
-import { VariantPlotProps } from './GenePagePlots'
+import { getVariantInteractionCursor } from '@axaou/ui'
+import { VariantPlotProps } from './LocusPagePlots'
 
 import { renderPoint } from './genePageUtils/renderPoint'
 
@@ -22,7 +23,7 @@ export const GenePageFreqVariantTrack = ({
   rightPanelWidth,
   height = 400,
   width = 1100,
-  onClickPoint = (d) => console.log(JSON.stringify(d)),
+  onClickPoint,
   pointColor = () => '#383838',
   pointLabel = (d) => {
     let variantLabel = 'FIXME'
@@ -144,6 +145,12 @@ export const GenePageFreqVariantTrack = ({
     const nearestPoint = findNearestPoint(x, y)
 
     drawPlot()
+    if (mainCanvas.current) {
+      mainCanvas.current.style.cursor = getVariantInteractionCursor(
+        Boolean(nearestPoint),
+        Boolean(onClickPoint)
+      )
+    }
 
     if (nearestPoint) {
       const canvas = mainCanvas.current
@@ -189,8 +196,15 @@ export const GenePageFreqVariantTrack = ({
     const clickY = event.clientY - bounds.top - margin.top
 
     const point = findNearestPoint(clickX, clickY)
-    if (point) {
+    if (point && onClickPoint) {
       onClickPoint(point.data)
+    }
+  }
+
+  const onMouseLeave = () => {
+    drawPlot()
+    if (mainCanvas.current) {
+      mainCanvas.current.style.cursor = getVariantInteractionCursor(false, Boolean(onClickPoint))
     }
   }
 
@@ -203,9 +217,10 @@ export const GenePageFreqVariantTrack = ({
         style={{
           height: `${height}px`,
           width: `${width + leftPanelWidth}px`,
+          cursor: getVariantInteractionCursor(false, Boolean(onClickPoint)),
         }}
         onClick={onClick}
-        onMouseLeave={drawPlot}
+        onMouseLeave={onMouseLeave}
         onMouseMove={onMouseMove}
       />
     </PlotWrapper>
