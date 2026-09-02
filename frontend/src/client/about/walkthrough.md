@@ -89,7 +89,7 @@ META gene results combine ancestry-specific burden tests using a weighted Stouff
 * <span style="color:#6b7280">■</span> **zero direction**
 * **—** direction unavailable
 
-The symbols use both shape and color and include explanatory hover text. Positive and negative describe the sign of `META_Stats_Burden`; they do **not** by themselves mean increased risk, protection, or a particular effect magnitude. Use the corresponding burden p-value to assess statistical evidence. Ancestry-specific views continue to show genuine burden beta estimates where available.
+The symbols use both shape and color and include explanatory hover text. Positive and negative describe the sign of `META_Stats_Burden`; they do **not** by themselves mean increased risk, protection, or a particular effect magnitude. Use the corresponding burden p-value to assess statistical evidence.
 
 <img src="/SVG/6-walkthrough-heatmap@4x.png" />
 
